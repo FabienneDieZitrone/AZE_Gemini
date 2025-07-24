@@ -1,0 +1,18 @@
+# Visual Studio user files
+*.user
+*.suo
+
+# Build results
+**/bin/
+**/obj/
+
+# VSCode settings
+.vscode/
+obj/
+bin/
+*.user
+*.suo
+*.cache
+*.AssemblyInfo.cs
+
+.vs/
