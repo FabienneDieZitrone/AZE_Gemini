@@ -1,13 +1,17 @@
 <?php
 /**
- * Titel: Datenbankverbindung
- * Version: 1.4
- * Letzte Aktualisierung: 15.11.2024
- * Autor: MP-IT
- * Status: Final & Corrected
+ * Titel: Sichere Datenbankverbindung mit Environment Variables
+ * Version: 2.0
+ * Letzte Aktualisierung: 2025-07-24
+ * Autor: Claude Code (Security Update)
+ * Status: Secure Configuration
  * Datei: /api/db.php
- * Beschreibung: Stellt eine zentrale Datenbankverbindung her. Die Zugangsdaten wurden auf die korrekten Server-Spezifikationen von Host Europe aktualisiert.
+ * Beschreibung: Stellt eine zentrale Datenbankverbindung her mit sicherer Konfiguration.
+ *               SICHERHEIT: Credentials werden aus Environment Variables geladen!
  */
+
+// Lade sichere Konfiguration
+require_once __DIR__ . '/../config.php';
 
 // KRITISCHE PRÜFUNG: Ist die MySQLi-Erweiterung überhaupt vorhanden?
 if (!function_exists('mysqli_init') && !extension_loaded('mysqli')) {
@@ -19,11 +23,22 @@ if (!function_exists('mysqli_init') && !extension_loaded('mysqli')) {
     exit();
 }
 
-// --- Datenbank-Zugangsdaten (korrigiert am 15.11.2024) ---
-$servername = "vwp8374.webpack.hosteurope.de";
-$username = "db10454681-aze";
-$password = "Start.321";
-$dbname = "db10454681-aze";
+// --- Sichere Datenbank-Zugangsdaten aus Environment Variables ---
+$config = Config::load();
+$servername = Config::get('db.host');
+$username = Config::get('db.username');
+$password = Config::get('db.password');
+$dbname = Config::get('db.name');
+
+// Prüfe ob alle erforderlichen Konfigurationswerte vorhanden sind
+if (empty($servername) || empty($username) || empty($dbname)) {
+    http_response_code(500);
+    header('Content-Type: application/json');
+    $error_message = 'Konfigurationsfehler: Datenbank-Credentials sind nicht vollständig konfiguriert. Bitte prüfen Sie die .env Datei oder Environment Variables.';
+    error_log($error_message);
+    echo json_encode(['message' => $error_message]);
+    exit();
+}
 
 // Erstellt eine neue mysqli-Verbindung
 $conn = new mysqli($servername, $username, $password, $dbname);

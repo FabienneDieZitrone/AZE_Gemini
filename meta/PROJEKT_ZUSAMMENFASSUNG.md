@@ -38,30 +38,42 @@ Für die ersten 5 kritischen Schritte wurden ausführliche Prompts erstellt:
 
 ## Aktueller Status
 
-**Phase**: Projektinitialisierung
-**Nächster Schritt**: 1.1 - Projekt-Setup und Verzeichnisstruktur
-**Status**: Bereit zur Implementierung
+**WICHTIGER HINWEIS**: Die ursprüngliche .NET Windows Forms Planung wurde durch eine React/PHP Web-Anwendung ersetzt!
+
+**Tatsächlicher Status**:
+- **Phase**: Implementierung abgeschlossen (Beta v0.5)
+- **Technologie**: React 18 + TypeScript + PHP + MySQL (NICHT .NET!)
+- **Standort**: `/app/build/` (funktionsfähige Web-App)
+- **Status**: Beta-Version läuft, weitere Entwicklung möglich
+
+**Kritische Erkenntnis**: Die Dokumentation in diesem Ordner beschreibt ein nicht existierendes .NET Projekt. Die echte Anwendung ist eine Web-App in `/app/build/`!
 
 ## Wie geht es weiter?
 
-### Option 1: Direkte Fortsetzung
+### ✅ Web-App Weiterentwicklung (EMPFOHLEN)
 ```bash
-# In neuem Chat:
-# 1. Diese Zusammenfassung übergeben
-# 2. ZENTRALE_ANWEISUNGSDATEI.md aus /app/AZE/ übergeben
-# 3. Prompt aus /app/AZE/Prompts/Schritt_1_1_Projekt_Setup.md ausführen
+# Entwicklung der existierenden Web-App:
+cd /app/build
+npm install
+npm run dev
+
+# Backend APIs erweitern
+# Frontend Features hinzufügen
+# Datenbank-Schema aktualisieren
 ```
 
-### Option 2: Schnellstart
-```
-Aufgabe: Erstelle die Projektstruktur für die Arbeitszeiterfassung gemäß Schritt 1.1
-Kontext: Verwende die Informationen aus ZENTRALE_ANWEISUNGSDATEI.md im AZE-Verzeichnis
-Technologie: .NET 8.0, C# 12.0, Windows Forms
-```
+### ⚠️ .NET Migration (NUR falls gewünscht)
+Falls eine Migration zur ursprünglich geplanten .NET Anwendung gewünscht ist:
+1. Analysiere die vorhandene Web-App Funktionalität
+2. Portiere Business Logic zu C#/.NET
+3. Erstelle Windows Forms UI basierend auf React Komponenten
+4. Migriere PHP APIs zu .NET Web API
 
-### Option 3: Spezifischen Schritt ausführen
-Wähle einen beliebigen Prompt aus dem Prompts-Ordner und führe ihn aus.
-Jeder Prompt ist selbsterklärend und enthält alle benötigten Informationen.
+### 🔄 Dokumentation aktualisieren
+Die gesamte Dokumentation in `/app/meta/` muss überarbeitet werden:
+- Technologie-Stack von .NET auf React/PHP ändern
+- Architektur-Diagramme aktualisieren
+- API-Dokumentation für PHP Endpoints erstellen
 
 ## Wichtige Dateien im AZE-Ordner
 
@@ -81,31 +93,46 @@ Jeder Prompt ist selbsterklärend und enthält alle benötigten Informationen.
 - Genehmigungsworkflow
 - DSGVO-konform
 
-## Technische Eckdaten
+## Tatsächliche Technische Eckdaten
 
-- **Framework**: .NET 8.0 (C# 12.0)
-- **UI**: Windows Forms
-- **Datenbank**: MySQL/MariaDB + SQLite
-- **Architektur**: 3-Schichten
-- **Deployment**: Standalone EXE
+**⚠️ ACHTUNG**: Die ursprüngliche Planung wurde geändert!
+
+**Geplant (nicht implementiert)**:
+- Framework: .NET 8.0 (C# 12.0)
+- UI: Windows Forms
+- Deployment: Standalone EXE
+
+**Tatsächlich implementiert** (`/app/build/`):
+- **Frontend**: React 18 + TypeScript + Vite
+- **Backend**: PHP 8+ mit REST APIs
+- **UI**: Responsive Web-Interface
+- **Datenbank**: MySQL (db10454681-aze)
+- **Deployment**: Web-Server (LAMP Stack)
+- **Status**: Beta v0.5 funktionsfähig
 
 ## Befehle für Entwicklung
 
+**Tatsächliche Web-App** (`/app/build/`):
 ```bash
-# Projekt erstellen (Schritt 1.1)
-dotnet new sln -n Arbeitszeiterfassung
-dotnet new winforms -n Arbeitszeiterfassung.UI
-dotnet new classlib -n Arbeitszeiterfassung.BLL
-dotnet new classlib -n Arbeitszeiterfassung.DAL
-dotnet new classlib -n Arbeitszeiterfassung.Common
+# Development starten
+cd /app/build
+npm install
+npm run dev                        # Development Server auf http://localhost:5173
 
-# Projekte zur Solution hinzufügen
-dotnet sln add **/*.csproj
+# Production Build
+npm run build                      # Erstellt dist/ Ordner
+npm run preview                    # Testet Production Build
 
-# NuGet-Pakete installieren
-dotnet add package Microsoft.EntityFrameworkCore --version 8.*
-dotnet add package Microsoft.EntityFrameworkCore.SqlServer --version 8.*
-dotnet add package Microsoft.EntityFrameworkCore.Sqlite --version 8.*
+# Backend APIs (PHP erforderlich)
+php -S localhost:8000 -t /app/build  # PHP Development Server
+```
+
+**Ursprünglich geplant** (.NET - NICHT IMPLEMENTIERT):
+```bash
+# Diese Befehle funktionieren NICHT, da kein .NET Projekt existiert:
+# dotnet new sln -n Arbeitszeiterfassung
+# dotnet new winforms -n Arbeitszeiterfassung.UI
+# [weitere .NET Befehle...]
 ```
 
 ## Kontakt bei Fragen

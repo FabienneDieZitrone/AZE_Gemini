@@ -16,3 +16,21 @@ bin/
 *.AssemblyInfo.cs
 
 .vs/
+
+# Security - Never commit credentials
+.env
+build/.env
+**/config.local.php
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Build outputs
+dist/
+build/dist/
+
+gh.md

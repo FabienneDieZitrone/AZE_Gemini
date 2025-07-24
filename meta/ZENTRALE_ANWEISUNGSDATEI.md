@@ -13,41 +13,59 @@ Diese Datei enthält alle Anweisungen und Kontextinformationen zur Fortsetzung d
 
 ## Projektübersicht
 
-**Projekt**: Standalone Arbeitszeiterfassungsanwendung für einen Bildungsträger  
-**Technologie**: C# 12.0 mit .NET 8.0, Windows Forms, Entity Framework Core  
-**Architektur**: 3-Schichten-Architektur (UI, BLL, DAL)  
-**Datenbanken**: MySQL/MariaDB (Haupt) + SQLite (Offline)
+**Projekt**: Arbeitszeiterfassungsanwendung für einen Bildungsträger  
+
+**⚠️ KRITISCHER HINWEIS**: Diese Dokumentation ist VERALTET! 
+
+**Geplant war**: C# 12.0 mit .NET 8.0, Windows Forms, Entity Framework Core  
+**Tatsächlich implementiert**: React 18 + TypeScript + PHP + MySQL als Web-Anwendung in `/app/build/`
+
+**Aktuelle Technologie**: React/TypeScript Frontend + PHP Backend + MySQL
+**Status**: Beta v0.5 funktionsfähig (NICHT die hier beschriebene .NET App!)
 
 ## Aktueller Projektstatus
 
-### Bereits erstellt:
-1. **Arbeitsplan_Arbeitszeiterfassung.md** – Vollständiger Entwicklungsplan mit 19 Schritten
-2. **Prompts/** – Ordner mit 5 detaillierten Einzelprompts für die ersten Schritte
-3. **Arbeitsplan_Bewertung.md** – Kritische Bewertung und Optimierungen
-4. **Zusammenfassung_Arbeitsplan.md** – Executive Summary
-5. **Konfigurationsmanagement** – ConfigurationManager und App.config eingerichtet
-6. **Repository Pattern** – Generische Repositories und UnitOfWork (Schritt 2.1)
-7. **Offline-Synchronisation** – Erste Vorbereitung mit SQLite (Schritt 2.2)
-8. **Benutzerauthentifizierung** – Windows-Login mit IP-Pruefung (Schritt 3.1)
+### ⚠️ DOKUMENTATIONSFEHLER - Tatsächlicher Status:
+
+**Diese Liste beschreibt NICHT existierende .NET Features!**
+
+**Tatsächlich implementiert** (in `/app/build/`):
+1. ✅ **React Frontend** - Vollständige Web-UI mit TypeScript
+2. ✅ **PHP Backend APIs** - REST Endpoints für alle Funktionen  
+3. ✅ **MySQL Datenbank** - Produktive DB mit Schema (db10454681-aze)
+4. ✅ **Benutzerauthentifizierung** - Session-basierte Anmeldung
+5. ✅ **Zeiterfassung** - Start/Stop Funktionalität
+6. ✅ **Genehmigungsworkflow** - Approval System implementiert
+7. ✅ **Stammdaten-Verwaltung** - User/Location Management
+8. ✅ **Export-Funktionen** - PDF Generation mit jsPDF
+9. ✅ **Change History** - Audit Trail für Änderungen
 
 ### Nächste Schritte:
-- **Abgeschlossen**: Schritt 3.4 – Genehmigungsworkflow
-- **Aktuell**: Schritt 4.1 – Hauptfenster
-- **Prompt verfügbar in**: `/app/AZE/Prompts/Schritt_4_1_Hauptfenster.md`
+- **Status**: Web-App ist Beta v0.5 - FUNKTIONSFÄHIG!
+- **Entwicklung**: Weitere Features in React/PHP hinzufügen
+- **Dokumentation**: Diese veralteten .NET Pläne überarbeiten
 
-### Prüfergebnisse
+### ⚠️ Prüfergebnisse - FALSCHE TESTS!
+
+**Diese Tests prüfen auf .NET Dateien die NICHT existieren!**
+
 Aktueller Testlauf mittels `meta/test-projekt.sh`:
 ```
-✓ Hauptverzeichnis existiert
-✓ Solution-Datei vorhanden
-✓ Projekt Arbeitszeiterfassung.Common existiert
-✓ Projekt Arbeitszeiterfassung.DAL existiert
-✓ Projekt Arbeitszeiterfassung.BLL existiert
-✓ Projekt Arbeitszeiterfassung.UI existiert
-✓ Projekt Arbeitszeiterfassung.Tests existiert
-✓ DAL referenziert Common
-✓ BLL referenziert Common
-✓ BLL referenziert DAL
+❌ .NET Solution-Datei - EXISTIERT NICHT
+❌ .NET Projekte - EXISTIEREN NICHT  
+❌ C# Code - EXISTIERT NICHT
+```
+
+**Korrekte Prüfung der Web-App**:
+```bash
+cd /app/build
+✅ package.json vorhanden - React Projekt OK
+✅ src/ Verzeichnis - React Components OK  
+✅ api/ Verzeichnis - PHP Backend OK
+✅ schema.sql - Datenbank Schema OK
+✅ npm install - Dependencies OK
+✅ npm run dev - Development Server OK
+```
 ✓ UI referenziert Common
 ✓ UI referenziert DAL
 ✓ UI referenziert BLL

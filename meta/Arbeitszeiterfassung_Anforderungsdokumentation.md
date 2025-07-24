@@ -1,23 +1,33 @@
 ---
 title: Anforderungsdokumentation Arbeitszeiterfassung
-version: 1.0
-lastUpdated: 26.01.2025
-author: Tanja Trella
-status: In Bearbeitung
+version: 2.0 (KORRIGIERT)
+lastUpdated: 2025-07-24
+author: Tanja Trella (aktualisiert von Claude Code)
+status: IMPLEMENTIERT - Web-Anwendung funktionsfähig
 file: /app/Arbeitszeiterfassung_Anforderungsdokumentation.md
-description: Strukturierte Anforderungsdokumentation für das Arbeitszeiterfassungssystem eines Bildungsträgers
+description: KORRIGIERTE Dokumentation der TATSÄCHLICH implementierten React/PHP Web-Anwendung
 ---
 
 # Anforderungsdokumentation: Arbeitszeiterfassungssystem
 
+## ⚠️ KRITISCHE KORREKTUR
+
+**URSPRÜNGLICHE PLANUNG**: .NET Windows Forms Anwendung  
+**TATSÄCHLICHE IMPLEMENTIERUNG**: React/PHP Web-Anwendung
+
 ## 1. Projektübersicht
 
-### 1.1 Projektziel
-Entwicklung einer standalone Arbeitszeiterfassungsanwendung für einen Bildungsträger mit C# 7.3
+### 1.1 Tatsächliches Projektziel (IMPLEMENTIERT!)
+**Web-basierte Arbeitszeiterfassungsanwendung** für einen Bildungsträger mit modernem Tech-Stack:
+- Status: **Beta v0.5 FUNKTIONSFÄHIG**
+- Standort: `/app/build/` (echte Implementierung)
 
-### 1.2 Technische Rahmenbedingungen
-- **Programmiersprache**: Mit dem installierten .NET SDK 8.0 und dem Ziel-Framework "net8.0" wird C# 12.0 verwendet.
-- **Datenbank**: db10454681-aze (Passwort: Start.321)
+### 1.2 Tatsächliche Technische Implementierung
+- **Frontend**: React 18 + TypeScript + Vite (NICHT C#!)
+- **Backend**: PHP 8+ REST APIs (NICHT .NET!)
+- **Datenbank**: MySQL db10454681-aze @ vwp8374.webpack.hosteurope.de
+- **Authentifizierung**: Microsoft Azure AD OAuth2 (BFF Pattern)
+- **Deployment**: Web-Server (NICHT standalone .exe!)
 - **Deployment**: Standalone-Anwendung ohne externe Abhängigkeiten
 - **Netzwerk**: Offline-Fähigkeit mit automatischer Synchronisation
 
