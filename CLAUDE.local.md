@@ -10,8 +10,9 @@
 - **Frontend**: React 18 + TypeScript + Vite
 - **Backend**: PHP REST APIs  
 - **Datenbank**: MySQL (Produktions-DB: db10454681-aze)
-- **Status**: Beta v0.5 - funktionsfähige Web-Anwendung
+- **Status**: v1.0 - PRODUKTIV DEPLOYED auf https://aze.mikropartner.de
 - **Standort**: `/app/build/` (echte Implementierung)
+- **Authentifizierung**: Microsoft Azure AD OAuth2 (vollständig funktionsfähig)
 
 ### Veraltete Planung (NICHT implementiert):
 - Framework: .NET 8.0 mit C# 12.0
@@ -87,8 +88,10 @@ npm run preview                    # Testet Production Build
 - **REST APIs**: JSON-basierte Schnittstellen
 - **Datenbankzugriff**: MySQLi mit Prepared Statements
 - **Session-Management**: Sichere Benutzer-Sessions
+- **OAuth2 Integration**: Azure AD Token Exchange (funktionsfähig)
 - **Error Handling**: Strukturierte Fehlerbehandlung
 - **CORS Support**: Cross-Origin Request Headers
+- **Environment Config**: .env Datei für sichere Credentials
 
 ### ✅ Datenbank (MySQL):
 - **Produktions-DB**: db10454681-aze @ vwp8374.webpack.hosteurope.de
@@ -97,20 +100,24 @@ npm run preview                    # Testet Production Build
 - **Approval System**: Genehmigungsworkflow
 - **Master Data**: Standorte und Einstellungen
 
-## Sicherheitshinweise ⚠️
+## Sicherheitshinweise ✅
 
-### KRITISCHES PROBLEM:
+### PROBLEM BEHOBEN:
 ```php
-// In /app/build/api/db.php - HARDCODIERTE CREDENTIALS!
-$servername = "vwp8374.webpack.hosteurope.de";
-$username = "db10454681-aze";
-$password = "Start.321";  // ← PRODUKTIONS-PASSWORD IM CODE!
+// Credentials jetzt sicher in .env Datei
+// config.php lädt automatisch aus .env
+$config = Config::load();
+$servername = Config::get('database.host');
+$username = Config::get('database.username');
+$password = Config::get('database.password');
 ```
 
-### Sofort zu beheben:
-1. **Environment Variables**: `.env` Datei für Credentials
-2. **Gitignore**: Credentials nie in Git committen
-3. **Config Management**: Separate Config-Dateien für Dev/Prod
+### Sicherheitsmaßnahmen implementiert:
+1. ✅ **Environment Variables**: `.env` Datei für alle Credentials
+2. ✅ **OAuth2 Integration**: Azure AD Client Secret sicher geladen
+3. ✅ **Config Management**: Zentrale config.php für alle Settings
+4. ✅ **Gitignore**: .env Datei ausgeschlossen von Git
+5. ✅ **Session Security**: HTTP-only Cookies und CSRF-Schutz
 
 ## Entwicklungsrichtlinien
 
@@ -139,10 +146,12 @@ git push origin main
 
 ## API-Dokumentation (PHP Endpoints)
 
-### Authentifizierung:
-- `POST /api/auth-start.php` - Login initiieren
+### Authentifizierung (Azure AD OAuth2):
+- `POST /api/auth-start.php` - Login initiieren → Weiterleitung zu Azure AD
+- `GET /api/auth-callback.php` - OAuth2 Callback (Token Exchange)
 - `GET /api/auth-status.php` - Session-Status prüfen
-- `POST /api/auth-logout.php` - Logout
+- `POST /api/auth-logout.php` - Logout und Session beenden
+- `GET /api/auth-oauth-client.php` - OAuth2 Client-Konfiguration
 
 ### Zeiterfassung:
 - `GET /api/time-entries.php` - Zeiteinträge abrufen
@@ -207,12 +216,22 @@ npm run dev                        # Frontend: http://localhost:5173
 php -S localhost:8000              # Backend: http://localhost:8000
 ```
 
-### Production:
+### Production (DEPLOYED):
+✅ **Live-System**: https://aze.mikropartner.de
+✅ **Deployment-Datum**: 25.07.2025
+✅ **Server**: HostEurope (wp10454681.server-he.de)
+✅ **FTP-Zugang**: ftp10454681-aze3
+✅ **Datenbank**: db10454681-aze @ vwp8374.webpack.hosteurope.de
+✅ **Azure AD**: Vollständig konfiguriert und funktionsfähig
+
 ```bash
+# Deployment bereits erfolgt:
 cd /app/build
-npm run build                      # Erstellt dist/ für Web-Server
-# dist/ Ordner auf Web-Server uploaden
-# PHP-Dateien in Webroot kopieren
+npm run build                      # ✅ Build erstellt
+# ✅ dist/ Ordner auf Web-Server uploadiert
+# ✅ PHP-Dateien in Webroot kopiert
+# ✅ .env Datei mit Credentials konfiguriert
+# ✅ Azure AD OAuth2 Integration getestet
 ```
 
 ## Troubleshooting
@@ -264,10 +283,11 @@ dotnet new classlib -n Arbeitszeiterfassung.Core
 ## Nächste Entwicklungsschritte
 
 ### Priorität 1 - Kritisch:
-1. **Security Fix**: DB-Credentials in Environment Variables
-2. **Error Handling**: Robuste Fehlerbehandlung
-3. **Testing**: Unit Tests für kritische Funktionen
-4. **Logging**: Structured Logging implementieren
+1. ✅ **Security Fix**: DB-Credentials in Environment Variables (ERLEDIGT)
+2. ✅ **OAuth2 Integration**: Azure AD Token Exchange (ERLEDIGT)
+3. **Error Handling**: Robuste Fehlerbehandlung
+4. **Testing**: Unit Tests für kritische Funktionen
+5. **Logging**: Structured Logging implementieren
 
 ### Priorität 2 - Features:
 1. **PWA**: Service Worker für Offline-Funktionalität
@@ -285,14 +305,16 @@ dotnet new classlib -n Arbeitszeiterfassung.Core
 
 1. **Ignoriere `/app/meta/` Dokumentation** - beschreibt nicht existierendes .NET Projekt
 2. **Arbeite ausschließlich mit `/app/build/`** - hier ist die echte Anwendung
-3. **Web-App ist funktionsfähig** - Beta v0.5 bereits produktiv nutzbar
-4. **Sicherheitsproblem beheben** - Credentials aus Code entfernen
+3. ✅ **Web-App ist PRODUKTIV** - v1.0 deployed auf https://aze.mikropartner.de
+4. ✅ **Sicherheitsprobleme behoben** - Credentials in .env, OAuth2 funktionsfähig
 5. **React/PHP Skills erforderlich** - nicht .NET/C#
+6. ✅ **Azure AD Integration** - Microsoft OAuth2 vollständig implementiert
 
 ---
 
-**Status**: Funktionsfähige Web-Anwendung (Beta v0.5)  
-**Technologie**: React 18 + TypeScript + PHP + MySQL  
+**Status**: PRODUKTIV DEPLOYED (v1.0)  
+**Live-URL**: https://aze.mikropartner.de  
+**Technologie**: React 18 + TypeScript + PHP + MySQL + Azure AD  
 **GitHub**: https://github.com/FabienneDieZitrone/AZE_Gemini.git  
-**Letztes Update**: 2025-07-24  
+**Deployment**: 25.07.2025 - Vollständig funktionsfähig  
 **Version**: 1.0

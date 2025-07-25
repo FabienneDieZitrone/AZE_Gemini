@@ -1,8 +1,9 @@
 # AZE_Gemini - Arbeitszeiterfassungssystem
 
-## 🚀 Status: FUNKTIONSFÄHIGE WEB-ANWENDUNG (Beta v0.5)
+## 🚀 Status: PRODUKTIV DEPLOYED (v1.0)
 
-**Wichtiger Hinweis**: Die ursprünglich geplante .NET Windows Forms Anwendung wurde durch eine moderne React/PHP Web-Anwendung ersetzt!
+**Live-System**: https://aze.mikropartner.de  
+**Deployment**: 25.07.2025 - Vollständig einsatzbereit mit Azure AD Integration
 
 ## Schnellstart
 
@@ -72,7 +73,8 @@ npm audit fix
 
 - **Ursprünglich geplant**: .NET Windows Forms (nicht implementiert)
 - **Tatsächlich umgesetzt**: React/PHP Web-Anwendung
-- **Status**: Beta v0.5 produktiv einsetzbar
+- **Status**: v1.0 - Produktiv deployed auf https://aze.mikropartner.de
+- **Deployment**: 25.07.2025 - Vollständige Azure AD Integration funktionsfähig
 
 ## Support
 
