@@ -77,7 +77,7 @@ Dieses Dokument definiert die Standards, Prozesse und Best Practices für die En
 
 - **Provider**: MySQL/MariaDB
 - **Produktionsdatenbank**: `db10454681-aze`
-- **WICHTIG**: Die Zugangsdaten (`Start.321`) dürfen **niemals** im Code (weder Frontend noch Backend) hartcodiert werden. Im Backend sind diese über sichere Umgebungsvariablen zu verwalten.
+- **WICHTIG**: Die Zugangsdaten dürfen **niemals** im Code (weder Frontend noch Backend) hartcodiert werden. Im Backend sind diese über sichere Umgebungsvariablen zu verwalten.
 
 ## 5. Testing
 

@@ -19,8 +19,12 @@ bin/
 
 # Security - Never commit credentials
 .env
+.env.*
 build/.env
 **/config.local.php
+**/.env.deployment
+
+# Veraltete Planungsdokumente entfernt (enthielten Credentials)
 
 # Node.js
 node_modules/

@@ -220,9 +220,10 @@ php -S localhost:8000              # Backend: http://localhost:8000
 ✅ **Live-System**: https://aze.mikropartner.de
 ✅ **Deployment-Datum**: 25.07.2025
 ✅ **Server**: HostEurope (wp10454681.server-he.de)
-✅ **FTP-Zugang**: ftp10454681-aze3
+✅ **FTP-Zugang**: ftp10454681-aze3 (erfolgreich getestet)
 ✅ **Datenbank**: db10454681-aze @ vwp8374.webpack.hosteurope.de
 ✅ **Azure AD**: Vollständig konfiguriert und funktionsfähig
+✅ **Deployment-Dokumentation**: `/app/deployment/SUCCESSFUL_FTP_DEPLOYMENT.md`
 
 ```bash
 # Deployment bereits erfolgt:
