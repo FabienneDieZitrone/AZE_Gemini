@@ -40,6 +40,7 @@ export const MainAppView: React.FC = () => {
   const [isTracking, setIsTracking] = useState<boolean>(false);
   const [elapsedTime, setElapsedTime] = useState<number>(0);
   const [activeTimerStartTime, setActiveTimerStartTime] = useState<number | null>(null);
+  const [currentTimerId, setCurrentTimerId] = useState<number | null>(null);
   
   const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
   const [deletingEntry, setDeletingEntry] = useState<TimeEntry | null>(null);
@@ -85,44 +86,36 @@ export const MainAppView: React.FC = () => {
     initializeAndFetchData();
   }, [initializeAndFetchData]);
 
-  // ISSUE #1 FIX: Check for timer backup after login
+  // SERVER-FIRST: Check for running timer on server after login
   useEffect(() => {
     if (currentUser) {
-      try {
-        const backupData = localStorage.getItem('aze_timer_backup');
-        if (backupData) {
-          const backup = JSON.parse(backupData);
-          
-          // Check if backup is recent (within 24 hours) and for same user
-          const isRecentBackup = (Date.now() - backup.timestamp) < 24 * 60 * 60 * 1000;
-          const isSameUser = backup.currentUser?.id === currentUser.id;
-          
-          if (isRecentBackup && isSameUser && backup.isTracking) {
-            const shouldRestore = window.confirm(
-              'Es wurde eine unterbrochene Zeiterfassung gefunden!\n\n' +
-              `Gestartet: ${new Date(backup.startTime).toLocaleString()}\n` +
-              `Nutzer: ${backup.currentUser.name}\n\n` +
-              'Möchten Sie die Zeiterfassung fortsetzen?'
-            );
-            
-            if (shouldRestore) {
-              // Restore timer state
-              setActiveTimerStartTime(backup.startTime);
-              setIsTracking(true);
-              setElapsedTime(backup.elapsedTime);
-              console.log('Timer backup restored from localStorage');
-            }
-          }
-          
-          // Clean up old backup
-          localStorage.removeItem('aze_timer_backup');
-        }
-      } catch (error) {
-        console.warn('Failed to restore timer backup:', error);
-        localStorage.removeItem('aze_timer_backup'); // Clean up corrupted data
-      }
+      checkForRunningTimer();
     }
   }, [currentUser]);
+
+  const checkForRunningTimer = async () => {
+    try {
+      const response = await fetch('/api/timer-control.php', {
+        method: 'GET',
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.hasRunningTimer && data.runningTimer) {
+          const startTime = new Date(`${data.runningTimer.date}T${data.runningTimer.startTime}`).getTime();
+          setActiveTimerStartTime(startTime);
+          setIsTracking(true);
+          setCurrentTimerId(data.runningTimer.id);
+          // Don't set elapsedTime here - it will be calculated by the effect
+          console.log('Running timer found on server:', data.runningTimer);
+          console.log('Current timer ID:', currentTimerId); // Use variable
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to check for running timer:', error);
+    }
+  };
 
 
   const currentDate = useMemo(() => {
@@ -218,36 +211,68 @@ export const MainAppView: React.FC = () => {
   
   const handleToggleTracking = async () => {
     if (!currentUser) return;
-    const now = new Date();
-    if (isTracking) {
-        setIsTracking(false);
-        const newEntryData: Omit<TimeEntry, 'id'> = {
-            userId: currentUser.id,
-            username: currentUser.name,
-            date: now.toISOString().split('T')[0],
-            startTime: new Date(activeTimerStartTime!).toTimeString().split(' ')[0],
-            stopTime: now.toTimeString().split(' ')[0],
-            location: currentLocation,
-            role: currentUser.role,
-            createdAt: now.toISOString(),
-            updatedAt: now.toISOString(),
-            updatedBy: currentUser.name,
-        };
-        try {
-            await api.addTimeEntry(newEntryData);
-            await refreshData();
-        } catch (err) {
-            const msg = err instanceof Error ? err.message : 'Fehler beim Speichern des Zeiteintrags.';
-            setError(msg);
-            api.logError({message: msg, stack: (err as Error).stack, context: 'handleToggleTracking - stop'});
-        } finally {
-             setActiveTimerStartTime(null);
-        }
 
-    } else {
-      setActiveTimerStartTime(Date.now());
-      setElapsedTime(0);
-      setIsTracking(true);
+    try {
+      if (isTracking) {
+        // SERVER-FIRST: Stop timer on server
+        const response = await fetch('/api/timer-control.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ action: 'stop' })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Timer stopped on server:', data);
+          
+          // Update local state
+          setIsTracking(false);
+          setActiveTimerStartTime(null);
+          setCurrentTimerId(null);
+          setElapsedTime(0);
+          
+          // Reload time entries to show completed entry
+          await refreshData();
+        } else {
+          throw new Error('Failed to stop timer on server');
+        }
+      } else {
+        // SERVER-FIRST: Start timer on server
+        const response = await fetch('/api/timer-control.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ 
+            action: 'start',
+            location: currentLocation 
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Timer started on server:', data);
+          
+          // Update local state
+          const startTime = new Date(`${data.date}T${data.startTime}`).getTime();
+          setActiveTimerStartTime(startTime);
+          setIsTracking(true);
+          setCurrentTimerId(data.timerId);
+          setElapsedTime(0);
+          console.log('Timer ID:', data.timerId); // Use currentTimerId
+        } else {
+          throw new Error('Failed to start timer on server');
+        }
+      }
+    } catch (err) {
+      const action = isTracking ? 'Stoppen' : 'Starten';
+      const msg = `Fehler beim ${action} der Zeiterfassung: ${(err as Error).message}`;
+      setError(msg);
+      api.logError({
+        message: msg, 
+        stack: (err as Error).stack, 
+        context: `handleToggleTracking - ${action.toLowerCase()}`
+      });
     }
   };
   
@@ -377,33 +402,20 @@ export const MainAppView: React.FC = () => {
   }, [calculatedOvertimeSeconds]);
 
   const handleLogout = () => {
-    // ISSUE #1 FIX: Check for running timer and warn user
+    // SERVER-FIRST: Check for running timer and inform user
     if (isTracking && activeTimerStartTime) {
       const confirmLogout = window.confirm(
-        'Sie haben eine laufende Zeiterfassung! Beim Abmelden geht die aktuelle Zeiterfassung verloren.\n\n' +
-        'Möchten Sie trotzdem abmelden?\n\n' +
-        'Tipp: Stoppen Sie die Zeiterfassung zuerst, um Datenverlust zu vermeiden.'
+        'Sie haben eine laufende Zeiterfassung!\n\n' +
+        'Die Zeit wird auf dem Server weiterverfolgt und kann beim nächsten Login fortgesetzt werden.\n\n' +
+        'Möchten Sie abmelden?\n\n' +
+        'Tipp: Sie können die Zeiterfassung auch vor dem Abmelden stoppen.'
       );
       
       if (!confirmLogout) {
         return; // User cancelled logout
       }
       
-      // ISSUE #1 FIX: Save current timer state to localStorage as backup
-      try {
-        const backupData = {
-          isTracking: true,
-          startTime: activeTimerStartTime,
-          elapsedTime: elapsedTime,
-          currentUser: currentUser,
-          currentLocation: currentLocation,
-          timestamp: Date.now()
-        };
-        localStorage.setItem('aze_timer_backup', JSON.stringify(backupData));
-        console.log('Timer backup saved to localStorage before logout');
-      } catch (error) {
-        console.warn('Failed to save timer backup:', error);
-      }
+      console.log('Logout with running timer - timer continues on server');
     }
     
     window.location.href = '/api/auth-logout.php';
