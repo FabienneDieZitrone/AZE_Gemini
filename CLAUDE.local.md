@@ -4,318 +4,216 @@
 
 **WICHTIG**: Die Dokumentation in `/app/meta/` beschreibt eine geplante .NET Windows Forms Anwendung, aber die **tatsächliche Implementierung** in `/app/build/` ist eine **React/PHP Web-Anwendung**!
 
+## 🚀 **AKTUELLER STATUS (26.07.2025)**
+
+### **Live-System**: https://aze.mikropartner.de ✅
+- **Version**: v1.0 PRODUKTIV → **Weiterentwicklung zu v1.0 Production Ready**
+- **Deployment**: @import `/app/deployment/SUCCESSFUL_FTP_DEPLOYMENT.md`
+- **GitHub Issues**: **23 strategische Issues** für Weiterentwicklung erstellt
+- **Master-Plan**: Issue #23 mit **ROI-Analyse 38.133%** (53.000€ → 20.265.000€)
+- **Roadmap**: 4 Milestones bis v1.0 Production Ready (01.09.2025)
+
+### **🔴 KRITISCHE ERKENNTNISSE:**
+
+#### **Issue #1 - DATENVERLUST-BUG mit Server-First Lösung:**
+- **Problem identifiziert**: Datenverlust bei Logout (NICHT Auto-Stop)
+- ✅ Zeit läuft korrekt weiter (gewünschtes Verhalten)
+- 💡 **Lösung**: DB-Status 'running' + Client-Sync → Kein Datenverlust möglich
+- **Server-First**: Zeit sofort in DB, Multi-Device Support automatisch
+
+#### **Security-Critical (Issue #19/20):**
+- 🚨 **Hardcoded DB-Password** in `/app/build/api/db.php` entdeckt
+- ⚠️ **Input-Validation** fehlt in API-Endpoints
+- 📋 **Penetrationstests** und OWASP-Compliance erforderlich
+
 ## Projekt-Überblick
 
 ### Tatsächliche Implementierung:
 - **Frontend**: React 18 + TypeScript + Vite
 - **Backend**: PHP REST APIs  
 - **Datenbank**: MySQL (Produktions-DB: db10454681-aze)
-- **Status**: v1.0 - PRODUKTIV DEPLOYED auf https://aze.mikropartner.de
+- **Status**: **v1.0 Live → Strategische Weiterentwicklung**
 - **Standort**: `/app/build/` (echte Implementierung)
 - **Authentifizierung**: Microsoft Azure AD OAuth2 (vollständig funktionsfähig)
 
 ### Veraltete Planung (NICHT implementiert):
-- Framework: .NET 8.0 mit C# 12.0
-- UI: Windows Forms
+- Framework: .NET 8.0 mit C# 12.0 | UI: Windows Forms
 - Standort: `/app/meta/` (nur Dokumentation, kein Code!)
 
-## Schnellstart für Entwicklung
+## 📊 **STRATEGISCHE ROADMAP (Issue #23)**
 
-### 1. Web-App lokal starten:
-```bash
-cd /app/build
-npm install                         # Dependencies installieren
-npm run dev                        # Development Server starten → http://localhost:5173
+### **Investment**: 53.000€ → **ROI**: 38.133% ⭐
+- Entwicklungszeit: 350h × 80€/h = 28.000€
+- Security-Audit: 8.000€ | Übersetzungen: 12.000€ | Legal: 5.000€
+- **Erwarteter Nutzen**: 20.265.000€ (DSGVO-Bußgeld-Vermeidung + Expansion)
+
+### **4 Milestones bis v1.0 Production Ready:**
+
+#### **v0.6 - Security & Compliance** (bis 10.08.2025)
+- Issue #1: Datenverlust-Bug (Logout-Warnung + Zwischenspeichern)
+- Issue #2-4: Error Handling, Unit Tests, Structured Logging
+- Issue #10: DSGVO-konforme automatische Datenlöschung
+- Issue #13: DSGVO-Reiter für Transparenz
+
+#### **v0.7 - Security Hardening** (bis 15.08.2025)
+- Issue #19: Security-Analysen + Penetrationstests etablieren
+- Issue #20: Code-Review-Findings beheben (db.php hardcoded password!)
+
+#### **v0.8 - Compliance & i18n** (bis 30.08.2025)
+- Issue #21: Legal-Tiefenanalyse (DSGVO, ArbZG, GoBD)
+- Issue #22: Mehrsprachigkeit (16 Sprachen, RTL-Support)
+
+#### **v1.0 - Production Ready** (bis 01.09.2025)
+- Issue #5: UI-Redesign mit Tab-Navigation
+- Issue #6: Pausenwecker mit ArbZG-Compliance
+- Issue #12: Dokumentations-Reiter | Issue #14: Admin-Reiter
+- Issue #15: Live-Arbeitszeit im Header
+
+## 🔒 **SICHERHEITSHINWEISE - KRITISCH AKTUALISIERT**
+
+### 🚨 **KRITISCHE SICHERHEITSLÜCKEN (NICHT behoben!):**
+
+```php
+// GEFUNDEN in /app/build/api/db.php - SOFORT BEHEBEN!
+$password = "Start.321";  // ← PRODUKTIONS-PASSWORD IM CODE!
+
+// KEINE Input-Validation in time-entries.php:
+$date = $_POST['date'];  // ← SQL INJECTION MÖGLICH
 ```
 
-### 2. Backend APIs (falls PHP Server benötigt):
-```bash
-# PHP Development Server für APIs
-cd /app/build
-php -S localhost:8000              # APIs verfügbar unter http://localhost:8000/api/
-```
+### **Sofortmaßnahmen (Issue #19):**
+1. 🔴 **DB-Credentials** in Environment Variables verschieben
+2. 🔴 **Input-Validation** für alle API-Endpoints
+3. 🔴 **SQL-Injection-Schutz** mit Prepared Statements
+4. 🔴 **Security-Headers** (CSP, HSTS) implementieren
+5. 🔴 **Penetrationstests** beauftragen
 
-### 3. Production Build:
-```bash
-cd /app/build
-npm run build                      # Erstellt dist/ Ordner für Deployment
-npm run preview                    # Testet Production Build
-```
+### ✅ **Bereits sicher:**
+- OAuth2 Integration: Azure AD Client Secret sicher
+- Session Security: HTTP-only Cookies
+- Gitignore: .env Datei ausgeschlossen
 
 ## Verzeichnisstruktur (Tatsächlich)
 
 ```
 /app/
 ├── build/                          # ✅ ECHTE IMPLEMENTIERUNG
-│   ├── src/                        # React Frontend
-│   │   ├── components/             # UI Komponenten
-│   │   │   ├── common/             # Wiederverwendbare Komponenten
-│   │   │   └── modals/             # Dialog-Komponenten
-│   │   ├── views/                  # Hauptansichten/Seiten
-│   │   │   ├── DashboardView.tsx   # Haupt-Dashboard
-│   │   │   ├── TimeSheetView.tsx   # Zeiterfassung
-│   │   │   ├── ApprovalView.tsx    # Genehmigungen
-│   │   │   └── MasterDataView.tsx  # Stammdaten
-│   │   ├── utils/                  # Hilfsfunktionen
-│   │   └── types.ts                # TypeScript Typen
-│   ├── api/                        # PHP Backend
-│   │   ├── db.php                  # Datenbankverbindung
-│   │   ├── auth-*.php              # Authentifizierung
-│   │   ├── time-entries.php        # Zeiterfassung API
-│   │   ├── approvals.php           # Genehmigungen API
-│   │   └── users.php               # Benutzerverwaltung API
-│   ├── package.json                # Node.js Dependencies
-│   ├── schema.sql                  # MySQL Datenbankschema
-│   └── index.html                  # Web Entry Point
-├── meta/                           # ❌ VERALTETE .NET DOKUMENTATION
-├── Configuration/                  # Datenbank-Setup Scripts
+│   ├── src/views/
+│   │   ├── DashboardView.tsx       # Haupt-Dashboard
+│   │   ├── TimeSheetView.tsx       # ⚠️ Complexity 15 (Issue #20)
+│   │   └── MainAppView.tsx         # 🔴 Datenverlust-Bug (Issue #1)
+│   ├── api/
+│   │   ├── db.php                  # 🚨 HARDCODED PASSWORD!
+│   │   ├── time-entries.php        # ⚠️ Input validation fehlt
+│   │   └── auth-*.php              # ✅ OAuth2 funktionsfähig
+│   ├── package.json | schema.sql | index.html
+├── meta/                           # ❌ VERALTETE .NET DOKU
+├── deployment/                     # 📋 Deployment-Dokumentation
 └── CLAUDE.local.md                 # Diese Datei
 ```
 
+## 📋 **GITHUB ISSUES & ROADMAP**
+
+**Details**: @import `/app/docs/GITHUB_ISSUES_OVERVIEW.md`
+
+**🔴 Kritisch**: #1 (Datenverlust), #19 (DB-Password), #20 (Security)  
+**📊 Master-Plan**: Issue #23 → ROI 38.133% (53k€ → 20M€) bis 01.09.2025
+
 ## Implementierte Features
 
-### ✅ Frontend (React):
-- **Dashboard**: Zeiterfassung mit Start/Stop Buttons
-- **Authentifizierung**: Login-System mit Session-Management
-- **Zeitübersicht**: Filterbare Zeiteinträge mit Kalender
-- **Genehmigungsworkflow**: Manager-Approval für Zeitänderungen
-- **Stammdaten**: Benutzer- und Standortverwaltung
-- **Export**: PDF-Generation mit jsPDF
-- **Responsive Design**: Mobile-optimierte Oberfläche
-- **Change History**: Audit-Trail aller Änderungen
+### ✅ **Frontend (React):**
+- Dashboard, Authentifizierung, Zeitübersicht, Genehmigungen
+- Stammdaten, PDF-Export, Responsive Design, Change History
 
-### ✅ Backend (PHP):
-- **REST APIs**: JSON-basierte Schnittstellen
-- **Datenbankzugriff**: MySQLi mit Prepared Statements
-- **Session-Management**: Sichere Benutzer-Sessions
-- **OAuth2 Integration**: Azure AD Token Exchange (funktionsfähig)
-- **Error Handling**: Strukturierte Fehlerbehandlung
-- **CORS Support**: Cross-Origin Request Headers
-- **Environment Config**: .env Datei für sichere Credentials
+### ✅ **Backend (PHP):**
+- REST APIs, MySQLi DB-Zugriff, Session-Management
+- OAuth2 Integration (Azure AD), CORS Support
 
-### ✅ Datenbank (MySQL):
-- **Produktions-DB**: db10454681-aze @ vwp8374.webpack.hosteurope.de
-- **User Management**: Rollen und Berechtigungen
-- **Time Tracking**: Arbeitszeiterfassung mit Audit-Trail
-- **Approval System**: Genehmigungsworkflow
-- **Master Data**: Standorte und Einstellungen
-
-## Sicherheitshinweise ✅
-
-### PROBLEM BEHOBEN:
-```php
-// Credentials jetzt sicher in .env Datei
-// config.php lädt automatisch aus .env
-$config = Config::load();
-$servername = Config::get('database.host');
-$username = Config::get('database.username');
-$password = Config::get('database.password');
-```
-
-### Sicherheitsmaßnahmen implementiert:
-1. ✅ **Environment Variables**: `.env` Datei für alle Credentials
-2. ✅ **OAuth2 Integration**: Azure AD Client Secret sicher geladen
-3. ✅ **Config Management**: Zentrale config.php für alle Settings
-4. ✅ **Gitignore**: .env Datei ausgeschlossen von Git
-5. ✅ **Session Security**: HTTP-only Cookies und CSRF-Schutz
+### ✅ **Datenbank (MySQL):**
+- User Management, Time Tracking, Approval System, Master Data
 
 ## Entwicklungsrichtlinien
 
-### React/TypeScript Standards:
-- Funktionale Komponenten mit Hooks verwenden
-- Strikte TypeScript-Typisierung
-- Props-Interfaces definieren
-- Custom Hooks für Logic-Wiederverwendung
+**Details**: @import `/app/docs/DEVELOPMENT_GUIDELINES.md`
 
-### PHP Standards:
-- PSR-12 Coding Style
-- Prepared Statements für DB-Queries
-- Strukturierte JSON-Responses
-- Error-Logging implementieren
+**Security-First**: .env für Credentials, Input-Validation, OWASP-Compliance  
+**Tech-Stack**: React 18 + TypeScript + PHP + MySQL + Azure AD
 
-### Git Workflow:
-```bash
-# Standard Workflow
-git add .
-git commit -m "Beschreibung der Änderungen"
-git push origin main
+## API-Dokumentation
 
-# Mit Token (bereits konfiguriert)
-# Remote: https://FabienneDieZitrone:TOKEN@github.com/FabienneDieZitrone/AZE_Gemini.git
-```
+**Details**: @import `/app/docs/API_DOCUMENTATION.md`
 
-## API-Dokumentation (PHP Endpoints)
-
-### Authentifizierung (Azure AD OAuth2):
-- `POST /api/auth-start.php` - Login initiieren → Weiterleitung zu Azure AD
-- `GET /api/auth-callback.php` - OAuth2 Callback (Token Exchange)
-- `GET /api/auth-status.php` - Session-Status prüfen
-- `POST /api/auth-logout.php` - Logout und Session beenden
-- `GET /api/auth-oauth-client.php` - OAuth2 Client-Konfiguration
-
-### Zeiterfassung:
-- `GET /api/time-entries.php` - Zeiteinträge abrufen
-- `POST /api/time-entries.php` - Neue Zeiterfassung
-- `PUT /api/time-entries.php` - Zeiteintrag bearbeiten
-- `DELETE /api/time-entries.php` - Zeiteintrag löschen
-
-### Genehmigungen:
-- `GET /api/approvals.php` - Pending Approvals
-- `POST /api/approvals.php` - Approval Request erstellen
-- `PUT /api/approvals.php` - Approval verarbeiten
-
-### Stammdaten:
-- `GET /api/users.php` - Benutzer abrufen
-- `GET /api/masterdata.php` - Standorte und Settings
-
-## Häufige Entwicklungsaufgaben
-
-### Neue React-Komponente erstellen:
-```typescript
-// /app/build/src/components/MyComponent.tsx
-import React from 'react';
-
-interface MyComponentProps {
-  title: string;
-  onAction: () => void;
-}
-
-export const MyComponent: React.FC<MyComponentProps> = ({ title, onAction }) => {
-  return (
-    <div>
-      <h2>{title}</h2>
-      <button onClick={onAction}>Action</button>
-    </div>
-  );
-};
-```
-
-### Neue PHP API erstellen:
-```php
-<?php
-// /app/build/api/my-endpoint.php
-require_once 'db.php';
-
-if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    $stmt = $conn->prepare("SELECT * FROM my_table WHERE id = ?");
-    $stmt->bind_param("i", $_GET['id']);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    
-    echo json_encode($result->fetch_all(MYSQLI_ASSOC));
-}
-?>
-```
+**Kern-APIs**: Auth (Azure AD), Time-Entries, Users, Approvals, MasterData  
+⚠️ **Kritisch**: Logout-API hat Datenverlust-Bug (Issue #1)
 
 ## Deployment
 
-### Development:
+### **Production (LIVE):**
+✅ **Live-System**: https://aze.mikropartner.de  
+✅ **Server**: HostEurope (wp10454681.server-he.de)  
+✅ **Details**: @import `/app/deployment/SUCCESSFUL_FTP_DEPLOYMENT.md`
+
+### **Development:**
 ```bash
 cd /app/build
-npm run dev                        # Frontend: http://localhost:5173
-php -S localhost:8000              # Backend: http://localhost:8000
+npm install && npm run dev     # Frontend: http://localhost:5173
+php -S localhost:8000          # Backend: http://localhost:8000
 ```
 
-### Production (DEPLOYED):
-✅ **Live-System**: https://aze.mikropartner.de
-✅ **Deployment-Datum**: 25.07.2025
-✅ **Server**: HostEurope (wp10454681.server-he.de)
-✅ **FTP-Zugang**: ftp10454681-aze3 (erfolgreich getestet)
-✅ **Datenbank**: db10454681-aze @ vwp8374.webpack.hosteurope.de
-✅ **Azure AD**: Vollständig konfiguriert und funktionsfähig
-✅ **Deployment-Dokumentation**: `/app/deployment/SUCCESSFUL_FTP_DEPLOYMENT.md`
-
+### **Production Build:**
 ```bash
-# Deployment bereits erfolgt:
-cd /app/build
-npm run build                      # ✅ Build erstellt
-# ✅ dist/ Ordner auf Web-Server uploadiert
-# ✅ PHP-Dateien in Webroot kopiert
-# ✅ .env Datei mit Credentials konfiguriert
-# ✅ Azure AD OAuth2 Integration getestet
+cd /app/build && npm run build && npm run preview
 ```
 
 ## Troubleshooting
 
-### Häufige Probleme:
+**Details**: @import `/app/docs/TROUBLESHOOTING.md`
 
-1. **"npm install" schlägt fehl**:
-   ```bash
-   node --version    # Node.js 18+ erforderlich
-   npm cache clean --force
-   rm -rf node_modules package-lock.json
-   npm install
-   ```
+## 🎯 **NÄCHSTE SCHRITTE (PRIORISIERT)**
 
-2. **PHP APIs nicht erreichbar**:
-   - MySQLi Extension aktiviert?
-   - Datenbankverbindung korrekt?
-   - CORS-Header gesetzt?
+### **Diese Woche (KW 30):**
+1. **Issue #1**: Logout-Warnung + localStorage-Zwischenspeicherung
+2. **Issue #19**: DB-Password aus `/app/build/api/db.php` entfernen (SOFORT!)
+3. **Issue #20**: Security-Code-Review abschließen
 
-3. **React Build-Fehler**:
-   ```bash
-   npm run build    # TypeScript-Fehler anzeigen
-   npx tsc --noEmit # Type-Check ohne Build
-   ```
+### **August 2025:**
+1. **v0.6**: Error Handling + Unit Tests + DSGVO-Grundlagen
+2. **v0.7**: Security-Hardening + Penetrationstests
+3. **v0.8**: Legal-Compliance + Mehrsprachigkeit
+4. **v1.0**: UI-Redesign + finale Production-Features
 
-## Migration zu .NET (falls gewünscht)
+### **Business-kritische Ziele:**
+- **DSGVO-Compliance**: 20 Mio € Bußgeld-Risiko vermeiden
+- **Security-Hardening**: Penetrationstests bestehen (A+)
+- **Performance**: Bundle < 1MB, Lighthouse > 95
+- **Legal**: ArbZG + GoBD vollständig erfüllen
 
-Falls die ursprünglich geplante .NET-Anwendung gewünscht ist:
+## Wichtige Erkenntnisse
 
-### 1. Analyse der Web-App:
-- React-Komponenten zu Windows Forms Designs mappen
-- PHP-APIs zu .NET Web API portieren
-- MySQL-Schema für Entity Framework vorbereiten
+1. **Arbeite ausschließlich mit `/app/build/`** (echte Implementierung)
+2. 🚨 **KRITISCHE SECURITY-LÜCKEN** - Sofort beheben (Issue #19)
+3. ✅ **System ist LIVE** - https://aze.mikropartner.de
+4. 📈 **ROI 38.133%** - Extrem profitables Verbesserungsprojekt
+5. 🎯 **23 strategische Issues** bis v1.0 Production Ready
+6. 🔴 **Issue #1**: Datenverlust bei Logout (nicht Auto-Stop!)
+7. **React/PHP Skills erforderlich** - nicht .NET/C#
 
-### 2. .NET Projekt erstellen:
-```bash
-dotnet new sln -n Arbeitszeiterfassung
-dotnet new winforms -n Arbeitszeiterfassung.UI
-dotnet new webapi -n Arbeitszeiterfassung.API
-dotnet new classlib -n Arbeitszeiterfassung.Core
-```
+## @imports für detaillierte Informationen:
+- **Deployment**: @import `/app/deployment/SUCCESSFUL_FTP_DEPLOYMENT.md`
+- **API-Docs**: @import `/app/docs/API_DOCUMENTATION.md`
+- **Development**: @import `/app/docs/DEVELOPMENT_GUIDELINES.md`
+- **Troubleshooting**: @import `/app/docs/TROUBLESHOOTING.md`
+- **GitHub Issues**: @import `/app/docs/GITHUB_ISSUES_OVERVIEW.md`
 
-### 3. Schrittweise Migration:
-- Backend APIs zuerst (.NET Web API)
-- Frontend parallel (Windows Forms)
-- Datenbank-Migration (EF Core)
-- Testing und Deployment
-
-## Nächste Entwicklungsschritte
-
-### Priorität 1 - Kritisch:
-1. ✅ **Security Fix**: DB-Credentials in Environment Variables (ERLEDIGT)
-2. ✅ **OAuth2 Integration**: Azure AD Token Exchange (ERLEDIGT)
-3. **Error Handling**: Robuste Fehlerbehandlung
-4. **Testing**: Unit Tests für kritische Funktionen
-5. **Logging**: Structured Logging implementieren
-
-### Priorität 2 - Features:
-1. **PWA**: Service Worker für Offline-Funktionalität
-2. **Push Notifications**: Für Genehmigungen
-3. **Advanced Filtering**: Erweiterte Suchfunktionen
-4. **Bulk Operations**: Massenbearbeitung von Zeiteinträgen
-
-### Priorität 3 - Optimierung:
-1. **Performance**: Code-Splitting und Lazy Loading
-2. **Monitoring**: Application Performance Monitoring
-3. **CI/CD**: Automated Testing und Deployment
-4. **Mobile App**: React Native Version
-
-## Wichtige Erkenntnisse für Entwickler
-
-1. **Ignoriere `/app/meta/` Dokumentation** - beschreibt nicht existierendes .NET Projekt
-2. **Arbeite ausschließlich mit `/app/build/`** - hier ist die echte Anwendung
-3. ✅ **Web-App ist PRODUKTIV** - v1.0 deployed auf https://aze.mikropartner.de
-4. ✅ **Sicherheitsprobleme behoben** - Credentials in .env, OAuth2 funktionsfähig
-5. **React/PHP Skills erforderlich** - nicht .NET/C#
-6. ✅ **Azure AD Integration** - Microsoft OAuth2 vollständig implementiert
+**@import Info**: @import `/app/docs/README.md`
 
 ---
 
-**Status**: PRODUKTIV DEPLOYED (v1.0)  
+**Status**: LIVE + STRATEGISCHE WEITERENTWICKLUNG  
 **Live-URL**: https://aze.mikropartner.de  
-**Technologie**: React 18 + TypeScript + PHP + MySQL + Azure AD  
-**GitHub**: https://github.com/FabienneDieZitrone/AZE_Gemini.git  
-**Deployment**: 25.07.2025 - Vollständig funktionsfähig  
-**Version**: 1.0
+**GitHub Issues**: 23 Issues → v1.0 Production Ready  
+**Master-Plan**: Issue #23 (ROI 38.133%)  
+**Nächster Meilenstein**: v0.6 Security & Compliance (10.08.2025)  
+**Investment**: 53.000€ → **Nutzen**: 20.265.000€  
+**Version**: v1.0 → v1.0 Production Ready  
+**Letztes Update**: 26.07.2025 (Issue #1 verifiziert, Security-Gaps identifiziert)
