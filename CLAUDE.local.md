@@ -132,9 +132,38 @@ $date = $_POST['date'];  // ← SQL INJECTION MÖGLICH
 ### ✅ **Datenbank (MySQL):**
 - User Management, Time Tracking, Approval System, Master Data
 
+## 🔧 **Entwicklungsstandards (AZE-spezifisch)**
+
+### **Qualitätsgrundsätze:**
+- **Best Practice First**: Mindeststandard IMMER erreichen, nie Kompromisse
+- **Architektur vor Quick-Fixes**: Root-Cause-Analyse vor Lösungsumsetzung  
+- **Refactoring Standard**: Nach jedem Feature Code systematisch aufräumen
+- **Single Source of Truth**: CLAUDE.local.md als Master-Dokumentation
+
+### **Testing vor Commits:**
+```bash
+cd /app/build
+npm test                    # Unit Tests (Pflicht)
+npm run build              # Production Build Test  
+npm run typecheck          # TypeScript Validation
+```
+
+### **Issue-Disziplin:**
+- **Fallback-Fehler** → Automatisch GitHub Issue erstellen
+- **Lokale Issues** ↔ **GitHub Issues** MÜSSEN synchron bleiben
+- **Problem-Ehrlichkeit**: Nie "funktioniert" behaupten wenn es das nicht tut
+- **Ist-Zustand**: IMMER analysieren vor Änderungen
+
+### **Persistenz-Check (vor jedem Commit):**
+- ✅ Web-App nach Server-Restart funktional?
+- ✅ Database-Connection nach Neustart OK?
+- ✅ Session-Handling robust bei Browser-Reload?
+- ✅ Keine Features/Funktionen verloren gegangen?
+
 ## Entwicklungsrichtlinien
 
-**Details**: @import `/app/docs/DEVELOPMENT_GUIDELINES.md`
+**Details**: @import `/app/docs/DEVELOPMENT_GUIDELINES.md`  
+**Standards**: @import `/app/docs/PROJECT_STANDARDS.md`
 
 **Security-First**: .env für Credentials, Input-Validation, OWASP-Compliance  
 **Tech-Stack**: React 18 + TypeScript + PHP + MySQL + Azure AD
@@ -202,6 +231,7 @@ cd /app/build && npm run build && npm run preview
 - **Deployment**: @import `/app/deployment/SUCCESSFUL_FTP_DEPLOYMENT.md`
 - **API-Docs**: @import `/app/docs/API_DOCUMENTATION.md`
 - **Development**: @import `/app/docs/DEVELOPMENT_GUIDELINES.md`
+- **Standards**: @import `/app/docs/PROJECT_STANDARDS.md`
 - **Troubleshooting**: @import `/app/docs/TROUBLESHOOTING.md`
 - **GitHub Issues**: @import `/app/docs/GITHUB_ISSUES_OVERVIEW.md`
 
