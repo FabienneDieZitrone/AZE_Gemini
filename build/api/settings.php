@@ -37,6 +37,7 @@ error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED);
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/auth_helpers.php';
+require_once __DIR__ . '/validation.php';
 
 initialize_api();
 
@@ -93,10 +94,34 @@ function handle_put($conn, $current_user) {
         return;
     }
 
-    $data = json_decode(file_get_contents('php://input'), true);
-
-    if (!isset($data['overtimeThreshold']) || !isset($data['changeReasons']) || !isset($data['locations'])) {
-        send_response(400, ['message' => 'Bad Request: Missing required settings fields.']);
+    try {
+        $required_fields = ['overtimeThreshold', 'changeReasons', 'locations'];
+        $data = InputValidator::validateJsonInput($required_fields);
+        
+        // Validate overtimeThreshold is a positive number
+        if (!is_numeric($data['overtimeThreshold']) || $data['overtimeThreshold'] < 0 || $data['overtimeThreshold'] > 100) {
+            send_response(400, ['message' => 'Invalid overtimeThreshold. Must be between 0 and 100']);
+            return;
+        }
+        
+        // Validate changeReasons is an array
+        if (!is_array($data['changeReasons'])) {
+            send_response(400, ['message' => 'Invalid changeReasons format. Must be an array']);
+            return;
+        }
+        
+        // Validate locations is an array
+        if (!is_array($data['locations'])) {
+            send_response(400, ['message' => 'Invalid locations format. Must be an array']);
+            return;
+        }
+        
+    } catch (InvalidArgumentException $e) {
+        send_response(400, ['message' => 'Validation error: ' . $e->getMessage()]);
+        return;
+    } catch (Exception $e) {
+        error_log('Validation error in settings.php: ' . $e->getMessage());
+        send_response(500, ['message' => 'Server error during validation']);
         return;
     }
 

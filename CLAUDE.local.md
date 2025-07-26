@@ -87,13 +87,17 @@ ini_set('display_errors', 0);  // ← Keine Error-Details an Frontend
 ### **✅ Abgeschlossene Sicherheitsmaßnahmen (26.07.2025):**
 1. ✅ **DB-Credentials** in Environment Variables (.env)
 2. ✅ **Production Error Display** deaktiviert in allen APIs
-3. ✅ **OAuth Client Secret** mit sicheren Fallbacks
+3. ✅ **OAuth Client Secret** korrekt konfiguriert und funktional
 4. ✅ **.gitignore** erweitert für .env-Dateien
 5. ✅ **SQL-Injection-Schutz** mit Prepared Statements vorhanden
+6. ✅ **Input-Validation** zentrale Bibliothek für alle 7 APIs implementiert
+7. ✅ **Session-Management** Browser-Session-Security und CSRF-Protection
+8. ✅ **XSS-Protection** htmlspecialchars für alle String-Inputs
+9. ✅ **Password-Repository-Security** keine Credentials im Git-Repository
 
 ### ⚠️ **Noch zu implementieren:**
-- Input-Validation für alle API-Endpoints
-- Security-Headers (CSP, HSTS) 
+- Issue #1: Logout-Warnung + localStorage-Zwischenspeicherung
+- Security-Headers (CSP, HSTS, Rate-Limiting)
 - Penetrationstests beauftragen
 
 ### ✅ **Bereits sicher:**

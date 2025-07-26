@@ -2,15 +2,15 @@
 
 ## **🔴 Kritisch (SOFORT):**
 - **Issue #1**: Datenverlust bei Logout - Server-First Lösung implementieren 🚨
-- **Issue #19**: Hardcoded DB-Password entfernen 🚨
-- **Issue #20**: Input-Validation + Security-Audit 🔒
+- **Issue #19**: ✅ **BEHOBEN** - Security-Hardening abgeschlossen
+- **Issue #20**: ✅ **BEHOBEN** - Input-Validation + Session-Security implementiert
 
 ## **🟡 Wichtig (v0.6-v0.7):**
 - **Issues #2-#8**: UI/UX Verbesserungen
 - **Issues #9-#12**: Performance-Optimierungen
 - **Issues #13-#16**: Erweiterte Features
 - **Issue #24**: Refactoring als Standard etablieren
-- **Issue #25**: Testing-Pipeline für Pre-Commit Validation
+- **Issue #25**: ✅ **IMPLEMENTIERT** - Testing-Pipeline für Pre-Commit Validation
 
 ## **🟢 Features (v0.8-v1.0):**
 - **Issues #17-#22**: Mobile App, Analytics, Multi-Language

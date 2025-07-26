@@ -29,6 +29,8 @@ ini_set('log_errors', 1);
 error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED);
 
 // Keine Authentifizierung für diesen Endpunkt erforderlich.
+require_once __DIR__ . '/validation.php';
+
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
@@ -44,11 +46,30 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit();
 }
 
-$data = json_decode(file_get_contents('php://input'), true);
-
-if (json_last_error() !== JSON_ERROR_NONE) {
+try {
+    $required_fields = ['message'];
+    $optional_fields = ['level' => 'error', 'context' => [], 'timestamp' => date('Y-m-d H:i:s')];
+    $data = InputValidator::validateJsonInput($required_fields, $optional_fields);
+    
+    // Validate log level
+    $allowed_levels = ['error', 'warning', 'info', 'debug'];
+    if (!in_array($data['level'], $allowed_levels)) {
+        $data['level'] = 'error'; // Default to error if invalid
+    }
+    
+    // Limit message length to prevent log spam
+    if (strlen($data['message']) > 1000) {
+        $data['message'] = substr($data['message'], 0, 997) . '...';
+    }
+    
+} catch (InvalidArgumentException $e) {
     http_response_code(400);
-    echo json_encode(['message' => 'Bad Request: Invalid JSON']);
+    echo json_encode(['message' => 'Validation error: ' . $e->getMessage()]);
+    exit();
+} catch (Exception $e) {
+    error_log('Validation error in logs.php: ' . $e->getMessage());
+    http_response_code(500);
+    echo json_encode(['message' => 'Server error during validation']);
     exit();
 }
 

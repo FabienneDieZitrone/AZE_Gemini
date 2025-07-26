@@ -9,11 +9,13 @@
  */
 require_once __DIR__ . '/auth-oauth-client.php';
 
-// Zerstört eine eventuell bestehende alte Session, um einen sauberen
-// Neuanfang für den OAuth-Flow zu gewährleisten und "state"-Konflikte zu vermeiden.
-if (session_status() === PHP_SESSION_ACTIVE) {
-    session_destroy();
-}
+// CRITICAL FIX: Session leeren statt zerstören (für State-Parameter)
+start_secure_session();
+// Nur User-Daten löschen, nicht die gesamte Session
+unset($_SESSION['user']);
+unset($_SESSION['auth_tokens']);
+unset($_SESSION['last_activity']);
+unset($_SESSION['created']);
 
 // Holt die Authorisierungs-URL vom OAuth-Client-Helfer.
 // Diese Funktion startet jetzt intern eine neue, sichere Session und speichert den 'state'.

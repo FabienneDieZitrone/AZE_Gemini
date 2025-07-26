@@ -18,6 +18,14 @@ dist-ssr
 .env.production
 .env.staging
 
+# Deployment credentials (CRITICAL SECURITY)
+.deploy-credentials
+.ftp-config
+deployment.config
+
+# Legacy secrets (moved to ~/.config/aze-secrets.env)
+gh.md
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

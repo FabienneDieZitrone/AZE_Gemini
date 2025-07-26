@@ -37,6 +37,7 @@ error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED);
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/auth_helpers.php';
+require_once __DIR__ . '/validation.php';
 
 // --- Hilfsfunktionen & Header ---
 initialize_api();
@@ -85,10 +86,29 @@ function handle_patch($conn, $current_user) {
     // TODO: Rollenbasierte Berechtigungsprüfung (z.B. nur Admin darf Rollen ändern)
     // $current_user['role'] kann hier für die Prüfung verwendet werden.
     
-    $data = json_decode(file_get_contents('php://input'), true);
-
-    if (!isset($data['userId']) || !isset($data['newRole'])) {
-        send_response(400, ['message' => 'Bad Request: userId and newRole are required.']);
+    try {
+        $required_fields = ['userId', 'newRole'];
+        $data = InputValidator::validateJsonInput($required_fields);
+        
+        // Validate userId is a positive integer
+        if (!InputValidator::isValidId($data['userId'])) {
+            send_response(400, ['message' => 'Invalid userId format']);
+            return;
+        }
+        
+        // Validate newRole is one of allowed values
+        $allowed_roles = ['employee', 'manager', 'admin'];
+        if (!in_array($data['newRole'], $allowed_roles)) {
+            send_response(400, ['message' => 'Invalid role. Allowed: ' . implode(', ', $allowed_roles)]);
+            return;
+        }
+        
+    } catch (InvalidArgumentException $e) {
+        send_response(400, ['message' => 'Validation error: ' . $e->getMessage()]);
+        return;
+    } catch (Exception $e) {
+        error_log('Validation error in users.php: ' . $e->getMessage());
+        send_response(500, ['message' => 'Server error during validation']);
         return;
     }
 

@@ -10,31 +10,36 @@
 
 // Bindet den OAuth-Client und die sichere Session-Funktion ein.
 require_once __DIR__ . '/auth-oauth-client.php';
+require_once __DIR__ . '/validation.php';
 
 // Startet die Session mit den sicheren, zentral definierten Einstellungen,
 // um auf den gespeicherten 'state' zugreifen zu können.
 start_secure_session();
 
+// Validate and sanitize GET parameters
+$allowed_params = ['state', 'error', 'error_description', 'code'];
+$get_params = InputValidator::validateGetParams($allowed_params);
+
 // --- CSRF-Schutz: 'state' Parameter vergleichen ---
-if (empty($_GET['state']) || !isset($_SESSION['oauth2state']) || !hash_equals($_SESSION['oauth2state'], $_GET['state'])) {
+if (empty($get_params['state']) || !isset($_SESSION['oauth2state']) || !hash_equals($_SESSION['oauth2state'], $get_params['state'])) {
     unset($_SESSION['oauth2state']);
     http_response_code(400);
-    error_log("Invalid state parameter. SESSION: " . ($_SESSION['oauth2state'] ?? 'not set') . " GET: " . ($_GET['state'] ?? 'not set'));
+    error_log("Invalid state parameter. SESSION: " . ($_SESSION['oauth2state'] ?? 'not set') . " GET: " . ($get_params['state'] ?? 'not set'));
     echo 'Invalid state parameter. CSRF attack detected.';
     exit();
 }
 
 // --- Fehlerprüfung vom Auth-Server ---
-if (isset($_GET['error'])) {
+if (isset($get_params['error'])) {
     http_response_code(500);
-    echo 'Error from authentication server: ' . htmlspecialchars($_GET['error']) . ' - ' . htmlspecialchars($_GET['error_description']);
+    echo 'Error from authentication server: ' . htmlspecialchars($get_params['error']) . ' - ' . htmlspecialchars($get_params['error_description'] ?? 'No description');
     exit();
 }
 
 // --- Code gegen Token tauschen ---
-if (isset($_GET['code'])) {
+if (isset($get_params['code'])) {
     try {
-        $tokens = getTokensFromCode($_GET['code']);
+        $tokens = getTokensFromCode($get_params['code']);
         
         // Den ID-Token dekodieren, um Benutzerinformationen zu erhalten
         $id_token_parts = explode('.', $tokens['id_token']);
@@ -49,6 +54,10 @@ if (isset($_GET['code'])) {
         
         // Tokens sicher in der Session speichern (für spätere API-Aufrufe, Refresh, etc.)
         $_SESSION['auth_tokens'] = $tokens;
+        
+        // SECURITY FIX: Session-Timestamps für Timeout-Kontrolle setzen
+        $_SESSION['created'] = time();
+        $_SESSION['last_activity'] = time();
         
         // State-Variable nach erfolgreicher Verwendung löschen
         unset($_SESSION['oauth2state']);

@@ -80,12 +80,12 @@ function start_secure_session() {
     // FINALE KORREKTUR: Verwende die offizielle PHP-Methode, um die Cookie-Parameter
     // VOR dem Starten der Session zu setzen.
     session_set_cookie_params([
-        'lifetime' => 0, // Session-Cookie, läuft ab, wenn der Browser geschlossen wird.
+        'lifetime' => 0, // CRITICAL FIX: Browser-Session (läuft ab beim Browser-Schließen)
         'path' => '/',   // WICHTIG: Setzt den Pfad auf die Wurzel der Domain.
         'domain' => $_SERVER['HTTP_HOST'],
         'secure' => true,      // Nur über HTTPS senden.
         'httponly' => true,    // Für JavaScript unzugänglich machen.
-        'samesite' => 'Lax'    // Moderner Standard, der für OAuth-Redirects geeignet ist.
+        'samesite' => 'Lax' // CRITICAL FIX: Lax für OAuth-Redirects (Strict blockiert)
     ]);
     
     session_start();
@@ -101,6 +101,29 @@ function start_secure_session() {
  */
 function verify_session_and_get_user() {
     start_secure_session();
+    
+    // SECURITY FIX: Session-Timeout-Überprüfung
+    if (isset($_SESSION['last_activity'])) {
+        $session_lifetime = 3600; // 1 Stunde in Sekunden
+        if (time() - $_SESSION['last_activity'] > $session_lifetime) {
+            // Session abgelaufen - komplett zerstören
+            session_unset();
+            session_destroy();
+            send_response(401, ['message' => 'Unauthorized: Session expired. Please login again.']);
+            return;
+        }
+    }
+    
+    // SECURITY FIX: Letzte Aktivität aktualisieren
+    $_SESSION['last_activity'] = time();
+    
+    // SECURITY FIX: Session-Regeneration bei länger Inaktivität (alle 30 Min)
+    if (!isset($_SESSION['created'])) {
+        $_SESSION['created'] = time();
+    } else if (time() - $_SESSION['created'] > 1800) { // 30 Minuten
+        session_regenerate_id(true);
+        $_SESSION['created'] = time();
+    }
     
     if (isset($_SESSION['user']) && !empty($_SESSION['user']['oid'])) {
         return $_SESSION['user'];

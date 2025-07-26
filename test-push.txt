@@ -1,9 +1,0 @@
-Test-Datei für GitHub Push
-========================
-
-Diese Datei wurde erstellt, um die Verbindung zum GitHub Repository zu testen.
-
-Datum: 2025-07-24
-Projekt: AZE_Gemini (Arbeitszeiterfassung)
-
-Status: Erfolgreich erstellt ✓

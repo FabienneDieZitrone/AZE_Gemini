@@ -29,6 +29,7 @@ error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED);
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/auth_helpers.php';
+require_once __DIR__ . '/validation.php';
 
 initialize_api();
 
@@ -85,13 +86,34 @@ function handle_get($conn, $current_user) {
 }
 
 function handle_post($conn, $current_user) {
-    $data = json_decode(file_get_contents('php://input'), true);
-    $requested_by = $current_user['name']; // Verwende den Anzeigenamen aus der Session
-
-    if (!isset($data['type']) || !isset($data['entryId'])) {
-        send_response(400, ['message' => 'Bad Request: type and entryId are required.']);
+    try {
+        $required_fields = ['type', 'entryId'];
+        $optional_fields = ['newData' => null, 'reasonData' => null];
+        $data = InputValidator::validateJsonInput($required_fields, $optional_fields);
+        
+        // Validate entryId is a positive integer
+        if (!InputValidator::isValidId($data['entryId'])) {
+            send_response(400, ['message' => 'Invalid entryId format']);
+            return;
+        }
+        
+        // Validate type is allowed
+        $allowed_types = ['edit', 'delete', 'add'];
+        if (!in_array($data['type'], $allowed_types)) {
+            send_response(400, ['message' => 'Invalid type. Allowed: ' . implode(', ', $allowed_types)]);
+            return;
+        }
+        
+    } catch (InvalidArgumentException $e) {
+        send_response(400, ['message' => 'Validation error: ' . $e->getMessage()]);
+        return;
+    } catch (Exception $e) {
+        error_log('Validation error in approvals.php: ' . $e->getMessage());
+        send_response(500, ['message' => 'Server error during validation']);
         return;
     }
+    
+    $requested_by = $current_user['name']; // Verwende den Anzeigenamen aus der Session
     
     $entry_stmt = $conn->prepare("SELECT * FROM time_entries WHERE id = ?");
     $entry_stmt->bind_param("i", $data['entryId']);
@@ -131,14 +153,33 @@ function handle_post($conn, $current_user) {
 }
 
 function handle_patch($conn, $current_user) {
-    $data = json_decode(file_get_contents('php://input'), true);
-    $resolved_by = $current_user['name']; // Verwende Anzeigenamen aus der Session
-
-    if (!isset($data['requestId']) || !isset($data['finalStatus'])) {
-        send_response(400, ['message' => 'Bad Request: requestId and finalStatus are required.']);
+    try {
+        $required_fields = ['requestId', 'finalStatus'];
+        $data = InputValidator::validateJsonInput($required_fields);
+        
+        // Validate finalStatus is allowed
+        $allowed_statuses = ['genehmigt', 'abgelehnt'];
+        if (!in_array($data['finalStatus'], $allowed_statuses)) {
+            send_response(400, ['message' => 'Invalid finalStatus. Allowed: ' . implode(', ', $allowed_statuses)]);
+            return;
+        }
+        
+        // Validate requestId format (UUID)
+        if (!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $data['requestId'])) {
+            send_response(400, ['message' => 'Invalid requestId format']);
+            return;
+        }
+        
+    } catch (InvalidArgumentException $e) {
+        send_response(400, ['message' => 'Validation error: ' . $e->getMessage()]);
+        return;
+    } catch (Exception $e) {
+        error_log('Validation error in approvals.php PATCH: ' . $e->getMessage());
+        send_response(500, ['message' => 'Server error during validation']);
         return;
     }
-
+    
+    $resolved_by = $current_user['name']; // Verwende Anzeigenamen aus der Session
     $request_id = $data['requestId'];
     $final_status = $data['finalStatus'];
 

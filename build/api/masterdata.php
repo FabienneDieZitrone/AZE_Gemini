@@ -37,6 +37,7 @@ error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED);
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/auth_helpers.php';
+require_once __DIR__ . '/validation.php';
 
 initialize_api();
 
@@ -88,10 +89,40 @@ function handle_get($conn, $current_user) {
 
 function handle_put($conn, $current_user) {
     // TODO: Berechtigungsprüfung (z.B. basierend auf $current_user['role'])
-    $data = json_decode(file_get_contents('php://input'), true);
-
-    if (!isset($data['userId']) || !isset($data['weeklyHours']) || !isset($data['workdays']) || !isset($data['canWorkFromHome'])) {
-        send_response(400, ['message' => 'Bad Request: Missing required fields.']);
+    try {
+        $required_fields = ['userId', 'weeklyHours', 'workdays', 'canWorkFromHome'];
+        $data = InputValidator::validateJsonInput($required_fields);
+        
+        // Validate userId is a positive integer
+        if (!InputValidator::isValidId($data['userId'])) {
+            send_response(400, ['message' => 'Invalid userId format']);
+            return;
+        }
+        
+        // Validate weeklyHours is a positive number
+        if (!is_numeric($data['weeklyHours']) || $data['weeklyHours'] < 0 || $data['weeklyHours'] > 80) {
+            send_response(400, ['message' => 'Invalid weeklyHours. Must be between 0 and 80']);
+            return;
+        }
+        
+        // Validate workdays is an array
+        if (!is_array($data['workdays'])) {
+            send_response(400, ['message' => 'Invalid workdays format. Must be an array']);
+            return;
+        }
+        
+        // Validate canWorkFromHome is boolean
+        if (!is_bool($data['canWorkFromHome'])) {
+            send_response(400, ['message' => 'Invalid canWorkFromHome format. Must be boolean']);
+            return;
+        }
+        
+    } catch (InvalidArgumentException $e) {
+        send_response(400, ['message' => 'Validation error: ' . $e->getMessage()]);
+        return;
+    } catch (Exception $e) {
+        error_log('Validation error in masterdata.php: ' . $e->getMessage());
+        send_response(500, ['message' => 'Server error during validation']);
         return;
     }
 

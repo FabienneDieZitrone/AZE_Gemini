@@ -38,6 +38,7 @@ error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED);
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/auth_helpers.php';
+require_once __DIR__ . '/validation.php';
 
 initialize_api();
 
@@ -80,14 +81,38 @@ function handle_get($conn, $current_user) {
 }
 
 function handle_post($conn, $current_user) {
-    $data = json_decode(file_get_contents('php://input'), true);
-    
-    $required_fields = ['userId', 'username', 'date', 'startTime', 'stopTime', 'location', 'role', 'updatedBy'];
-    foreach ($required_fields as $field) {
-        if (!isset($data[$field])) {
-            send_response(400, ['message' => "Bad Request: Missing field '{$field}'"]);
+    try {
+        $required_fields = ['userId', 'username', 'date', 'startTime', 'stopTime', 'location', 'role', 'updatedBy'];
+        $data = InputValidator::validateJsonInput($required_fields);
+        
+        // Additional business logic validation
+        if (!InputValidator::isValidId($data['userId'])) {
+            send_response(400, ['message' => 'Invalid userId format']);
             return;
         }
+        
+        if (!InputValidator::isValidDate($data['date'])) {
+            send_response(400, ['message' => 'Invalid date format. Expected YYYY-MM-DD']);
+            return;
+        }
+        
+        if (!InputValidator::isValidTime($data['startTime']) || !InputValidator::isValidTime($data['stopTime'])) {
+            send_response(400, ['message' => 'Invalid time format. Expected HH:MM:SS']);
+            return;
+        }
+        
+        if (!InputValidator::isValidUsername($data['username'])) {
+            send_response(400, ['message' => 'Invalid username format']);
+            return;
+        }
+        
+    } catch (InvalidArgumentException $e) {
+        send_response(400, ['message' => 'Validation error: ' . $e->getMessage()]);
+        return;
+    } catch (Exception $e) {
+        error_log('Validation error in time-entries: ' . $e->getMessage());
+        send_response(500, ['message' => 'Server error during validation']);
+        return;
     }
     
     // Sicherheitsprüfung: Darf der angemeldete Benutzer für die angegebene userId posten?
