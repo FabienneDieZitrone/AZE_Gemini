@@ -85,6 +85,45 @@ export const MainAppView: React.FC = () => {
     initializeAndFetchData();
   }, [initializeAndFetchData]);
 
+  // ISSUE #1 FIX: Check for timer backup after login
+  useEffect(() => {
+    if (currentUser) {
+      try {
+        const backupData = localStorage.getItem('aze_timer_backup');
+        if (backupData) {
+          const backup = JSON.parse(backupData);
+          
+          // Check if backup is recent (within 24 hours) and for same user
+          const isRecentBackup = (Date.now() - backup.timestamp) < 24 * 60 * 60 * 1000;
+          const isSameUser = backup.currentUser?.id === currentUser.id;
+          
+          if (isRecentBackup && isSameUser && backup.isTracking) {
+            const shouldRestore = window.confirm(
+              'Es wurde eine unterbrochene Zeiterfassung gefunden!\n\n' +
+              `Gestartet: ${new Date(backup.startTime).toLocaleString()}\n` +
+              `Nutzer: ${backup.currentUser.name}\n\n` +
+              'Möchten Sie die Zeiterfassung fortsetzen?'
+            );
+            
+            if (shouldRestore) {
+              // Restore timer state
+              setActiveTimerStartTime(backup.startTime);
+              setIsTracking(true);
+              setElapsedTime(backup.elapsedTime);
+              console.log('Timer backup restored from localStorage');
+            }
+          }
+          
+          // Clean up old backup
+          localStorage.removeItem('aze_timer_backup');
+        }
+      } catch (error) {
+        console.warn('Failed to restore timer backup:', error);
+        localStorage.removeItem('aze_timer_backup'); // Clean up corrupted data
+      }
+    }
+  }, [currentUser]);
+
 
   const currentDate = useMemo(() => {
     const today = new Date();
@@ -338,6 +377,35 @@ export const MainAppView: React.FC = () => {
   }, [calculatedOvertimeSeconds]);
 
   const handleLogout = () => {
+    // ISSUE #1 FIX: Check for running timer and warn user
+    if (isTracking && activeTimerStartTime) {
+      const confirmLogout = window.confirm(
+        'Sie haben eine laufende Zeiterfassung! Beim Abmelden geht die aktuelle Zeiterfassung verloren.\n\n' +
+        'Möchten Sie trotzdem abmelden?\n\n' +
+        'Tipp: Stoppen Sie die Zeiterfassung zuerst, um Datenverlust zu vermeiden.'
+      );
+      
+      if (!confirmLogout) {
+        return; // User cancelled logout
+      }
+      
+      // ISSUE #1 FIX: Save current timer state to localStorage as backup
+      try {
+        const backupData = {
+          isTracking: true,
+          startTime: activeTimerStartTime,
+          elapsedTime: elapsedTime,
+          currentUser: currentUser,
+          currentLocation: currentLocation,
+          timestamp: Date.now()
+        };
+        localStorage.setItem('aze_timer_backup', JSON.stringify(backupData));
+        console.log('Timer backup saved to localStorage before logout');
+      } catch (error) {
+        console.warn('Failed to save timer backup:', error);
+      }
+    }
+    
     window.location.href = '/api/auth-logout.php';
   };
   

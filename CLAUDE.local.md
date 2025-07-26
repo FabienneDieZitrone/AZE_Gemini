@@ -96,9 +96,11 @@ ini_set('display_errors', 0);  // ← Keine Error-Details an Frontend
 9. ✅ **Password-Repository-Security** keine Credentials im Git-Repository
 
 ### ⚠️ **Noch zu implementieren:**
-- Issue #1: Logout-Warnung + localStorage-Zwischenspeicherung
 - Security-Headers (CSP, HSTS, Rate-Limiting)
 - Penetrationstests beauftragen
+
+### ✅ **Abgeschlossen (26.07.2025 - Abends):**
+10. ✅ **Issue #1** - Logout-Warnung + localStorage-Zwischenspeicherung implementiert
 
 ### ✅ **Bereits sicher:**
 - OAuth2 Integration: Azure AD Client Secret sicher
@@ -213,9 +215,9 @@ cd /app/build && npm run build && npm run preview
 ## 🎯 **NÄCHSTE SCHRITTE (PRIORISIERT)**
 
 ### **Diese Woche (KW 30):**
-1. **Issue #1**: Logout-Warnung + localStorage-Zwischenspeicherung ← **NÄCHSTER SCHRITT**
+1. ✅ **Issue #1**: Logout-Warnung + localStorage-Zwischenspeicherung (ERLEDIGT 26.07.2025)
 2. ✅ **Issue #19**: DB-Password aus `/app/build/api/db.php` entfernen (ERLEDIGT 26.07.2025)
-3. **Issue #20**: Security-Code-Review abschließen (Input-Validation ausstehend)
+3. ✅ **Issue #20**: Security-Code-Review abgeschlossen (ERLEDIGT 26.07.2025)
 
 ### **August 2025:**
 1. **v0.6**: Error Handling + Unit Tests + DSGVO-Grundlagen
