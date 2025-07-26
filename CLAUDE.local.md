@@ -111,7 +111,7 @@ ini_set('display_errors', 0);  // ← Keine Error-Details an Frontend
 │   │   ├── TimeSheetView.tsx       # ⚠️ Complexity 15 (Issue #20)
 │   │   └── MainAppView.tsx         # 🔴 Datenverlust-Bug (Issue #1)
 │   ├── api/
-│   │   ├── db.php                  # 🚨 HARDCODED PASSWORD!
+│   │   ├── db.php                  # ✅ Environment Variables (26.07.2025)
 │   │   ├── time-entries.php        # ⚠️ Input validation fehlt
 │   │   └── auth-*.php              # ✅ OAuth2 funktionsfähig
 │   ├── package.json | schema.sql | index.html
@@ -209,9 +209,9 @@ cd /app/build && npm run build && npm run preview
 ## 🎯 **NÄCHSTE SCHRITTE (PRIORISIERT)**
 
 ### **Diese Woche (KW 30):**
-1. **Issue #1**: Logout-Warnung + localStorage-Zwischenspeicherung
-2. **Issue #19**: DB-Password aus `/app/build/api/db.php` entfernen (SOFORT!)
-3. **Issue #20**: Security-Code-Review abschließen
+1. **Issue #1**: Logout-Warnung + localStorage-Zwischenspeicherung ← **NÄCHSTER SCHRITT**
+2. ✅ **Issue #19**: DB-Password aus `/app/build/api/db.php` entfernen (ERLEDIGT 26.07.2025)
+3. **Issue #20**: Security-Code-Review abschließen (Input-Validation ausstehend)
 
 ### **August 2025:**
 1. **v0.6**: Error Handling + Unit Tests + DSGVO-Grundlagen
@@ -254,4 +254,5 @@ cd /app/build && npm run build && npm run preview
 **Security-Status**: Grundlegende Sicherheitsprobleme behoben (26.07.2025)
 **Nächster Meilenstein**: v0.6 Security & Compliance (Input-Validation)  
 **Version**: v0.1 Alpha → v1.0 Production Ready  
-**Letztes Update**: 26.07.2025 (Security-Fixes implementiert, Dokumentation korrigiert)
+**Letztes Update**: 26.07.2025 (Testing-Pipeline + Security-Fixes implementiert, Issue #19 abgeschlossen)  
+**NÄCHSTER SCHRITT**: Issue #1 - Logout-Warnung + localStorage-Zwischenspeicherung
