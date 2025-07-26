@@ -7,11 +7,11 @@
 ## 🚀 **AKTUELLER STATUS (26.07.2025)**
 
 ### **Live-System**: https://aze.mikropartner.de ✅
-- **Version**: v1.0 PRODUKTIV → **Weiterentwicklung zu v1.0 Production Ready**
-- **Deployment**: @import `/app/deployment/SUCCESSFUL_FTP_DEPLOYMENT.md`
-- **GitHub Issues**: **23 strategische Issues** für Weiterentwicklung erstellt
-- **Master-Plan**: Issue #23 mit **ROI-Analyse 38.133%** (53.000€ → 20.265.000€)
-- **Roadmap**: 4 Milestones bis v1.0 Production Ready (01.09.2025)
+- **Version**: v0.1 ALPHA → **Weiterentwicklung zu v1.0 Production Ready**
+- **Deployment**: Basic FTP deployment erfolgreich
+- **GitHub Issues**: **28 Issues** für strukturierte Weiterentwicklung (erstellt 25.-26.07.2025)
+- **Entwicklungsstand**: 2-Tage-Projekt, funktionale Basis vorhanden
+- **Timeline**: Projekt gestartet 25.07.2025, Issues systematisch erstellt
 
 ### **🔴 KRITISCHE ERKENNTNISSE:**
 
@@ -21,10 +21,12 @@
 - 💡 **Lösung**: DB-Status 'running' + Client-Sync → Kein Datenverlust möglich
 - **Server-First**: Zeit sofort in DB, Multi-Device Support automatisch
 
-#### **Security-Critical (Issue #19/20):**
-- 🚨 **Hardcoded DB-Password** in `/app/build/api/db.php` entdeckt
-- ⚠️ **Input-Validation** fehlt in API-Endpoints
-- 📋 **Penetrationstests** und OWASP-Compliance erforderlich
+#### **Security-Critical (Issues #19/20/28):**
+- ✅ **DB-Password Security**: Environment Variables implementiert (26.07.2025)
+- ✅ **Production Error Display**: Deaktiviert in allen PHP APIs  
+- ✅ **OAuth Client Secret**: Sichere Fallback-Mechanismen implementiert
+- ⚠️ **Input-Validation**: Noch nicht implementiert in API-Endpoints
+- 📋 **Penetrationstests**: Erforderlich für Production Ready
 
 ## Projekt-Überblick
 
@@ -69,29 +71,35 @@
 - Issue #12: Dokumentations-Reiter | Issue #14: Admin-Reiter
 - Issue #15: Live-Arbeitszeit im Header
 
-## 🔒 **SICHERHEITSHINWEISE - KRITISCH AKTUALISIERT**
+## 🔒 **SICHERHEITSHINWEISE - STATUS 26.07.2025**
 
-### 🚨 **KRITISCHE SICHERHEITSLÜCKEN (NICHT behoben!):**
+### ✅ **BEHOBENE SICHERHEITSPROBLEME:**
 
 ```php
-// GEFUNDEN in /app/build/api/db.php - SOFORT BEHEBEN!
-$password = "Start.321";  // ← PRODUKTIONS-PASSWORD IM CODE!
+// ✅ BEHOBEN: Environment Variables implementiert
+$config = Config::load();
+$password = Config::get('db.password');  // ← Sicher aus .env
 
-// KEINE Input-Validation in time-entries.php:
-$date = $_POST['date'];  // ← SQL INJECTION MÖGLICH
+// ✅ BEHOBEN: Production Error Display deaktiviert
+ini_set('display_errors', 0);  // ← Keine Error-Details an Frontend
 ```
 
-### **Sofortmaßnahmen (Issue #19):**
-1. 🔴 **DB-Credentials** in Environment Variables verschieben
-2. 🔴 **Input-Validation** für alle API-Endpoints
-3. 🔴 **SQL-Injection-Schutz** mit Prepared Statements
-4. 🔴 **Security-Headers** (CSP, HSTS) implementieren
-5. 🔴 **Penetrationstests** beauftragen
+### **✅ Abgeschlossene Sicherheitsmaßnahmen (26.07.2025):**
+1. ✅ **DB-Credentials** in Environment Variables (.env)
+2. ✅ **Production Error Display** deaktiviert in allen APIs
+3. ✅ **OAuth Client Secret** mit sicheren Fallbacks
+4. ✅ **.gitignore** erweitert für .env-Dateien
+5. ✅ **SQL-Injection-Schutz** mit Prepared Statements vorhanden
+
+### ⚠️ **Noch zu implementieren:**
+- Input-Validation für alle API-Endpoints
+- Security-Headers (CSP, HSTS) 
+- Penetrationstests beauftragen
 
 ### ✅ **Bereits sicher:**
 - OAuth2 Integration: Azure AD Client Secret sicher
 - Session Security: HTTP-only Cookies
-- Gitignore: .env Datei ausgeschlossen
+- Database Queries: Prepared Statements verwendet
 
 ## Verzeichnisstruktur (Tatsächlich)
 
@@ -239,11 +247,11 @@ cd /app/build && npm run build && npm run preview
 
 ---
 
-**Status**: LIVE + STRATEGISCHE WEITERENTWICKLUNG  
-**Live-URL**: https://aze.mikropartner.de  
-**GitHub Issues**: 23 Issues → v1.0 Production Ready  
-**Master-Plan**: Issue #23 (ROI 38.133%)  
-**Nächster Meilenstein**: v0.6 Security & Compliance (10.08.2025)  
-**Investment**: 53.000€ → **Nutzen**: 20.265.000€  
-**Version**: v1.0 → v1.0 Production Ready  
-**Letztes Update**: 26.07.2025 (Issue #1 verifiziert, Security-Gaps identifiziert)
+**Status**: ALPHA + STRUKTURIERTE WEITERENTWICKLUNG  
+**Live-URL**: https://aze.mikropartner.de (Funktional, aber nicht Production Ready)  
+**GitHub Issues**: 28 Issues → v1.0 Production Ready  
+**Entwicklungsstand**: 2-Tage-Projekt mit funktionaler Basis
+**Security-Status**: Grundlegende Sicherheitsprobleme behoben (26.07.2025)
+**Nächster Meilenstein**: v0.6 Security & Compliance (Input-Validation)  
+**Version**: v0.1 Alpha → v1.0 Production Ready  
+**Letztes Update**: 26.07.2025 (Security-Fixes implementiert, Dokumentation korrigiert)

@@ -44,6 +44,9 @@ class Config {
                 'password' => $_ENV['DB_PASSWORD'] ?? '',
                 'name' => $_ENV['DB_NAME'] ?? '',
             ],
+            'oauth' => [
+                'client_secret' => $_ENV['OAUTH_CLIENT_SECRET'] ?? '',
+            ],
             'app' => [
                 'env' => $_ENV['APP_ENV'] ?? 'production',
                 'debug' => filter_var($_ENV['APP_DEBUG'] ?? false, FILTER_VALIDATE_BOOLEAN),

@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -10,5 +11,10 @@ export default defineConfig({
     // Stellt sicher, dass der Output-Ordner 'dist' heißt.
     // Der Inhalt dieses Ordners muss auf den Server geladen werden.
     outDir: 'dist',
+  },
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.ts'],
+    globals: true,
   },
 })

@@ -10,16 +10,23 @@
 
 // Bindet die zentralen Hilfsfunktionen, inkl. der sicheren Session-Konfiguration, ein.
 require_once __DIR__ . '/auth_helpers.php';
+require_once __DIR__ . '/../config.php';
 
-// --- KONFIGURATION ---
-// Diese Werte stammen aus Ihrer Azure App-Registrierung.
-// WICHTIG: Der Client-Secret MUSS in einer sicheren Umgebung (z.B. als Umgebungsvariable auf dem Server) 
-// gespeichert und hier geladen werden, NICHT fest im Code.
-$clientSecret = getenv('OAUTH_CLIENT_SECRET'); // Versucht, das Secret aus einer Umgebungsvariable zu laden
-if ($clientSecret === false) {
-    // Fallback für Entwicklungsumgebungen, aber NICHT für die Produktion empfohlen.
-    // Ersetzen Sie diesen Platzhalter durch Ihr echtes Client-Secret, das Sie in Azure AD generiert haben.
-    $clientSecret = 'YOUR_CLIENT_SECRET_MUST_BE_CONFIGURED_ON_THE_SERVER';
+// --- SICHERE KONFIGURATION ---
+// Lade Client Secret aus sicherer Konfiguration
+$config = Config::load();
+$clientSecret = Config::get('oauth.client_secret');
+
+// Fallback für direkte .env Parsing falls Config nicht funktioniert
+if (empty($clientSecret)) {
+    $clientSecret = $_ENV['OAUTH_CLIENT_SECRET'] ?? null;
+}
+
+// SICHERHEITSPRÜFUNG: Keine unsicheren Fallbacks!
+if (empty($clientSecret) || $clientSecret === 'your_azure_client_secret_here') {
+    error_log('CRITICAL: OAuth Client Secret not configured or using placeholder');
+    http_response_code(500);
+    die('OAuth configuration error. Please configure OAUTH_CLIENT_SECRET in environment variables.');
 }
 
 define('OAUTH_CLIENT_ID', '737740ef-8ab9-44eb-8570-5e3027ddf207');

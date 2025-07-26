@@ -22,10 +22,11 @@ register_shutdown_function(function () {
 });
 
 
-// Fehlerberichterstattung für die Entwicklung aktivieren
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
+// SECURITY: Error reporting disabled in production
+ini_set('display_errors', 0);
+ini_set('display_startup_errors', 0);
+ini_set('log_errors', 1);
+error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED);
 
 // Keine Authentifizierung für diesen Endpunkt erforderlich.
 header('Content-Type: application/json');

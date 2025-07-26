@@ -6,4 +6,13 @@
  * Datei: /src/components/common/LoadingSpinner.tsx
  */
 
-export const LoadingSpinner = () => <div className="loading-spinner"></div>;
+export const LoadingSpinner = () => (
+  <div 
+    className="loading-spinner" 
+    data-testid="loading-spinner"
+    role="status"
+    aria-label="Lädt..."
+  >
+    Lädt...
+  </div>
+);
