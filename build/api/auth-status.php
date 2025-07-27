@@ -8,6 +8,18 @@
  * Beschreibung: Überprüft die Session und gibt 204 bei Erfolg oder 401 bei Fehler zurück.
  *              Wird von der Frontend-App beim Start aufgerufen, um den Login-Status zu ermitteln.
  */
+
+// CRITICAL FIX: Force browser session (no auto-login in private windows)
+ini_set('session.cookie_lifetime', 0);
+session_set_cookie_params([
+    'lifetime' => 0,  // Browser session only
+    'path' => '/',
+    'domain' => $_SERVER['HTTP_HOST'] ?? '',
+    'secure' => true,
+    'httponly' => true,
+    'samesite' => 'Lax'
+]);
+
 require_once __DIR__ . '/auth_helpers.php';
 
 initialize_api();

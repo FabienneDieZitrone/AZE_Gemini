@@ -95,7 +95,8 @@ export const MainAppView: React.FC = () => {
 
   const checkForRunningTimer = async () => {
     try {
-      const response = await fetch('/api/timer-control.php', {
+      // Check for incomplete entries (stop_time = NULL)
+      const response = await fetch('/api/time-entries.php?action=check_running', {
         method: 'GET',
         credentials: 'include'
       });
@@ -109,7 +110,6 @@ export const MainAppView: React.FC = () => {
           setCurrentTimerId(data.runningTimer.id);
           // Don't set elapsedTime here - it will be calculated by the effect
           console.log('Running timer found on server:', data.runningTimer);
-          console.log('Current timer ID:', currentTimerId); // Use variable
         }
       }
     } catch (error) {
@@ -214,17 +214,27 @@ export const MainAppView: React.FC = () => {
 
     try {
       if (isTracking) {
-        // SERVER-FIRST: Stop timer on server
-        const response = await fetch('/api/timer-control.php', {
+        // WORKAROUND: Use POST with action=stop instead of PUT (Apache blocks PUT)
+        if (!currentTimerId) {
+          throw new Error('No timer ID available');
+        }
+        
+        const now = new Date();
+        const stopTime = now.toTimeString().split(' ')[0]; // HH:MM:SS format
+        
+        const response = await fetch('/api/time-entries.php?action=stop', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({ action: 'stop' })
+          body: JSON.stringify({ 
+            id: currentTimerId,
+            stopTime: stopTime,
+            updatedBy: currentUser.name
+          })
         });
 
         if (response.ok) {
-          const data = await response.json();
-          console.log('Timer stopped on server:', data);
+          console.log('Timer stopped on server via time-entries.php');
           
           // Update local state
           setIsTracking(false);
@@ -238,28 +248,37 @@ export const MainAppView: React.FC = () => {
           throw new Error('Failed to stop timer on server');
         }
       } else {
-        // SERVER-FIRST: Start timer on server
-        const response = await fetch('/api/timer-control.php', {
+        // QUICK-FIX: Start timer using time-entries.php POST method with NULL stop_time
+        const now = new Date();
+        const startTime = now.toTimeString().split(' ')[0]; // HH:MM:SS format
+        const date = now.toISOString().split('T')[0]; // YYYY-MM-DD format
+        
+        const response = await fetch('/api/time-entries.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify({ 
-            action: 'start',
-            location: currentLocation 
+            userId: currentUser.id,
+            username: currentUser.name,
+            date: date,
+            startTime: startTime,
+            stopTime: null, // DB allows NULL for running timers
+            location: currentLocation,
+            role: currentUser.role,
+            updatedBy: currentUser.name
           })
         });
 
         if (response.ok) {
           const data = await response.json();
-          console.log('Timer started on server:', data);
+          console.log('Timer started on server via time-entries.php:', data);
           
           // Update local state
-          const startTime = new Date(`${data.date}T${data.startTime}`).getTime();
-          setActiveTimerStartTime(startTime);
+          const startTimeMs = new Date(`${date}T${startTime}`).getTime();
+          setActiveTimerStartTime(startTimeMs);
           setIsTracking(true);
-          setCurrentTimerId(data.timerId);
+          setCurrentTimerId(data.id);
           setElapsedTime(0);
-          console.log('Timer ID:', data.timerId); // Use currentTimerId
         } else {
           throw new Error('Failed to start timer on server');
         }

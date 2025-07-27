@@ -139,12 +139,13 @@ class InputValidator {
     }
     
     /**
-     * Validate username (alphanumeric + underscore + dot)
+     * Validate username (alphanumeric + underscore + dot + space)
      * @param string $username Username string
      * @return bool True if valid
      */
     public static function isValidUsername($username) {
-        return preg_match('/^[a-zA-Z0-9._-]+$/', $username) && strlen($username) >= 2 && strlen($username) <= 50;
+        // Allow spaces for names from Azure AD (e.g. "Max Mustermann")
+        return preg_match('/^[a-zA-Z0-9._\- ]+$/', $username) && strlen($username) >= 2 && strlen($username) <= 50;
     }
 }
 

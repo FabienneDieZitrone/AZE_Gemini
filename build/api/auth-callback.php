@@ -8,6 +8,17 @@
  * Beschreibung: Verarbeitet den Callback von Azure AD, erstellt eine Benutzersession und regeneriert die Session-ID vor dem Redirect für maximale Stabilität und Sicherheit.
  */
 
+// CRITICAL FIX: Force browser session BEFORE any requires
+ini_set('session.cookie_lifetime', 0);
+session_set_cookie_params([
+    'lifetime' => 0,  // Browser session only
+    'path' => '/',
+    'domain' => $_SERVER['HTTP_HOST'] ?? '',
+    'secure' => true,
+    'httponly' => true,
+    'samesite' => 'Lax'
+]);
+
 // Bindet den OAuth-Client und die sichere Session-Funktion ein.
 require_once __DIR__ . '/auth-oauth-client.php';
 require_once __DIR__ . '/validation.php';
