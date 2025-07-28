@@ -1,0 +1,84 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: build/package-lock.json
+    
+    - name: Install dependencies
+      working-directory: ./build
+      run: npm ci
+    
+    - name: Run tests
+      working-directory: ./build
+      run: npm run test:run
+    
+    - name: Build frontend
+      working-directory: ./build
+      run: npm run build
+    
+    - name: Prepare deployment package
+      working-directory: ./build
+      run: |
+        # Create deployment directory
+        mkdir -p deploy
+        
+        # Copy frontend build
+        cp -r dist/* deploy/
+        
+        # Copy API files
+        cp -r api deploy/
+        
+        # Copy config files
+        cp .htaccess deploy/ || true
+        cp config.php deploy/ || true
+        
+        # Create directories
+        mkdir -p deploy/logs
+        mkdir -p deploy/data
+        mkdir -p deploy/cache
+        
+        # Create deployment info
+        echo "Deployed at: $(date)" > deploy/DEPLOYMENT_INFO.txt
+        echo "Commit: ${{ github.sha }}" >> deploy/DEPLOYMENT_INFO.txt
+    
+    - name: Deploy to server
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+      with:
+        server: ${{ secrets.FTP_SERVER }}
+        username: ${{ secrets.FTP_USERNAME }}
+        password: ${{ secrets.FTP_PASSWORD }}
+        server-dir: /aze/
+        local-dir: ./build/deploy/
+        dangerous-clean-slate: false
+        exclude: |
+          **/node_modules/**
+          **/.git/**
+          **/.env
+          **/logs/**
+          **/data/**
+    
+    - name: Health check
+      run: |
+        sleep 10
+        response=$(curl -s -o /dev/null -w "%{http_code}" https://aze.mikropartner.de/api/health.php)
+        if [ $response -eq 200 ]; then
+          echo "✓ Deployment successful - Health check passed"
+        else
+          echo "✗ Health check failed with status: $response"
+          exit 1
+        fi

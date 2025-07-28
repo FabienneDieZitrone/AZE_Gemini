@@ -7,6 +7,10 @@
  * Beschreibung: Gesichert durch serverseitige Session-Prüfung.
  */
 
+// Error handling
+require_once __DIR__ . '/error-handler.php';
+require_once __DIR__ . '/security-headers.php';
+
 // Robuster Fatal-Error-Handler, um leere Antworten zu verhindern
 register_shutdown_function(function () {
     $error = error_get_last();

@@ -5,6 +5,10 @@
  * Resolves Issue #1: No data loss on logout
  */
 
+// Error handling
+require_once __DIR__ . '/error-handler.php';
+require_once __DIR__ . '/security-headers.php';
+
 // SECURITY: Error reporting disabled in production
 ini_set('display_errors', 0);
 ini_set('display_startup_errors', 0);

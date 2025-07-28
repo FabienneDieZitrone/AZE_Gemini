@@ -1,36 +1,14 @@
-# Apache-Konfiguration für React SPA auf einer Subdomain
-# Titel: Die Wiederbelebung der Katzen
-# Version: 205.0 (Final & Corrected)
-# Beschreibung: Implementiert eine umfassende Sicherheitskonfiguration. Dies beinhaltet eine strikte Content Security Policy (CSP)
-#              und korrektes SPA-Routing. Die Cookie-Attribute werden nun vollständig vom PHP-Backend gesteuert.
+# Security settings for AZE directories
+Options -Indexes
+Options -FollowSymLinks
 
-# --- GRUNDEINSTELLUNGEN ---
-RewriteEngine On
-RewriteBase /
+# Protect sensitive directories
+<FilesMatch "\.(env|log|sql|ini|conf|cfg)$">
+    Require all denied
+</FilesMatch>
 
-# --- SPA-ROUTING-REGELN ---
-# Schütze wichtige Verzeichnisse vor dem Umschreiben.
-# Anfragen an existierende Dateien/Ordner werden direkt ausgeliefert.
-# Dies behebt 500-Fehler beim Laden von JS/CSS und ermöglicht den App-Start.
-RewriteRule ^assets/ - [L]
-RewriteRule ^api/ - [L]
-
-# Leite alle anderen Anfragen an die index.html im Root weiter.
-# Dies ist die Kernregel für das client-seitige Routing von React.
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule . /index.html [L]
-
-# --- SICHERHEITS-HEADER ---
-<IfModule mod_headers.c>
-  # 1. Content Security Policy (CSP)
-  # 'Header set' überschreibt alle vom Server geerbten CSPs.
-  Header set Content-Security-Policy "default-src 'self'; script-src 'self' https://esm.sh 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data: https:; connect-src 'self' https://esm.sh https://*.microsoft.com https://*.msauth.net https://*.msftauth.net https://*.msidentity.com https://login.microsoftonline.com https://*.live.com wss://login.microsoftonline.com; frame-src 'self' https://login.microsoftonline.com https://login.live.com; worker-src 'self' blob:;"
-
-  # 2. Cookie-Attribute (WICHTIGE ÄNDERUNG)
-  # Die 'Header edit Set-Cookie' Direktive wurde entfernt.
-  # Sie verursachte Konflikte mit den von PHP gesetzten Session-Parametern und führte zu fehlerhaften
-  # Cookies, die von modernen Browsern blockiert wurden (Ursache der 401-Fehler).
-  # Die Konfiguration erfolgt nun ausschließlich in der PHP-Anwendung (siehe api/auth_helpers.php).
-
+# Protect directories
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(logs|data|cache)/ - [F,L]
 </IfModule>

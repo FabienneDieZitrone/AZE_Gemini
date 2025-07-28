@@ -1,0 +1,41 @@
+AZE_Gemini PHP Backend Deployment Instructions
+==============================================
+
+1. Connect to FTP server:
+   Host: wp10454681.server-he.de
+   User: 10454681-ftpaze
+   Protocol: FTP with TLS
+
+2. Navigate to: /aze/
+
+3. Upload the following files:
+   - api/error-handler.php
+   - api/structured-logger.php
+   - api/security-headers.php
+   - api/health.php
+   - api/login.php (overwrites existing)
+   - api/validation.php (if changed)
+
+4. Create/verify logs directory:
+   - Ensure /aze/logs/ directory exists
+   - Set permissions to 755
+
+5. Test the deployment:
+   - Visit https://aze.mikropartner.de/api/health.php
+   - Should return JSON with health status
+
+6. Monitor logs:
+   - Check /aze/logs/app-2025-07-28.log for any errors
+
+Features Added:
+- Centralized error handling
+- Structured logging with rotation
+- Security headers on all endpoints
+- Health check endpoint
+- Improved input validation
+
+Security Improvements:
+- CORS properly configured
+- Security headers (CSP, HSTS, etc.)
+- Rate limiting
+- Better error messages (no stack traces in production)

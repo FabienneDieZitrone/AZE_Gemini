@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AZE Monitoring Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f0f2f5;
+            color: #333;
+        }
+
+        .header {
+            background: #0056b3;
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .metric-card {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .metric-title {
+            font-size: 0.875rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 600;
+            color: #0056b3;
+        }
+
+        .metric-status {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+        }
+
+        .status-healthy {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .refresh-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 0.5rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.2s;
+        }
+
+        .refresh-btn:hover {
+            background: #218838;
+        }
+
+        .refresh-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .last-updated {
+            color: #666;
+            font-size: 0.875rem;
+            margin-left: 1rem;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+
+        .logs-container {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .log-entry {
+            padding: 0.5rem;
+            border-bottom: 1px solid #eee;
+            font-family: monospace;
+            font-size: 0.875rem;
+        }
+
+        .log-error {
+            color: #dc3545;
+        }
+
+        .log-warning {
+            color: #ffc107;
+        }
+
+        .log-info {
+            color: #17a2b8;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>AZE Monitoring Dashboard</h1>
+    </div>
+
+    <div class="container">
+        <div style="margin-bottom: 2rem; display: flex; align-items: center;">
+            <button class="refresh-btn" onclick="refreshData()">Aktualisieren</button>
+            <span class="last-updated" id="lastUpdated"></span>
+        </div>
+
+        <div id="errorContainer"></div>
+
+        <div id="loadingContainer" class="loading">
+            <p>Lade Monitoring-Daten...</p>
+        </div>
+
+        <div id="metricsContainer" style="display: none;">
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-title">Datenbank Status</div>
+                    <div class="metric-value" id="dbStatus">-</div>
+                    <div class="metric-status" id="dbStatusBadge">-</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-title">Aktive Timer</div>
+                    <div class="metric-value" id="activeSessions">-</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-title">Heutige Einträge</div>
+                    <div class="metric-value" id="todayEntries">-</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-title">Registrierte Benutzer</div>
+                    <div class="metric-value" id="totalUsers">-</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-title">Fehler (24h)</div>
+                    <div class="metric-value" id="errors24h">-</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-title">Speichernutzung</div>
+                    <div class="metric-value" id="memoryUsage">-</div>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <h3>System Information</h3>
+                <div id="systemInfo" style="margin-top: 1rem;">
+                    <p><strong>PHP Version:</strong> <span id="phpVersion">-</span></p>
+                    <p><strong>Server Zeit:</strong> <span id="serverTime">-</span></p>
+                    <p><strong>Zeitzone:</strong> <span id="timezone">-</span></p>
+                    <p><strong>Memory Peak:</strong> <span id="memoryPeak">-</span></p>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <h3>Speicherplatz</h3>
+                <div style="margin-top: 1rem;">
+                    <p><strong>Logs:</strong> <span id="logsSize">-</span></p>
+                    <p><strong>Data:</strong> <span id="dataSize">-</span></p>
+                    <p><strong>Cache:</strong> <span id="cacheSize">-</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let refreshInterval;
+
+        async function fetchMonitoringData() {
+            try {
+                const response = await fetch('/api/monitoring.php', {
+                    credentials: 'same-origin'
+                });
+
+                if (response.status === 401) {
+                    window.location.href = '/';
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                updateUI(data);
+                
+            } catch (error) {
+                showError('Fehler beim Laden der Monitoring-Daten: ' + error.message);
+            }
+        }
+
+        function updateUI(data) {
+            document.getElementById('loadingContainer').style.display = 'none';
+            document.getElementById('metricsContainer').style.display = 'block';
+            document.getElementById('errorContainer').innerHTML = '';
+
+            const metrics = data.metrics;
+
+            // Database status
+            const dbStatus = metrics.database.status;
+            document.getElementById('dbStatus').textContent = dbStatus === 'healthy' ? 'Online' : 'Offline';
+            const dbBadge = document.getElementById('dbStatusBadge');
+            dbBadge.textContent = dbStatus === 'healthy' ? 'Healthy' : 'Error';
+            dbBadge.className = 'metric-status ' + (dbStatus === 'healthy' ? 'status-healthy' : 'status-error');
+
+            // Other metrics
+            document.getElementById('activeSessions').textContent = metrics.active_sessions || '0';
+            document.getElementById('todayEntries').textContent = metrics.today_entries || '0';
+            document.getElementById('totalUsers').textContent = metrics.total_users || '0';
+            document.getElementById('errors24h').textContent = metrics.errors_24h || '0';
+            document.getElementById('memoryUsage').textContent = metrics.system.memory_usage || '-';
+
+            // System info
+            document.getElementById('phpVersion').textContent = metrics.system.php_version || '-';
+            document.getElementById('serverTime').textContent = metrics.system.server_time || '-';
+            document.getElementById('timezone').textContent = metrics.system.timezone || '-';
+            document.getElementById('memoryPeak').textContent = metrics.system.memory_peak || '-';
+
+            // Disk usage
+            document.getElementById('logsSize').textContent = metrics.disk.logs_size || '-';
+            document.getElementById('dataSize').textContent = metrics.disk.data_size || '-';
+            document.getElementById('cacheSize').textContent = metrics.disk.cache_size || '-';
+
+            // Update last updated time
+            document.getElementById('lastUpdated').textContent = 
+                'Zuletzt aktualisiert: ' + new Date().toLocaleTimeString('de-DE');
+        }
+
+        function showError(message) {
+            document.getElementById('errorContainer').innerHTML = 
+                `<div class="error-message">${message}</div>`;
+        }
+
+        function refreshData() {
+            const btn = document.querySelector('.refresh-btn');
+            btn.disabled = true;
+            btn.textContent = 'Lädt...';
+
+            fetchMonitoringData().finally(() => {
+                btn.disabled = false;
+                btn.textContent = 'Aktualisieren';
+            });
+        }
+
+        // Initial load
+        fetchMonitoringData();
+
+        // Auto-refresh every 30 seconds
+        refreshInterval = setInterval(fetchMonitoringData, 30000);
+
+        // Clean up on page unload
+        window.addEventListener('beforeunload', () => {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+        });
+    </script>
+</body>
+</html>
