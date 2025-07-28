@@ -22,6 +22,16 @@ dist-ssr
 .deploy-credentials
 .ftp-config
 deployment.config
+credentials.json
+secrets.json
+*.credentials
+.credentials/
+deploy-*.py
+ftp-*.py
+*password*
+*secret*
+*credential*
+!.env.example
 
 # Legacy secrets (moved to ~/.config/aze-secrets.env)
 gh.md

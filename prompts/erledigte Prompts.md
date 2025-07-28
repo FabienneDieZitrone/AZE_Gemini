@@ -33,3 +33,10 @@ issue 1: reicht es nicht das mit dem drücken des beutzers auf start auch der db
 Verwende wenn möglich und technisch nicht erforderlich IMMER die deutsche Sprache
 Analysiere 
 
+Stelle sicher das Du alle Verbindungen nutzen kannst und alle relevanten Informationen darüber in der .env.deployment stehen und diese wiederum nicht auf github sondern auf der .gitignore Liste steht
+
+node auf version 22.17.1 in code flow container updaten
+
+
+
+Starte einen spezialisierten Experten Schwarm der sehr zielgerichtet zusammenarbeitet um die Anforderungen zu meistern!

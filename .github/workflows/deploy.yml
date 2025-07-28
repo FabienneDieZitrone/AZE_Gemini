@@ -1,0 +1,46 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: build/package-lock.json
+    
+    - name: Install dependencies
+      working-directory: ./build
+      run: npm ci
+    
+    - name: Build project
+      working-directory: ./build
+      run: npm run build
+    
+    - name: Deploy to FTP
+      uses: SamKirkland/FTP-Deploy-Action@4.3.3
+      with:
+        server: ${{ secrets.FTP_HOST }}
+        username: ${{ secrets.FTP_USER }}
+        password: ${{ secrets.FTP_PASS }}
+        local-dir: ./build/dist/
+        server-dir: /aze/
+        
+    - name: Deploy API files
+      uses: SamKirkland/FTP-Deploy-Action@4.3.3
+      with:
+        server: ${{ secrets.FTP_HOST }}
+        username: ${{ secrets.FTP_USER }}
+        password: ${{ secrets.FTP_PASS }}
+        local-dir: ./build/api/
+        server-dir: /aze/api/
