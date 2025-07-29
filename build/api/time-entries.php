@@ -39,17 +39,40 @@ ini_set('display_startup_errors', 0);
 ini_set('log_errors', 1);
 error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED);
 
-// Include security headers FIRST before any output
-require_once __DIR__ . '/security-headers.php';
+// CRITICAL FIX: Include files in correct order to avoid conflicts
+require_once __DIR__ . '/db-init.php';  // Database connection first
+require_once __DIR__ . '/auth_helpers.php';  // Session handling
+require_once __DIR__ . '/validation.php';  // Input validation
 
-require_once __DIR__ . '/db-init.php';
-require_once __DIR__ . '/auth_helpers.php';
-require_once __DIR__ . '/validation.php';
-
+// Initialize API (this sets CORS headers and starts session)
 initialize_api();
+
+// Note: security-headers.php removed to avoid duplicate header issues
 
 // Stellt sicher, dass der Benutzer authentifiziert ist.
 $user_from_session = verify_session_and_get_user();
+
+// CRITICAL: Get user ID from session
+if (!isset($user_from_session['id'])) {
+    // Try to get ID from database if not in session
+    if (isset($user_from_session['oid']) && isset($conn)) {
+        $stmt = $conn->prepare("SELECT id FROM users WHERE oid = ? LIMIT 1");
+        if ($stmt) {
+            $stmt->bind_param("s", $user_from_session['oid']);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            if ($row = $result->fetch_assoc()) {
+                $user_from_session['id'] = $row['id'];
+            }
+            $stmt->close();
+        }
+    }
+    
+    // If still no ID, log error
+    if (!isset($user_from_session['id'])) {
+        error_log('CRITICAL: No user ID in session for user: ' . json_encode($user_from_session));
+    }
+}
 
 $method = $_SERVER['REQUEST_METHOD'];
 
