@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AZE System Test Automation</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .test-status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status-running { background: #fff3cd; color: #856404; }
+        .status-passed { background: #d4edda; color: #155724; }
+        .status-failed { background: #f8d7da; color: #721c24; }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-left: 4px solid #ddd;
+            background: #f8f9fa;
+        }
+        .test-result.passed { border-color: #28a745; }
+        .test-result.failed { border-color: #dc3545; }
+        .test-result.running { border-color: #ffc107; }
+        .console-output {
+            background: #000;
+            color: #0f0;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        .timer-display {
+            font-size: 24px;
+            font-weight: bold;
+            color: #28a745;
+            margin: 10px 0;
+        }
+        .test-data {
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>AZE System Automated Test Suite</h1>
+    
+    <div class="test-container">
+        <div class="test-header">
+            <h2>Test Configuration</h2>
+            <span class="test-status status-running" id="overall-status">Ready</span>
+        </div>
+        <div class="test-data">
+            <strong>Test User:</strong> azetestclaude@mikropartner.de<br>
+            <strong>Password:</strong> a1b2c3d4<br>
+            <strong>API Base:</strong> <span id="api-base">/api/</span>
+        </div>
+        <button id="start-tests" onclick="runAllTests()">Start All Tests</button>
+        <button id="reset-tests" onclick="resetTests()" disabled>Reset Tests</button>
+    </div>
+
+    <div class="test-container">
+        <h3>Test Results</h3>
+        <div id="test-results"></div>
+    </div>
+
+    <div class="test-container">
+        <h3>Timer Test Interface</h3>
+        <div class="timer-display" id="timer-display">00:00:00</div>
+        <button id="timer-start" onclick="startTimer()">Start Timer</button>
+        <button id="timer-stop" onclick="stopTimer()" disabled>Stop Timer</button>
+        <div id="timer-status"></div>
+    </div>
+
+    <div class="test-container">
+        <h3>Console Output</h3>
+        <div class="console-output" id="console"></div>
+    </div>
+
+    <script>
+        const testUser = {
+            email: 'azetestclaude@mikropartner.de',
+            password: 'a1b2c3d4',
+            name: 'AZE Test Claude'
+        };
+
+        let currentTimer = null;
+        let timerInterval = null;
+        let testResults = [];
+
+        function log(message, type = 'info') {
+            const console = document.getElementById('console');
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#ff6b6b' : type === 'success' ? '#51cf66' : '#0f0';
+            console.innerHTML += `<div style="color: ${color}">[${timestamp}] ${message}</div>`;
+            console.scrollTop = console.scrollHeight;
+        }
+
+        function updateTestResult(testName, status, details = '') {
+            const resultsDiv = document.getElementById('test-results');
+            const existing = document.getElementById(`test-${testName.replace(/\s+/g, '-')}`);
+            
+            const resultHtml = `
+                <div class="test-result ${status}" id="test-${testName.replace(/\s+/g, '-')}">
+                    <strong>${status === 'passed' ? '✅' : status === 'failed' ? '❌' : '⏳'} ${testName}</strong>
+                    ${details ? `<br><small>${details}</small>` : ''}
+                </div>
+            `;
+            
+            if (existing) {
+                existing.outerHTML = resultHtml;
+            } else {
+                resultsDiv.innerHTML += resultHtml;
+            }
+        }
+
+        async function makeApiCall(endpoint, data = {}, method = 'POST') {
+            try {
+                const options = {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include'
+                };
+                
+                if (method !== 'GET' && data) {
+                    options.body = JSON.stringify(data);
+                }
+                
+                const response = await fetch(`/api/${endpoint}`, options);
+                const responseData = await response.json();
+                
+                return {
+                    ok: response.ok,
+                    status: response.status,
+                    data: responseData
+                };
+            } catch (error) {
+                return {
+                    ok: false,
+                    error: error.message
+                };
+            }
+        }
+
+        async function runAllTests() {
+            document.getElementById('start-tests').disabled = true;
+            document.getElementById('overall-status').textContent = 'Running...';
+            document.getElementById('overall-status').className = 'test-status status-running';
+            
+            log('Starting automated test suite...', 'info');
+            
+            // Test 1: OAuth Login Simulation
+            await testOAuthLogin();
+            
+            // Test 2: User Database Check
+            await testUserDatabase();
+            
+            // Test 3: Timer Start
+            await testTimerStart();
+            
+            // Test 4: Timer Stop
+            await testTimerStop();
+            
+            // Test 5: Stop Button Bug
+            await testStopButtonBug();
+            
+            // Test 6: API Integration
+            await testApiIntegration();
+            
+            // Summary
+            const passed = testResults.filter(t => t.status === 'passed').length;
+            const failed = testResults.filter(t => t.status === 'failed').length;
+            const total = testResults.length;
+            
+            log(`\nTest Summary: ${passed}/${total} passed, ${failed} failed`, 
+                failed > 0 ? 'error' : 'success');
+            
+            document.getElementById('overall-status').textContent = 
+                failed > 0 ? 'Failed' : 'Passed';
+            document.getElementById('overall-status').className = 
+                `test-status ${failed > 0 ? 'status-failed' : 'status-passed'}`;
+            
+            document.getElementById('reset-tests').disabled = false;
+        }
+
+        async function testOAuthLogin() {
+            log('Test 1: OAuth Login Simulation');
+            updateTestResult('OAuth Login Simulation', 'running');
+            
+            // Simulate OAuth login by setting session
+            const response = await makeApiCall('auth-mock.php', {
+                email: testUser.email,
+                name: testUser.name,
+                action: 'login'
+            });
+            
+            if (response.ok) {
+                updateTestResult('OAuth Login Simulation', 'passed', 'Session created successfully');
+                log('✅ OAuth login simulation successful', 'success');
+                testResults.push({name: 'OAuth Login', status: 'passed'});
+            } else {
+                updateTestResult('OAuth Login Simulation', 'failed', response.error || 'Login failed');
+                log('❌ OAuth login simulation failed', 'error');
+                testResults.push({name: 'OAuth Login', status: 'failed'});
+            }
+        }
+
+        async function testUserDatabase() {
+            log('\nTest 2: User Database Operations');
+            updateTestResult('User Database Check', 'running');
+            
+            const response = await makeApiCall('users.php', {}, 'GET');
+            
+            if (response.ok && response.data) {
+                updateTestResult('User Database Check', 'passed', 
+                    `User ID: ${response.data.user_id || 'Created'}`);
+                log('✅ User database check passed', 'success');
+                testResults.push({name: 'User Database', status: 'passed'});
+            } else {
+                updateTestResult('User Database Check', 'failed', 'Database error');
+                log('❌ User database check failed', 'error');
+                testResults.push({name: 'User Database', status: 'failed'});
+            }
+        }
+
+        async function testTimerStart() {
+            log('\nTest 3: Timer Start Functionality');
+            updateTestResult('Timer Start', 'running');
+            
+            const response = await makeApiCall('timer-start.php', {
+                location: 'TEST_OFFICE'
+            });
+            
+            if (response.ok && response.data.timer_id) {
+                currentTimer = response.data.timer_id;
+                updateTestResult('Timer Start', 'passed', `Timer ID: ${currentTimer}`);
+                log(`✅ Timer started with ID: ${currentTimer}`, 'success');
+                testResults.push({name: 'Timer Start', status: 'passed'});
+                
+                // Start visual timer
+                startVisualTimer();
+            } else {
+                updateTestResult('Timer Start', 'failed', response.data?.error || 'Start failed');
+                log('❌ Timer start failed', 'error');
+                testResults.push({name: 'Timer Start', status: 'failed'});
+            }
+        }
+
+        async function testTimerStop() {
+            log('\nTest 4: Timer Stop Functionality');
+            updateTestResult('Timer Stop', 'running');
+            
+            // Wait 2 seconds before stopping
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            const response = await makeApiCall('timer-stop.php', {});
+            
+            if (response.ok) {
+                updateTestResult('Timer Stop', 'passed', 
+                    `Duration: ${response.data.duration || 'N/A'} seconds`);
+                log('✅ Timer stopped successfully', 'success');
+                testResults.push({name: 'Timer Stop', status: 'passed'});
+                
+                // Stop visual timer
+                stopVisualTimer();
+            } else {
+                updateTestResult('Timer Stop', 'failed', response.data?.error || 'Stop failed');
+                log('❌ Timer stop failed', 'error');
+                testResults.push({name: 'Timer Stop', status: 'failed'});
+            }
+        }
+
+        async function testStopButtonBug() {
+            log('\nTest 5: Stop Button Bug Verification');
+            updateTestResult('Double Stop Prevention', 'running');
+            
+            // Try to stop again (should fail gracefully)
+            const response = await makeApiCall('timer-stop.php', {});
+            
+            if (!response.ok || response.data.message === 'No running timer found') {
+                updateTestResult('Double Stop Prevention', 'passed', 
+                    'Cannot stop already stopped timer');
+                log('✅ Double stop prevention working correctly', 'success');
+                testResults.push({name: 'Double Stop Prevention', status: 'passed'});
+            } else {
+                updateTestResult('Double Stop Prevention', 'failed', 
+                    'Timer was stopped twice!');
+                log('❌ Double stop prevention failed', 'error');
+                testResults.push({name: 'Double Stop Prevention', status: 'failed'});
+            }
+        }
+
+        async function testApiIntegration() {
+            log('\nTest 6: API Integration Tests');
+            updateTestResult('API Integration', 'running');
+            
+            const response = await makeApiCall('time-entries.php', {}, 'GET');
+            
+            if (response.ok && response.data.entries) {
+                const entryCount = response.data.entries.length;
+                updateTestResult('API Integration', 'passed', 
+                    `Retrieved ${entryCount} time entries`);
+                log(`✅ API integration test passed (${entryCount} entries)`, 'success');
+                testResults.push({name: 'API Integration', status: 'passed'});
+            } else {
+                updateTestResult('API Integration', 'failed', 'API error');
+                log('❌ API integration test failed', 'error');
+                testResults.push({name: 'API Integration', status: 'failed'});
+            }
+        }
+
+        // Visual timer functions
+        function startVisualTimer() {
+            const startTime = Date.now();
+            document.getElementById('timer-start').disabled = true;
+            document.getElementById('timer-stop').disabled = false;
+            document.getElementById('timer-status').innerHTML = 
+                '<span style="color: #28a745;">Timer is running...</span>';
+            
+            timerInterval = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                const hours = Math.floor(elapsed / 3600);
+                const minutes = Math.floor((elapsed % 3600) / 60);
+                const seconds = elapsed % 60;
+                
+                document.getElementById('timer-display').textContent = 
+                    `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }, 1000);
+        }
+
+        function stopVisualTimer() {
+            clearInterval(timerInterval);
+            document.getElementById('timer-start').disabled = false;
+            document.getElementById('timer-stop').disabled = true;
+            document.getElementById('timer-status').innerHTML = 
+                '<span style="color: #dc3545;">Timer stopped</span>';
+        }
+
+        async function startTimer() {
+            log('Manual timer start...');
+            const response = await makeApiCall('timer-start.php', {
+                location: 'MANUAL_TEST'
+            });
+            
+            if (response.ok) {
+                log('✅ Manual timer started', 'success');
+                startVisualTimer();
+            } else {
+                log('❌ Manual timer start failed', 'error');
+            }
+        }
+
+        async function stopTimer() {
+            log('Manual timer stop...');
+            const response = await makeApiCall('timer-stop.php', {});
+            
+            if (response.ok) {
+                log('✅ Manual timer stopped', 'success');
+                stopVisualTimer();
+            } else {
+                log('❌ Manual timer stop failed', 'error');
+            }
+        }
+
+        function resetTests() {
+            document.getElementById('test-results').innerHTML = '';
+            document.getElementById('console').innerHTML = '';
+            document.getElementById('start-tests').disabled = false;
+            document.getElementById('reset-tests').disabled = true;
+            document.getElementById('overall-status').textContent = 'Ready';
+            document.getElementById('overall-status').className = 'test-status status-running';
+            testResults = [];
+            log('Test suite reset', 'info');
+        }
+
+        // Initial log
+        log('AZE Test Automation Suite loaded', 'info');
+        log(`Test user: ${testUser.email}`, 'info');
+    </script>
+</body>
+</html>
