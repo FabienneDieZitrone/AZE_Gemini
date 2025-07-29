@@ -11,6 +11,7 @@ import { api } from '../../api';
 import { Role, Theme, User, TimeEntry, ViewState, MasterData, ApprovalRequest, HistoryEntry, SupervisorNotification, GlobalSettings, ReasonData } from '../types';
 
 import { getStartOfWeek, formatTime, calculateDurationInSeconds } from '../utils/time';
+import { TIME } from '../constants';
 import { Logo } from '../components/common/Logo';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { ThemeToggle } from '../components/common/ThemeToggle';
@@ -86,8 +87,6 @@ export const MainAppView: React.FC = () => {
     initializeAndFetchData();
   }, [initializeAndFetchData]);
 
-  // SERVER-FIRST: Check for running timer on server after login
-  // Only check on initial load, not on every refresh
   const hasCheckedForRunningTimer = React.useRef(false);
   
   useEffect(() => {
@@ -99,7 +98,6 @@ export const MainAppView: React.FC = () => {
 
   const checkForRunningTimer = async () => {
     try {
-      // Check for incomplete entries (stop_time = NULL)
       const response = await fetch('/api/time-entries.php?action=check_running', {
         method: 'GET',
         credentials: 'include'
@@ -112,12 +110,9 @@ export const MainAppView: React.FC = () => {
           setActiveTimerStartTime(startTime);
           setIsTracking(true);
           setCurrentTimerId(data.runningTimer.id);
-          // Don't set elapsedTime here - it will be calculated by the effect
-          console.log('Running timer found on server:', data.runningTimer);
         }
       }
     } catch (error) {
-      console.warn('Failed to check for running timer:', error);
     }
   };
 
@@ -162,7 +157,7 @@ export const MainAppView: React.FC = () => {
     if (!canCheck) return;
 
     const notifications: SupervisorNotification[] = [];
-    const thresholdSeconds = globalSettings.overtimeThreshold * 3600;
+    const thresholdSeconds = globalSettings.overtimeThreshold * TIME.SECONDS_PER_HOUR;
     
     const lastWeekStart = getStartOfWeek(new Date(new Date().setDate(new Date().getDate() - 7)));
     const lastWeekEnd = new Date(lastWeekStart);
@@ -174,7 +169,7 @@ export const MainAppView: React.FC = () => {
       const userMaster = masterData[user.id];
       if (!userMaster) return;
 
-      const weeklySollSeconds = userMaster.weeklyHours * 3600;
+      const weeklySollSeconds = userMaster.weeklyHours * TIME.SECONDS_PER_HOUR;
       const userEntriesLastWeek = timeEntries.filter(e => {
         return e.userId === user.id && e.date >= lastWeekStart.toISOString().split('T')[0] && e.date <= lastWeekEnd.toISOString().split('T')[0];
       });
@@ -185,7 +180,7 @@ export const MainAppView: React.FC = () => {
       if(Math.abs(deviationSeconds) > thresholdSeconds) {
           notifications.push({
               employeeName: user.name,
-              deviationHours: deviationSeconds / 3600,
+              deviationHours: deviationSeconds / TIME.SECONDS_PER_HOUR,
           });
       }
     });
@@ -238,7 +233,6 @@ export const MainAppView: React.FC = () => {
         });
 
         if (response.ok) {
-          console.log('Timer stopped on server via time-entries.php');
           
           // Update local state IMMEDIATELY
           setIsTracking(false);
@@ -258,7 +252,6 @@ export const MainAppView: React.FC = () => {
               if (checkResponse.ok) {
                 const checkData = await checkResponse.json();
                 if (checkData.hasRunningTimer) {
-                  console.error('WARNING: Timer still running after stop!', checkData.runningTimer);
                   // Force stop any remaining timer
                   setIsTracking(false);
                   setActiveTimerStartTime(null);
@@ -267,7 +260,6 @@ export const MainAppView: React.FC = () => {
                 }
               }
             } catch (error) {
-              console.warn('Failed to verify timer stop:', error);
             }
           }, 100);
           
@@ -300,7 +292,6 @@ export const MainAppView: React.FC = () => {
 
         if (response.ok) {
           const data = await response.json();
-          console.log('Timer started on server via time-entries.php:', data);
           
           // Update local state
           const startTimeMs = new Date(`${date}T${startTime}`).getTime();
@@ -416,7 +407,7 @@ export const MainAppView: React.FC = () => {
     const userMasterData = masterData[currentUser.id];
     if (!userMasterData || userMasterData.workdays.length === 0) return 0;
 
-    const dailySollSeconds = (userMasterData.weeklyHours / userMasterData.workdays.length) * 3600;
+    const dailySollSeconds = (userMasterData.weeklyHours / userMasterData.workdays.length) * TIME.SECONDS_PER_HOUR;
 
     const dayMap: { [key: string]: number } = { 'Mo': 1, 'Di': 2, 'Mi': 3, 'Do': 4, 'Fr': 5, 'Sa': 6, 'So': 0 };
     const workdaysSet = new Set(userMasterData.workdays.map(d => dayMap[d as keyof typeof dayMap]));
@@ -444,13 +435,12 @@ export const MainAppView: React.FC = () => {
   }, [timeEntries, currentUser, masterData]);
 
   const formattedOvertime = useMemo(() => {
-      const totalHours = calculatedOvertimeSeconds / 3600;
+      const totalHours = calculatedOvertimeSeconds / TIME.SECONDS_PER_HOUR;
       const sign = totalHours >= 0 ? '+' : '-';
       return `(${sign}${Math.abs(totalHours).toFixed(2)}h)`;
   }, [calculatedOvertimeSeconds]);
 
   const handleLogout = () => {
-    // SERVER-FIRST: Check for running timer and inform user
     if (isTracking && activeTimerStartTime) {
       const confirmLogout = window.confirm(
         'Sie haben eine laufende Zeiterfassung!\n\n' +
@@ -463,7 +453,6 @@ export const MainAppView: React.FC = () => {
         return; // User cancelled logout
       }
       
-      console.log('Logout with running timer - timer continues on server');
     }
     
     window.location.href = '/api/auth-logout.php';

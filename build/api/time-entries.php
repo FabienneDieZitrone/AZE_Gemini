@@ -7,10 +7,8 @@
  * Beschreibung: Gesichert durch serverseitige Session-Prüfung.
  */
 
-// Error handling
 require_once __DIR__ . '/error-handler.php';
 
-// Robuster Fatal-Error-Handler, um leere Antworten zu verhindern
 register_shutdown_function(function () {
     $error = error_get_last();
     if ($error !== null && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR])) {
@@ -18,7 +16,6 @@ register_shutdown_function(function () {
             http_response_code(500);
             header('Content-Type: application/json');
         }
-        // Strukturierte Fehlerausgabe für besseres Debugging im Frontend
         echo json_encode([
             'message' => 'Fatal PHP Error',
             'error_details' => [
@@ -32,22 +29,17 @@ register_shutdown_function(function () {
     }
 });
 
-// SECURITY: Error reporting disabled in production
-// Only log errors server-side, never display to client
 ini_set('display_errors', 0);
 ini_set('display_startup_errors', 0);
 ini_set('log_errors', 1);
 error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED);
 
-// CRITICAL FIX: Include files in correct order to avoid conflicts
-require_once __DIR__ . '/db-init.php';  // Database connection first
-require_once __DIR__ . '/auth_helpers.php';  // Session handling
-require_once __DIR__ . '/validation.php';  // Input validation
+require_once __DIR__ . '/db-init.php';
+require_once __DIR__ . '/auth_helpers.php';
+require_once __DIR__ . '/validation.php';
 
-// Initialize API (this sets CORS headers and starts session)
 initialize_api();
 
-// Note: security-headers.php removed to avoid duplicate header issues
 
 // Stellt sicher, dass der Benutzer authentifiziert ist.
 $user_from_session = verify_session_and_get_user();

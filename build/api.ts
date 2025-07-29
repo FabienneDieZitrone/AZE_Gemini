@@ -8,18 +8,15 @@
  * Beschreibung: Kapselt alle `fetch`-Aufrufe. Die Authentifizierung erfolgt nun über serverseitige HTTP-only Cookies. Die globale 401-Behandlung wurde korrigiert, um die Redirect-Schleife zu beheben.
  */
 import type { TimeEntry, EntryChangeRequestPayload, MasterData, Role, GlobalSettings } from './src/types';
+import { API } from './src/constants';
 
-// Der Basispfad für alle PHP-API-Endpunkte.
-const API_BASE_URL = '/api';
 
-// === HILFSFUNKTION FÜR API-AUFRUFE ===
 const fetchApi = async (endpoint: string, options: RequestInit & { isAuthCheck?: boolean } = {}) => {
     const headers = new Headers({ 'Content-Type': 'application/json' });
     if (options.headers) {
         new Headers(options.headers).forEach((value, key) => headers.set(key, value));
     }
     
-    // WICHTIG: 'credentials: include' sorgt dafür, dass der Browser das Session-Cookie mitsendet.
     const fetchOptions: RequestInit = {
         ...options,
         headers,
@@ -27,18 +24,14 @@ const fetchApi = async (endpoint: string, options: RequestInit & { isAuthCheck?:
     };
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    const timeoutId = setTimeout(() => controller.abort(), API.TIMEOUT_MS);
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, fetchOptions);
+    const response = await fetch(`${API.BASE_URL}${endpoint}`, fetchOptions);
     
     clearTimeout(timeoutId);
     
-    // Globale Behandlung von abgelaufenen/ungültigen Sessions
-    // AUSNAHME: Wenn es der initiale Auth-Check ist, soll keine Weiterleitung erfolgen.
     if (response.status === 401 && !options.isAuthCheck) {
-        // Die serverseitige Session ist ungültig. Leite den Benutzer zur Startseite (Login).
         window.location.href = '/'; 
-        // Wirf einen Fehler, um die weitere Ausführung des aufrufenden Codes zu stoppen.
         throw new Error('Session expired or invalid.');
     }
 
@@ -88,7 +81,7 @@ export const api = {
     logError: async (errorData: { message: string, stack?: string, context: string }) => {
         try {
             // Für das Logging ist keine Authentifizierung nötig.
-            await fetch(`${API_BASE_URL}/logs.php`, {
+            await fetch(`${API.BASE_URL}/logs.php`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(errorData),

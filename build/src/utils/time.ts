@@ -7,6 +7,7 @@
  * Datei: /src/utils/time.ts
  * Beschreibung: Sammlung von Hilfsfunktionen für Datums- und Zeitberechnungen.
  */
+import { TIME } from '../constants';
 
 export function getStartOfWeek(d: Date): Date {
   d = new Date(d);
@@ -17,9 +18,9 @@ export function getStartOfWeek(d: Date): Date {
 
 export const formatTime = (totalSeconds: number, showSeconds = true): string => {
     if (isNaN(totalSeconds)) return "00:00";
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = Math.floor(totalSeconds % 60);
+    const hours = Math.floor(totalSeconds / TIME.SECONDS_PER_HOUR);
+    const minutes = Math.floor((totalSeconds % TIME.SECONDS_PER_HOUR) / TIME.SECONDS_PER_MINUTE);
+    const seconds = Math.floor(totalSeconds % TIME.SECONDS_PER_MINUTE);
     
     const paddedHours = hours.toString().padStart(2, '0');
     const paddedMinutes = minutes.toString().padStart(2, '0');
@@ -36,5 +37,5 @@ export const calculateDurationInSeconds = (start: string, end: string): number =
   const startTime = new Date(`1970-01-01T${start}Z`);
   const endTime = new Date(`1970-01-01T${end}Z`);
   if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) return 0;
-  return Math.round((endTime.getTime() - startTime.getTime()) / 1000);
+  return Math.round((endTime.getTime() - startTime.getTime()) / TIME.MILLISECONDS_PER_SECOND);
 };

@@ -8,7 +8,6 @@
  * Beschreibung: Zentralisiert alle wiederverwendbaren TypeScript-Typen für die Anwendung. `User` wurde um `azureOid` erweitert.
  */
 
-// === BASIS-TYPEN ===
 export type Role = 'Admin' | 'Bereichsleiter' | 'Standortleiter' | 'Mitarbeiter' | 'Honorarkraft';
 export type Theme = 'light' | 'dark';
 
@@ -16,21 +15,21 @@ export type User = {
     id: number;
     name: string;
     role: Role;
-    azureOid?: string; // Eindeutige Object ID von Azure AD
+    azureOid?: string;
 };
 
 export type TimeEntry = {
     id: number;
     userId: number;
     username: string;
-    date: string; // YYYY-MM-DD
-    startTime: string; // HH:mm:ss
-    stopTime: string; // HH:mm:ss
+    date: string;
+    startTime: string;
+    stopTime: string;
     location: string;
     role: Role;
-    createdAt: string; // ISO String
+    createdAt: string;
     updatedBy: string;
-    updatedAt: string; // ISO String
+    updatedAt: string;
     isUnsynced?: boolean;
 };
 
@@ -47,7 +46,7 @@ export type ViewState = {
 };
 
 export type EditFormData = {
-    startTime: string; // ISO String
+    startTime: string;
     stopTime: string; // ISO String
     reason: string;
     reasonDetails: string;
