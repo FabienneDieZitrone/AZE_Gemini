@@ -1,7 +1,8 @@
 <?php
 /**
- * Input Validation Library - FIXED VERSION
- * Removes problematic htmlspecialchars that causes 500 errors
+ * Input Validation Library
+ * Provides secure input validation and sanitization
+ * Protects against SQL Injection, XSS, and malformed data
  */
 
 class InputValidator {
@@ -74,31 +75,23 @@ class InputValidator {
             return self::sanitizeString($data);
         }
         
-        return $data; // Numbers, booleans, null, etc.
+        return $data; // Numbers, booleans, etc.
     }
     
     /**
-     * Sanitize string input - FIXED VERSION
+     * Sanitize string input
      * @param string $input Input string
      * @return string Sanitized string
      */
     private static function sanitizeString($input) {
-        // Handle non-string input gracefully
-        if (!is_string($input)) {
-            return $input;
-        }
-        
         // Trim whitespace
         $input = trim($input);
         
-        // Remove null bytes only (potential for SQL injection)
-        // NOTE: Removed htmlspecialchars as it can cause issues with certain characters
-        // XSS protection should be done at output time, not input time
-        $input = str_replace("\0", '', $input);
+        // Prevent XSS
+        $input = htmlspecialchars($input, ENT_QUOTES, 'UTF-8');
         
-        // Additional basic sanitization without breaking functionality
-        // Remove control characters except tab, newline, carriage return
-        $input = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $input);
+        // Remove null bytes (potential for SQL injection)
+        $input = str_replace("\0", '', $input);
         
         return $input;
     }
@@ -153,26 +146,6 @@ class InputValidator {
     public static function isValidUsername($username) {
         // Allow spaces for names from Azure AD (e.g. "Max Mustermann")
         return preg_match('/^[a-zA-Z0-9._\- ]+$/', $username) && strlen($username) >= 2 && strlen($username) <= 50;
-    }
-    
-    /**
-     * Escape string for safe HTML output
-     * Use this when outputting user data to prevent XSS
-     * @param string $string String to escape
-     * @return string Escaped string
-     */
-    public static function escapeHtml($string) {
-        return htmlspecialchars($string, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-    }
-    
-    /**
-     * Escape string for safe SQL use (when not using prepared statements)
-     * @param mysqli $conn Database connection
-     * @param string $string String to escape
-     * @return string Escaped string
-     */
-    public static function escapeSql($conn, $string) {
-        return $conn->real_escape_string($string);
     }
 }
 
