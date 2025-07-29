@@ -16,7 +16,7 @@ ISSUES=0
 
 # Check for exposed credentials in tracked files
 echo -n "Checking for exposed credentials in Git... "
-if git grep -i "ftp10454681\|321Start321" 2>/dev/null; then
+if git grep -i "ftp10454681\|password.*=" 2>/dev/null; then
     echo -e "${RED}FAILED${NC}"
     echo "Found exposed credentials in tracked files!"
     ISSUES=$((ISSUES + 1))

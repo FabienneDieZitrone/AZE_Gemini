@@ -18,7 +18,7 @@ Die folgenden PHP-Dateien befinden sich im Verzeichnis `deploy_20250728_171752/a
 ### 2. Verbindungsdetails:
 - **Server**: `wp10454681.server-he.de`
 - **Benutzer**: `10454681-ftpaze`
-- **Passwort**: Start321
+- **Passwort**: ***REDACTED***
 - **Port**: 21
 - **Protokoll**: FTP mit TLS/SSL
 

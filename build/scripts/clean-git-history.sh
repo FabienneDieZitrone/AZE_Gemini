@@ -32,7 +32,7 @@ fi
 # Create file with sensitive strings to remove
 cat > sensitive-strings.txt << EOF
 ftp10454681
-321Start321
+***REDACTED***
 EOF
 
 echo -e "${YELLOW}Removing sensitive data from history...${NC}"
