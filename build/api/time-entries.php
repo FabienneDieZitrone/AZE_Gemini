@@ -175,6 +175,21 @@ function handle_post($conn, $current_user) {
     }
 
 
+    // CRITICAL FIX: Stop all existing running timers for this user before starting a new one
+    if ($data['stopTime'] === null) {
+        // This is a new timer start - stop all existing running timers
+        $stop_stmt = $conn->prepare("UPDATE time_entries SET stop_time = NOW(), updated_by = 'System Auto-Stop', updated_at = NOW() WHERE user_id = ? AND stop_time IS NULL");
+        if ($stop_stmt) {
+            $stop_stmt->bind_param("i", $data['userId']);
+            $stop_stmt->execute();
+            $stopped_count = $stop_stmt->affected_rows;
+            if ($stopped_count > 0) {
+                error_log("Auto-stopped $stopped_count running timer(s) for user " . $data['userId']);
+            }
+            $stop_stmt->close();
+        }
+    }
+
     // Handle NULL stopTime for running timers
     $stmt = $conn->prepare("INSERT INTO time_entries (user_id, username, date, start_time, stop_time, location, role, updated_by, updated_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())");
     if (!$stmt) {
