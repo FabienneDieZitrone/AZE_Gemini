@@ -40,6 +40,9 @@ ini_set('display_startup_errors', 0);
 ini_set('log_errors', 1);
 error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED);
 
+// Include security headers FIRST before any output
+require_once __DIR__ . '/security-headers.php';
+
 require_once __DIR__ . '/db-init.php';
 require_once __DIR__ . '/auth_helpers.php';
 require_once __DIR__ . '/validation.php';
