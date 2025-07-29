@@ -87,8 +87,12 @@ export const MainAppView: React.FC = () => {
   }, [initializeAndFetchData]);
 
   // SERVER-FIRST: Check for running timer on server after login
+  // Only check on initial load, not on every refresh
+  const hasCheckedForRunningTimer = React.useRef(false);
+  
   useEffect(() => {
-    if (currentUser) {
+    if (currentUser && !hasCheckedForRunningTimer.current) {
+      hasCheckedForRunningTimer.current = true;
       checkForRunningTimer();
     }
   }, [currentUser]);
@@ -236,11 +240,36 @@ export const MainAppView: React.FC = () => {
         if (response.ok) {
           console.log('Timer stopped on server via time-entries.php');
           
-          // Update local state
+          // Update local state IMMEDIATELY
           setIsTracking(false);
           setActiveTimerStartTime(null);
           setCurrentTimerId(null);
           setElapsedTime(0);
+          
+          // Double-check that no timer is running after stop
+          // This prevents race conditions
+          setTimeout(async () => {
+            try {
+              const checkResponse = await fetch('/api/time-entries.php?action=check_running', {
+                method: 'GET',
+                credentials: 'include'
+              });
+              
+              if (checkResponse.ok) {
+                const checkData = await checkResponse.json();
+                if (checkData.hasRunningTimer) {
+                  console.error('WARNING: Timer still running after stop!', checkData.runningTimer);
+                  // Force stop any remaining timer
+                  setIsTracking(false);
+                  setActiveTimerStartTime(null);
+                  setCurrentTimerId(null);
+                  setElapsedTime(0);
+                }
+              }
+            } catch (error) {
+              console.warn('Failed to verify timer stop:', error);
+            }
+          }, 100);
           
           // Reload time entries to show completed entry
           await refreshData();

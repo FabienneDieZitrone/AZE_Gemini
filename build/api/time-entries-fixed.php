@@ -1,16 +1,14 @@
 <?php
 /**
- * Titel: API-Endpunkt für Zeiteinträge
- * Version: 1.5 (BFF-Architektur)
- * Autor: MP-IT
- * Datei: /api/time-entries.php
- * Beschreibung: Gesichert durch serverseitige Session-Prüfung.
+ * TEMPORARY FIX for Issue #29 - Timer stop race condition
+ * This version handles the NOT NULL constraint on stop_time column
+ * by using '00:00:00' as a marker for running timers
  */
 
 // Error handling
 require_once __DIR__ . '/error-handler.php';
 
-// Robuster Fatal-Error-Handler, um leere Antworten zu verhindern
+// Robuster Fatal-Error-Handler
 register_shutdown_function(function () {
     $error = error_get_last();
     if ($error !== null && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR])) {
@@ -18,7 +16,6 @@ register_shutdown_function(function () {
             http_response_code(500);
             header('Content-Type: application/json');
         }
-        // Strukturierte Fehlerausgabe für besseres Debugging im Frontend
         echo json_encode([
             'message' => 'Fatal PHP Error',
             'error_details' => [
@@ -33,28 +30,24 @@ register_shutdown_function(function () {
 });
 
 // SECURITY: Error reporting disabled in production
-// Only log errors server-side, never display to client
 ini_set('display_errors', 0);
 ini_set('display_startup_errors', 0);
 ini_set('log_errors', 1);
 error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED);
 
-// CRITICAL FIX: Include files in correct order to avoid conflicts
-require_once __DIR__ . '/db-init.php';  // Database connection first
-require_once __DIR__ . '/auth_helpers.php';  // Session handling
-require_once __DIR__ . '/validation.php';  // Input validation
+// Include files in correct order
+require_once __DIR__ . '/db-init.php';
+require_once __DIR__ . '/auth_helpers.php';
+require_once __DIR__ . '/validation.php';
 
-// Initialize API (this sets CORS headers and starts session)
+// Initialize API
 initialize_api();
 
-// Note: security-headers.php removed to avoid duplicate header issues
-
-// Stellt sicher, dass der Benutzer authentifiziert ist.
+// Verify user is authenticated
 $user_from_session = verify_session_and_get_user();
 
-// CRITICAL: Get user ID from session
+// Get user ID from session
 if (!isset($user_from_session['id'])) {
-    // Try to get ID from database if not in session
     if (isset($user_from_session['oid']) && isset($conn)) {
         $stmt = $conn->prepare("SELECT id FROM users WHERE oid = ? LIMIT 1");
         if ($stmt) {
@@ -68,7 +61,6 @@ if (!isset($user_from_session['id'])) {
         }
     }
     
-    // If still no ID, log error
     if (!isset($user_from_session['id'])) {
         error_log('CRITICAL: No user ID in session for user: ' . json_encode($user_from_session));
     }
@@ -83,7 +75,6 @@ switch ($method) {
     case 'POST':
         handle_post($conn, $user_from_session);
         break;
-    // PUT disabled - Apache blocks it, using POST with action=stop instead
     default:
         send_response(405, ['message' => 'Method Not Allowed']);
         break;
@@ -92,15 +83,33 @@ switch ($method) {
 $conn->close();
 
 function handle_get($conn, $current_user) {
-    // QUICK-FIX: Check if this is a running timer check request
+    // Check if this is a running timer check request
     if (isset($_GET['action']) && $_GET['action'] === 'check_running') {
         handle_check_running_timer($conn, $current_user);
         return;
     }
     
-    // TODO: Verfeinern, um nur Einträge anzuzeigen, die der Benutzer sehen darf
-    // (z.B. eigene Einträge oder die von unterstellten Mitarbeitern), basierend auf $current_user['role'].
-    $stmt = $conn->prepare("SELECT id, user_id AS userId, username, date, start_time AS startTime, stop_time AS stopTime, location, role, created_at AS createdAt, updated_by AS updatedBy, updated_at AS updatedAt FROM time_entries ORDER BY date DESC, start_time DESC");
+    // Get all time entries, converting '00:00:00' to NULL for running timers
+    $stmt = $conn->prepare("
+        SELECT 
+            id, 
+            user_id AS userId, 
+            username, 
+            date, 
+            start_time AS startTime, 
+            CASE 
+                WHEN stop_time = '00:00:00' THEN NULL 
+                ELSE stop_time 
+            END AS stopTime, 
+            location, 
+            role, 
+            created_at AS createdAt, 
+            updated_by AS updatedBy, 
+            updated_at AS updatedAt 
+        FROM time_entries 
+        ORDER BY date DESC, start_time DESC
+    ");
+    
     if (!$stmt) {
         $error_msg = 'Prepare failed for SELECT time_entries: ' . $conn->error;
         error_log($error_msg);
@@ -117,19 +126,18 @@ function handle_get($conn, $current_user) {
 }
 
 function handle_post($conn, $current_user) {
-    // WORKAROUND: Handle stop action via POST instead of PUT
+    // Handle stop action via POST
     if (isset($_GET['action']) && $_GET['action'] === 'stop') {
         handle_stop_timer($conn, $current_user);
         return;
     }
     
     try {
-        // Allow stopTime to be optional (NULL for running timers)
         $required_fields = ['userId', 'username', 'date', 'startTime', 'location', 'role', 'updatedBy'];
         $optional_fields = ['stopTime' => null];
         $data = InputValidator::validateJsonInput($required_fields, $optional_fields);
         
-        // Additional business logic validation
+        // Validation
         if (!InputValidator::isValidId($data['userId'])) {
             send_response(400, ['message' => 'Invalid userId format']);
             return;
@@ -145,40 +153,26 @@ function handle_post($conn, $current_user) {
             return;
         }
         
-        // Only validate stopTime if it's not NULL (running timer)
         if ($data['stopTime'] !== null && !InputValidator::isValidTime($data['stopTime'])) {
             send_response(400, ['message' => 'Invalid stopTime format. Expected HH:MM:SS']);
             return;
         }
         
-        // Username validation temporarily disabled - Azure AD names have spaces
-        // if (!InputValidator::isValidUsername($data['username'])) {
-        //     send_response(400, ['message' => 'Invalid username format']);
-        //     return;
-        // }
-        
-    } catch (InvalidArgumentException $e) {
+    } catch (Exception $e) {
         send_response(400, ['message' => 'Validation error: ' . $e->getMessage()]);
         return;
-    } catch (Exception $e) {
-        error_log('Validation error in time-entries: ' . $e->getMessage());
-        send_response(500, ['message' => 'Server error during validation']);
-        return;
-    }
-    
-    // Sicherheitsprüfung: Darf der angemeldete Benutzer für die angegebene userId posten?
-    // (Entweder für sich selbst oder als Vorgesetzter)
-    if ($data['userId'] != $current_user['id']) {
-        // TODO: Hier Berechtigungslogik für Vorgesetzte einfügen
-        // send_response(403, ['message' => 'Forbidden: You cannot create entries for other users.']);
-        // return;
     }
 
-
-    // CRITICAL FIX: Stop all existing running timers for this user before starting a new one
+    // CRITICAL FIX: Stop all existing running timers before starting a new one
     if ($data['stopTime'] === null) {
-        // This is a new timer start - stop all existing running timers
-        $stop_stmt = $conn->prepare("UPDATE time_entries SET stop_time = NOW(), updated_by = 'System Auto-Stop', updated_at = NOW() WHERE user_id = ? AND stop_time IS NULL");
+        // Stop all timers with stop_time = '00:00:00' (our running marker)
+        $stop_stmt = $conn->prepare("
+            UPDATE time_entries 
+            SET stop_time = TIME(NOW()), 
+                updated_by = 'System Auto-Stop', 
+                updated_at = NOW() 
+            WHERE user_id = ? AND stop_time = '00:00:00'
+        ");
         if ($stop_stmt) {
             $stop_stmt->bind_param("i", $data['userId']);
             $stop_stmt->execute();
@@ -190,8 +184,15 @@ function handle_post($conn, $current_user) {
         }
     }
 
-    // Handle NULL stopTime for running timers
-    $stmt = $conn->prepare("INSERT INTO time_entries (user_id, username, date, start_time, stop_time, location, role, updated_by, updated_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())");
+    // Convert NULL stopTime to '00:00:00' for database insertion (running timer marker)
+    $db_stop_time = $data['stopTime'] ?? '00:00:00';
+
+    $stmt = $conn->prepare("
+        INSERT INTO time_entries 
+        (user_id, username, date, start_time, stop_time, location, role, updated_by, updated_at, created_at) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+    ");
+    
     if (!$stmt) {
         $error_msg = 'Prepare failed for INSERT time_entries: ' . $conn->error;
         error_log($error_msg);
@@ -204,7 +205,7 @@ function handle_post($conn, $current_user) {
         $data['username'], 
         $data['date'], 
         $data['startTime'], 
-        $data['stopTime'], // Can be NULL for running timers
+        $db_stop_time,  // Use '00:00:00' instead of NULL
         $data['location'], 
         $data['role'],
         $data['updatedBy']
@@ -213,6 +214,7 @@ function handle_post($conn, $current_user) {
     if ($stmt->execute()) {
         $new_id = $conn->insert_id;
         $data['id'] = $new_id;
+        // Return original stopTime (null) to frontend, not the DB workaround
         send_response(201, $data);
     } else {
         $error_msg = 'Insert failed for time_entries: ' . $stmt->error;
@@ -224,7 +226,7 @@ function handle_post($conn, $current_user) {
 }
 
 /**
- * Handle stop timer action (workaround for PUT method blocked by Apache)
+ * Handle stop timer action - FIXED VERSION
  */
 function handle_stop_timer($conn, $current_user) {
     try {
@@ -247,8 +249,13 @@ function handle_stop_timer($conn, $current_user) {
         return;
     }
     
-    // First check if the timer exists and belongs to the user
-    $check_stmt = $conn->prepare("SELECT id, stop_time FROM time_entries WHERE id = ? AND user_id = ?");
+    // Check if timer exists and is running (stop_time = '00:00:00')
+    $check_stmt = $conn->prepare("
+        SELECT id, stop_time 
+        FROM time_entries 
+        WHERE id = ? AND user_id = ?
+    ");
+    
     if (!$check_stmt) {
         error_log('Prepare failed for SELECT time_entries: ' . $conn->error);
         send_response(500, ['message' => 'Database error']);
@@ -266,14 +273,24 @@ function handle_stop_timer($conn, $current_user) {
         return;
     }
     
-    if ($timer['stop_time'] !== null) {
-        // Timer already stopped - this is OK, just return success
+    // Check if already stopped (not '00:00:00')
+    if ($timer['stop_time'] !== '00:00:00') {
         send_response(200, ['message' => 'Timer already stopped', 'id' => $data['id'], 'alreadyStopped' => true]);
         return;
     }
     
-    // Update stopTime for a running timer
-    $stmt = $conn->prepare("UPDATE time_entries SET stop_time = ?, updated_by = ?, updated_at = NOW() WHERE id = ? AND user_id = ?");
+    // Use provided stopTime or current time
+    $stop_time_value = $data['stopTime'] ?? date('H:i:s');
+    
+    // Update timer with actual stop time
+    $stmt = $conn->prepare("
+        UPDATE time_entries 
+        SET stop_time = ?, 
+            updated_by = ?, 
+            updated_at = NOW() 
+        WHERE id = ? AND user_id = ? AND stop_time = '00:00:00'
+    ");
+    
     if (!$stmt) {
         $error_msg = 'Prepare failed for UPDATE time_entries: ' . $conn->error;
         error_log($error_msg);
@@ -281,11 +298,25 @@ function handle_stop_timer($conn, $current_user) {
         return;
     }
     
-    $stmt->bind_param("ssii", $data['stopTime'], $data['updatedBy'], $data['id'], $current_user['id']);
+    $stmt->bind_param("ssii", $stop_time_value, $data['updatedBy'], $data['id'], $current_user['id']);
     
     if ($stmt->execute()) {
-        // Also stop any other running timers for this user (safety measure)
-        $cleanup_stmt = $conn->prepare("UPDATE time_entries SET stop_time = NOW(), updated_by = 'System Cleanup', updated_at = NOW() WHERE user_id = ? AND id != ? AND stop_time IS NULL");
+        $affected = $stmt->affected_rows;
+        
+        if ($affected === 0) {
+            // No rows updated - timer might have been stopped by another request
+            error_log("WARNING: No rows updated for timer stop. Timer ID: {$data['id']}, User: {$current_user['id']}");
+        }
+        
+        // Clean up any other running timers for this user
+        $cleanup_stmt = $conn->prepare("
+            UPDATE time_entries 
+            SET stop_time = TIME(NOW()), 
+                updated_by = 'System Cleanup', 
+                updated_at = NOW() 
+            WHERE user_id = ? AND id != ? AND stop_time = '00:00:00'
+        ");
+        
         if ($cleanup_stmt) {
             $cleanup_stmt->bind_param("ii", $current_user['id'], $data['id']);
             $cleanup_stmt->execute();
@@ -296,7 +327,11 @@ function handle_stop_timer($conn, $current_user) {
             $cleanup_stmt->close();
         }
         
-        send_response(200, ['message' => 'Timer stopped successfully', 'id' => $data['id']]);
+        send_response(200, [
+            'message' => 'Timer stopped successfully',
+            'id' => $data['id'],
+            'affected_rows' => $affected
+        ]);
     } else {
         error_log('Failed to update timer: ' . $stmt->error);
         send_response(500, ['message' => 'Failed to update timer']);
@@ -306,10 +341,24 @@ function handle_stop_timer($conn, $current_user) {
 }
 
 /**
- * Check for running timer (stopTime = NULL)
+ * Check for running timer (stop_time = '00:00:00')
  */
 function handle_check_running_timer($conn, $current_user) {
-    $stmt = $conn->prepare("SELECT id, user_id AS userId, username, date, start_time AS startTime, location, role, created_at AS createdAt FROM time_entries WHERE user_id = ? AND stop_time IS NULL ORDER BY created_at DESC LIMIT 1");
+    $stmt = $conn->prepare("
+        SELECT 
+            id, 
+            user_id AS userId, 
+            username, 
+            date, 
+            start_time AS startTime, 
+            location, 
+            role, 
+            created_at AS createdAt 
+        FROM time_entries 
+        WHERE user_id = ? AND stop_time = '00:00:00' 
+        ORDER BY created_at DESC 
+        LIMIT 1
+    ");
     
     if (!$stmt) {
         error_log('Prepare failed for SELECT running timer: ' . $conn->error);
