@@ -6,7 +6,7 @@
  */
 
 require_once __DIR__ . '/security-headers.php';
-require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/db-wrapper.php';
 require_once __DIR__ . '/structured-logger.php';
 
 // Initialize security (no auth required for health check)
