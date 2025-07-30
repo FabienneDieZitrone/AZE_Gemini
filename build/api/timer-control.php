@@ -5,9 +5,13 @@
  * Resolves Issue #1: No data loss on logout
  */
 
+// Define API guard constant
+define('API_GUARD', true);
+
 // Error handling
 require_once __DIR__ . '/error-handler.php';
 require_once __DIR__ . '/security-headers.php';
+require_once __DIR__ . '/security-middleware.php';
 
 // SECURITY: Error reporting disabled in production
 ini_set('display_errors', 0);
@@ -20,6 +24,9 @@ require_once __DIR__ . '/auth_helpers.php';
 require_once __DIR__ . '/validation.php';
 
 initialize_api();
+
+// Apply security headers
+initSecurityMiddleware();
 
 // Authentication required
 $user_from_session = verify_session_and_get_user();

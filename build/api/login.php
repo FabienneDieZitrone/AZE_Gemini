@@ -11,13 +11,20 @@
  */
 
 // Include security and error handling
+// Define API guard constant
+define('API_GUARD', true);
+
 require_once __DIR__ . '/security-headers.php';
 require_once __DIR__ . '/error-handler.php';
 require_once __DIR__ . '/structured-logger.php';
+require_once __DIR__ . '/security-middleware.php';
 
 // Initialize security
 initializeSecurity(false); // We'll check auth manually after
 validateRequestMethod('POST');
+
+// Apply security headers
+initSecurityMiddleware();
 
 // --- Robuster Fatal-Error-Handler ---
 register_shutdown_function(function () {
@@ -63,9 +70,23 @@ try {
     // Holt den Benutzer aus der sicheren, serverseitigen Session.
     // Diese Funktion beendet das Skript mit 401, wenn keine gültige Session vorhanden ist.
     $user_from_session = verify_session_and_get_user();
-    $azure_oid = $user_from_session['oid'];
-    $display_name_from_session = $user_from_session['name'];
-    $username_from_session = $user_from_session['username']; // E-Mail
+    
+    // SECURITY FIX: Validate and sanitize session data
+    require_once __DIR__ . '/validation.php';
+    
+    $azure_oid = InputValidator::sanitizeString($user_from_session['oid'] ?? '');
+    $display_name_from_session = InputValidator::sanitizeString($user_from_session['name'] ?? '');
+    $username_from_session = InputValidator::sanitizeString($user_from_session['username'] ?? ''); // E-Mail
+    
+    // Validate required fields
+    if (empty($azure_oid) || empty($display_name_from_session) || empty($username_from_session)) {
+        throw new Exception('Invalid session data: missing required fields');
+    }
+    
+    // Validate email format
+    if (!InputValidator::isValidEmail($username_from_session)) {
+        throw new Exception('Invalid email format in session');
+    }
 
     // Benutzer suchen via Azure OID (primärer, unveränderlicher Schlüssel)
     $stmt = $conn->prepare("SELECT * FROM users WHERE azure_oid = ?");

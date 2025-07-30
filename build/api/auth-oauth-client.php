@@ -29,10 +29,22 @@ if (empty($clientSecret) || $clientSecret === 'your_azure_client_secret_here') {
     die('OAuth configuration error. Please configure OAUTH_CLIENT_SECRET in environment variables.');
 }
 
-define('OAUTH_CLIENT_ID', '737740ef-8ab9-44eb-8570-5e3027ddf207');
+// SECURITY FIX: Load OAuth configuration from environment variables
+$oauthClientId = Config::get('oauth.client_id') ?: $_ENV['OAUTH_CLIENT_ID'] ?? null;
+$oauthTenantId = Config::get('oauth.tenant_id') ?: $_ENV['OAUTH_TENANT_ID'] ?? null;
+$oauthRedirectUri = Config::get('oauth.redirect_uri') ?: $_ENV['OAUTH_REDIRECT_URI'] ?? 'https://aze.mikropartner.de/api/auth-callback.php';
+
+// Validate OAuth configuration
+if (empty($oauthClientId) || empty($oauthTenantId)) {
+    error_log('CRITICAL: OAuth Client ID or Tenant ID not configured');
+    http_response_code(500);
+    die('OAuth configuration error. Please configure OAUTH_CLIENT_ID and OAUTH_TENANT_ID in environment variables.');
+}
+
+define('OAUTH_CLIENT_ID', $oauthClientId);
 define('OAUTH_CLIENT_SECRET', $clientSecret);
-define('OAUTH_TENANT_ID', '86b2012b-0a6b-4cdc-8f20-fb952f438319');
-define('OAUTH_REDIRECT_URI', 'https://aze.mikropartner.de/api/auth-callback.php'); // Muss exakt mit der URI in Azure übereinstimmen
+define('OAUTH_TENANT_ID', $oauthTenantId);
+define('OAUTH_REDIRECT_URI', $oauthRedirectUri); // Muss exakt mit der URI in Azure übereinstimmen
 
 define('OAUTH_AUTHORITY', 'https://login.microsoftonline.com/' . OAUTH_TENANT_ID);
 define('OAUTH_AUTHORIZE_ENDPOINT', OAUTH_AUTHORITY . '/oauth2/v2.0/authorize');

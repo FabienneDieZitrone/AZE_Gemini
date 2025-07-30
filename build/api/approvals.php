@@ -7,6 +7,9 @@
  * Beschreibung: Gesichert durch serverseitige Session-Prüfung. Verwendet den Benutzernamen aus der Session.
  */
 
+// Define API guard constant
+define('API_GUARD', true);
+
 // Robuster Fatal-Error-Handler, um leere Antworten zu verhindern
 register_shutdown_function(function () {
     $error = error_get_last();
@@ -30,8 +33,12 @@ error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED);
 require_once __DIR__ . '/db-init.php';
 require_once __DIR__ . '/auth_helpers.php';
 require_once __DIR__ . '/validation.php';
+require_once __DIR__ . '/security-middleware.php';
 
 initialize_api();
+
+// Apply security headers
+initSecurityMiddleware();
 
 // Stellt sicher, dass der Benutzer authentifiziert ist.
 $user_from_session = verify_session_and_get_user();

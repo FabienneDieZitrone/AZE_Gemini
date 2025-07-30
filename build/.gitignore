@@ -36,6 +36,67 @@ ftp-*.py
 # Legacy secrets (moved to ~/.config/aze-secrets.env)
 gh.md
 
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+data/*.db
+data/*.sqlite
+data/*.sql
+
+# Configuration files with potential secrets
+config.php
+config.json
+settings.json
+*.config.php
+*-config.php
+
+# Backup files
+*.bak
+*.backup
+*~
+.backup/
+backup/
+
+# Cache and temporary files
+cache/
+.cache/
+tmp/
+.tmp/
+temp/
+*.tmp
+
+# Session files
+sessions/
+sess_*
+
+# API keys and tokens
+api-keys/
+.api-keys
+*.key
+*.pem
+*.crt
+*.cert
+
+# Deployment artifacts
+deploy_*/
+deployment_*/
+*.tar.gz
+*.zip
+
+# Test and development files
+test-*.php
+*-test.php
+security-test.php
+test-deployment.txt
+
+# Monitoring and logging
+monitoring-*.html
+server.log
+error.log
+access.log
+*.log.*
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

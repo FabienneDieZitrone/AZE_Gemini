@@ -91,14 +91,16 @@ class InputValidator {
         // Trim whitespace
         $input = trim($input);
         
-        // Remove null bytes only (potential for SQL injection)
-        // NOTE: Removed htmlspecialchars as it can cause issues with certain characters
-        // XSS protection should be done at output time, not input time
+        // Remove null bytes (potential for SQL injection)
         $input = str_replace("\0", '', $input);
         
-        // Additional basic sanitization without breaking functionality
         // Remove control characters except tab, newline, carriage return
         $input = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $input);
+        
+        // SECURITY FIX: Re-enable XSS protection
+        // While output encoding is important, input sanitization provides defense in depth
+        // This prevents stored XSS attacks where malicious scripts are saved to the database
+        $input = htmlspecialchars($input, ENT_QUOTES | ENT_HTML5, 'UTF-8');
         
         return $input;
     }

@@ -1,10 +1,19 @@
 <?php
 /**
  * Titel: Hilfsfunktionen für die API
- * Version: 7.0 (FINAL & CORRECTED - Korrekter Cookie-Pfad)
+ * Version: 8.0 (Session-Timeout-Funktionalität)
  * Autor: MP-IT
  * Datei: /api/auth_helpers.php
- * Beschreibung: Implementiert die finale, korrekte Session-Konfiguration mittels session_set_cookie_params, um den Cookie-Pfad explizit auf '/' zu setzen.
+ * Beschreibung: Implementiert die finale, korrekte Session-Konfiguration mittels session_set_cookie_params, 
+ *               um den Cookie-Pfad explizit auf '/' zu setzen. Erweitert um Session-Timeout-Funktionalität
+ *               mit 24h absolutem Timeout und 1h Inaktivitäts-Timeout.
+ * 
+ * Änderungen in Version 8.0:
+ * - Neue Funktion checkSessionTimeout() für Timeout-Überprüfung
+ * - Session-Initialisierung mit created_at und last_activity Zeitstempeln
+ * - Automatische Session-Zerstörung bei Timeout
+ * - Neue Hilfsfunktion destroy_session_completely() für saubere Session-Beendigung
+ * - Session-ID-Regeneration alle 30 Minuten für zusätzliche Sicherheit
  */
 
 /**
@@ -89,6 +98,67 @@ function start_secure_session() {
     ]);
     
     session_start();
+    
+    // Initialisiere Session-Zeitstempel beim ersten Start
+    if (!isset($_SESSION['created_at'])) {
+        $_SESSION['created_at'] = time();
+        $_SESSION['last_activity'] = time();
+    }
+}
+
+/**
+ * Überprüft Session-Timeout-Bedingungen:
+ * - Absolute Session-Dauer: 24 Stunden
+ * - Inaktivitäts-Timeout: 1 Stunde
+ * 
+ * @return bool True wenn die Session gültig ist, False wenn abgelaufen
+ */
+function checkSessionTimeout() {
+    // Definiere Timeout-Werte in Sekunden
+    $absolute_timeout = 86400; // 24 Stunden (24 * 60 * 60)
+    $inactivity_timeout = 3600; // 1 Stunde (60 * 60)
+    
+    $current_time = time();
+    
+    // Prüfe absolute Session-Dauer (24 Stunden)
+    if (isset($_SESSION['created_at'])) {
+        if ($current_time - $_SESSION['created_at'] > $absolute_timeout) {
+            // Session ist älter als 24 Stunden
+            error_log("Session timeout: Absolute timeout reached (24h)");
+            return false;
+        }
+    } else {
+        // Kein Erstellungszeitpunkt - Session ist ungültig
+        error_log("Session timeout: No creation timestamp found");
+        return false;
+    }
+    
+    // Prüfe Inaktivitäts-Timeout (1 Stunde)
+    if (isset($_SESSION['last_activity'])) {
+        if ($current_time - $_SESSION['last_activity'] > $inactivity_timeout) {
+            // Letzte Aktivität ist länger als 1 Stunde her
+            error_log("Session timeout: Inactivity timeout reached (1h)");
+            return false;
+        }
+    } else {
+        // Keine letzte Aktivität verzeichnet - Session ist ungültig
+        error_log("Session timeout: No last activity timestamp found");
+        return false;
+    }
+    
+    // Aktualisiere den Zeitstempel der letzten Aktivität
+    $_SESSION['last_activity'] = $current_time;
+    
+    // Session-ID-Regeneration alle 30 Minuten für zusätzliche Sicherheit
+    if (!isset($_SESSION['last_regeneration'])) {
+        $_SESSION['last_regeneration'] = $current_time;
+    } else if ($current_time - $_SESSION['last_regeneration'] > 1800) { // 30 Minuten
+        session_regenerate_id(true);
+        $_SESSION['last_regeneration'] = $current_time;
+        error_log("Session ID regenerated for security");
+    }
+    
+    return true;
 }
 
 
@@ -102,33 +172,42 @@ function start_secure_session() {
 function verify_session_and_get_user() {
     start_secure_session();
     
-    // SECURITY FIX: Session-Timeout-Überprüfung
-    if (isset($_SESSION['last_activity'])) {
-        $session_lifetime = 3600; // 1 Stunde in Sekunden
-        if (time() - $_SESSION['last_activity'] > $session_lifetime) {
-            // Session abgelaufen - komplett zerstören
-            session_unset();
-            session_destroy();
-            send_response(401, ['message' => 'Unauthorized: Session expired. Please login again.']);
-            return;
-        }
+    // Überprüfe Session-Timeout mit der neuen Funktion
+    if (!checkSessionTimeout()) {
+        // Session ist abgelaufen - komplett zerstören
+        destroy_session_completely();
+        send_response(401, ['message' => 'Unauthorized: Session expired. Please login again.']);
+        return;
     }
     
-    // SECURITY FIX: Letzte Aktivität aktualisieren
-    $_SESSION['last_activity'] = time();
-    
-    // SECURITY FIX: Session-Regeneration bei länger Inaktivität (alle 30 Min)
-    if (!isset($_SESSION['created'])) {
-        $_SESSION['created'] = time();
-    } else if (time() - $_SESSION['created'] > 1800) { // 30 Minuten
-        session_regenerate_id(true);
-        $_SESSION['created'] = time();
-    }
-    
+    // Prüfe ob Benutzerdaten in der Session vorhanden sind
     if (isset($_SESSION['user']) && !empty($_SESSION['user']['oid'])) {
         return $_SESSION['user'];
     } else {
         send_response(401, ['message' => 'Unauthorized: No valid session found.']);
     }
+}
+
+/**
+ * Zerstört die Session vollständig inklusive Cookie-Löschung.
+ * Diese Funktion sollte bei Logout oder Session-Timeout aufgerufen werden.
+ */
+function destroy_session_completely() {
+    // Session-Variablen löschen
+    $_SESSION = array();
+    
+    // Session-Cookie löschen
+    if (ini_get("session.use_cookies")) {
+        $params = session_get_cookie_params();
+        setcookie(session_name(), '', time() - 42000,
+            $params["path"], $params["domain"],
+            $params["secure"], $params["httponly"]
+        );
+    }
+    
+    // Session zerstören
+    session_destroy();
+    
+    error_log("Session completely destroyed");
 }
 ?>

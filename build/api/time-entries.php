@@ -7,7 +7,11 @@
  * Beschreibung: Gesichert durch serverseitige Session-Prüfung.
  */
 
+// Define API guard constant
+define('API_GUARD', true);
+
 require_once __DIR__ . '/error-handler.php';
+require_once __DIR__ . '/security-middleware.php';
 
 register_shutdown_function(function () {
     $error = error_get_last();
@@ -39,6 +43,9 @@ require_once __DIR__ . '/auth_helpers.php';
 require_once __DIR__ . '/validation.php';
 
 initialize_api();
+
+// Apply security headers
+initSecurityMiddleware();
 
 
 // Stellt sicher, dass der Benutzer authentifiziert ist.

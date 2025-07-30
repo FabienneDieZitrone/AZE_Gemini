@@ -65,14 +65,25 @@ function getDatabaseMetrics($mysqli) {
         'tables' => []
     ];
     
-    // Get table statistics
-    $tables = ['users', 'time_entries', 'approvals'];
-    foreach ($tables as $table) {
-        $result = $mysqli->query("SELECT COUNT(*) as count FROM $table");
-        if ($result) {
-            $row = $result->fetch_assoc();
-            $metrics['tables'][$table] = $row['count'];
-            $result->close();
+    // Get table statistics - SECURITY FIX: Use whitelist validation
+    $allowed_tables = ['users', 'time_entries', 'approvals'];
+    foreach ($allowed_tables as $table) {
+        // Additional safety check
+        if (!in_array($table, $allowed_tables, true)) {
+            continue;
+        }
+        
+        // Use prepared statement for extra security
+        $stmt = $mysqli->prepare("SELECT COUNT(*) as count FROM `$table`");
+        if ($stmt) {
+            $stmt->execute();
+            $result = $stmt->get_result();
+            if ($result) {
+                $row = $result->fetch_assoc();
+                $metrics['tables'][$table] = $row['count'];
+                $result->close();
+            }
+            $stmt->close();
         }
     }
     
