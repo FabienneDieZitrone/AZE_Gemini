@@ -14,9 +14,11 @@ dist-ssr
 
 # Environment variables (CRITICAL SECURITY)
 .env
-.env.local
-.env.production
-.env.staging
+.env.*
+!.env.example
+.env~
+*.env
+env/
 
 # Deployment credentials (CRITICAL SECURITY)
 .deploy-credentials

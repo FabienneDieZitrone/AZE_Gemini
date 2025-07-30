@@ -22,9 +22,15 @@ CLAUDE.local.md
 CLAUDE.md
 .env
 .env.*
+!.env.example
+.env~
+*.env
+env/
 build/.env
 **/config.local.php
 **/.env.deployment
+.env.local
+.env.production
 
 # Veraltete Planungsdokumente entfernt (enthielten Credentials)
 
