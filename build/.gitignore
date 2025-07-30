@@ -107,3 +107,10 @@ access.log
 *.njsproj
 *.sln
 *.sw?
+
+# Claude Documentation (SECURITY - NEVER COMMIT)
+CLAUDE.local.md
+*-local.md
+.claude/
+CLAUDE-*.md
+!CLAUDE.md

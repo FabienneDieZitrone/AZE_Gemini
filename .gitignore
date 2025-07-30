@@ -18,6 +18,8 @@ bin/
 .vs/
 
 # Security - Never commit credentials
+CLAUDE.local.md
+CLAUDE.md
 .env
 .env.*
 build/.env
