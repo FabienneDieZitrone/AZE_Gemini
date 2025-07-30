@@ -72,11 +72,9 @@ upload_file() {
     
     echo -n "Uploading ${local_file}... "
     
-    # Use explicit FTPS (FTP over SSL/TLS) with proper options
+    # Use explicit FTP over TLS - HostEurope requires SSL/TLS
     if curl -s -S --ftp-create-dirs \
-        --ftp-ssl-reqd \
-        --ftp-ssl-control \
-        --tlsv1.2 \
+        --ftp-ssl \
         --insecure \
         --user "${FTP_USER}:${FTP_PASS}" \
         -T "${local_file}" \
@@ -85,19 +83,16 @@ upload_file() {
         return 0
     else
         echo -e "${RED}✗${NC}"
-        echo "  Debug: curl failed with SSL/TLS. Trying alternative..."
+        echo "  Debug: Upload failed. Trying with verbose..."
         
-        # Alternative: Try with different SSL options
-        if curl -v --ftp-create-dirs \
-            --ssl \
+        # Try with verbose for debugging
+        curl -v --ftp-create-dirs \
+            --ftp-ssl \
+            --insecure \
             --user "${FTP_USER}:${FTP_PASS}" \
             -T "${local_file}" \
-            "ftp://${FTP_HOST}${remote_path}" 2>&1 | grep -q "226"; then
-            echo -e "  ${GREEN}✓ (alternative method)${NC}"
-            return 0
-        else
-            return 1
-        fi
+            "ftp://${FTP_HOST}${remote_path}" 2>&1 | grep -E "230|550|530|226|Connected"
+        return 1
     fi
 }
 

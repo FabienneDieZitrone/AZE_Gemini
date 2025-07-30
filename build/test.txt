@@ -1,0 +1,3 @@
+Test deployment file - AZE Gemini
+Date: 2025-07-30
+Testing FTP connection
