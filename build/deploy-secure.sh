@@ -6,6 +6,9 @@
 
 set -euo pipefail
 
+# Change to script directory
+cd "$(dirname "$0")"
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -16,10 +19,14 @@ echo -e "${GREEN}Secure AZE_Gemini Deployment${NC}"
 echo "============================"
 echo
 
-# Check if .env.local exists
-if [ -f .env.local ]; then
-    echo "Loading credentials from .env.local..."
-    export $(grep -v '^#' .env.local | xargs)
+# Check if .env.production exists
+if [ -f .env.production ]; then
+    echo "Loading credentials from .env.production..."
+    export $(grep -v '^#' .env.production | xargs)
+else
+    echo -e "${RED}Error: .env.production not found${NC}"
+    echo "Please create .env.production with deployment credentials"
+    exit 1
 fi
 
 # Validate required environment variables
@@ -33,8 +40,8 @@ if [ -z "${FTP_USER:-}" ]; then
     MISSING_VARS+=("FTP_USER")
 fi
 
-if [ -z "${FTP_PASSWORD:-}" ]; then
-    MISSING_VARS+=("FTP_PASSWORD")
+if [ -z "${FTP_PASS:-}" ]; then
+    MISSING_VARS+=("FTP_PASS")
 fi
 
 if [ ${#MISSING_VARS[@]} -ne 0 ]; then
@@ -65,16 +72,32 @@ upload_file() {
     
     echo -n "Uploading ${local_file}... "
     
+    # Use explicit FTPS (FTP over SSL/TLS) with proper options
     if curl -s -S --ftp-create-dirs \
-        --ftp-ssl \
-        --user "${FTP_USER}:${FTP_PASSWORD}" \
+        --ftp-ssl-reqd \
+        --ftp-ssl-control \
+        --tlsv1.2 \
+        --insecure \
+        --user "${FTP_USER}:${FTP_PASS}" \
         -T "${local_file}" \
         "ftp://${FTP_HOST}${remote_path}"; then
         echo -e "${GREEN}✓${NC}"
         return 0
     else
         echo -e "${RED}✗${NC}"
-        return 1
+        echo "  Debug: curl failed with SSL/TLS. Trying alternative..."
+        
+        # Alternative: Try with different SSL options
+        if curl -v --ftp-create-dirs \
+            --ssl \
+            --user "${FTP_USER}:${FTP_PASS}" \
+            -T "${local_file}" \
+            "ftp://${FTP_HOST}${remote_path}" 2>&1 | grep -q "226"; then
+            echo -e "  ${GREEN}✓ (alternative method)${NC}"
+            return 0
+        else
+            return 1
+        fi
     fi
 }
 
@@ -98,11 +121,16 @@ case "${1:-all}" in
     
     backend)
         echo -e "${YELLOW}Deploying backend...${NC}"
+        # Upload PHP files
         for file in api/*.php; do
             if [ -f "$file" ]; then
                 upload_file "$file" "/api/$(basename "$file")"
             fi
         done
+        # Upload .env file to api directory
+        if [ -f ".env.production" ]; then
+            upload_file ".env.production" "/api/.env"
+        fi
         ;;
     
     all)
