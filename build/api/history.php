@@ -54,9 +54,24 @@ if ($method == 'GET') {
 $conn->close();
 
 function handle_get($conn, $current_user) {
-    // TODO: Berechtigungsprüfung (z.B. basierend auf $current_user['role'])
+    // Rollenbasierte Filterung implementiert
+    $query = "SELECT * FROM approval_requests WHERE status != 'pending'";
     
-    $stmt = $conn->prepare("SELECT * FROM approval_requests WHERE status != 'pending' ORDER BY resolved_at DESC");
+    // Berechtigungsprüfung basierend auf Rolle
+    if ($current_user['role'] === 'Honorarkraft' || $current_user['role'] === 'Mitarbeiter') {
+        // Honorarkraft und Mitarbeiter sehen nur ihre eigene Historie
+        $query .= " AND requested_by = ?";
+        $stmt = $conn->prepare($query . " ORDER BY resolved_at DESC");
+        $stmt->bind_param("s", $current_user['username']);
+    } else if ($current_user['role'] === 'Standortleiter') {
+        // Standortleiter sehen Historie ihrer Location
+        $query .= " AND JSON_EXTRACT(original_entry_data, '$.location') = ?";
+        $stmt = $conn->prepare($query . " ORDER BY resolved_at DESC");
+        $stmt->bind_param("s", $current_user['location']);
+    } else {
+        // Bereichsleiter und Admin sehen alle Historie
+        $stmt = $conn->prepare($query . " ORDER BY resolved_at DESC");
+    }
     if (!$stmt) {
         $error_msg = 'Prepare failed for SELECT history: ' . $conn->error;
         error_log($error_msg);

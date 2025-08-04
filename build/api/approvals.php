@@ -63,8 +63,24 @@ switch ($method) {
 $conn->close();
 
 function handle_get($conn, $current_user) {
-    // TODO: Berechtigungsprüfung (z.B. nur Vorgesetzte sehen Anträge)
-    $stmt = $conn->prepare("SELECT * FROM approval_requests WHERE status = 'pending'");
+    // Rollenbasierte Filterung implementiert
+    $query = "SELECT * FROM approval_requests WHERE status = 'pending'";
+    
+    // Berechtigungsprüfung basierend auf Rolle
+    if ($current_user['role'] === 'Honorarkraft' || $current_user['role'] === 'Mitarbeiter') {
+        // Honorarkraft und Mitarbeiter sehen nur ihre eigenen Anträge
+        $query .= " AND requested_by = ?";
+        $stmt = $conn->prepare($query);
+        $stmt->bind_param("s", $current_user['username']);
+    } else if ($current_user['role'] === 'Standortleiter') {
+        // Standortleiter sehen Anträge ihrer Location
+        $query .= " AND JSON_EXTRACT(original_entry_data, '$.location') = ?";
+        $stmt = $conn->prepare($query);
+        $stmt->bind_param("s", $current_user['location']);
+    } else {
+        // Bereichsleiter und Admin sehen alle Anträge
+        $stmt = $conn->prepare($query);
+    }
     $stmt->execute();
     $result = $stmt->get_result();
     $requests = $result->fetch_all(MYSQLI_ASSOC);

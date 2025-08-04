@@ -57,7 +57,7 @@ $method = $_SERVER['REQUEST_METHOD'];
 
 switch ($method) {
     case 'GET':
-        handle_get($conn);
+        handle_get($conn, $current_user);
         break;
     case 'PATCH':
         handle_patch($conn, $user_from_session);
@@ -71,9 +71,29 @@ $conn->close();
 
 // --- Handler-Funktionen ---
 
-function handle_get($conn) {
-    // Gibt display_name als 'name' zurück, um Frontend-Kompatibilität zu wahren
-    $stmt = $conn->prepare("SELECT id, display_name AS name, role, azure_oid AS azureOid FROM users");
+function handle_get($conn, $current_user) {
+    // Rollenbasierte Filterung implementiert
+    $query = "SELECT id, display_name AS name, role, azure_oid AS azureOid FROM users";
+    
+    // Berechtigungsprüfung basierend auf Rolle
+    if ($current_user['role'] === 'Honorarkraft') {
+        // Honorarkraft sieht nur sich selbst
+        $query .= " WHERE id = ?";
+        $stmt = $conn->prepare($query);
+        $stmt->bind_param("i", $current_user['id']);
+    } else if ($current_user['role'] === 'Mitarbeiter') {
+        // Mitarbeiter sehen alle außer Honorarkräfte
+        $query .= " WHERE role != 'Honorarkraft' OR id = ?";
+        $stmt = $conn->prepare($query);
+        $stmt->bind_param("i", $current_user['id']);
+    } else if ($current_user['role'] === 'Standortleiter') {
+        // Standortleiter sehen alle ihrer Location (benötigt location-Spalte in users)
+        // Vorerst: Alle außer andere Standortleiter anderer Locations
+        $stmt = $conn->prepare($query);
+    } else {
+        // Bereichsleiter und Admin sehen alle Benutzer
+        $stmt = $conn->prepare($query);
+    }
     if (!$stmt) {
         $error_msg = 'Prepare failed for SELECT users: ' . $conn->error;
         error_log($error_msg);

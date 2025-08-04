@@ -1,0 +1,19 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+# Verhindere Commits mit Sicherheitsproblemen
+echo "🔍 Pre-commit checks..."
+
+# Prüfe auf Passwörter/Keys
+if grep -r "password\s*=\s*[\"'][^\"']*[\"']\|api_key\s*=\s*[\"'][^\"']*[\"']" --include="*.php" --include="*.ts" --include="*.tsx" .; then
+  echo "❌ Hardcoded passwords oder API keys gefunden!"
+  exit 1
+fi
+
+# Lint TypeScript
+npm run lint
+
+# Run tests
+npm test
+
+echo "✅ Pre-commit checks passed"
