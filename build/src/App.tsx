@@ -12,6 +12,7 @@ import { LoadingSpinner } from './components/common/LoadingSpinner';
 import { SignInPage } from './views/SignInPage';
 import { MainAppView } from './views/MainAppView';
 import { api } from '../api';
+import ErrorBoundary from './components/ErrorBoundary';
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null); // null = loading
@@ -41,9 +42,13 @@ const App: React.FC = () => {
   }
 
   // Je nach Authentifizierungsstatus die entsprechende Ansicht rendern.
-  return isAuthenticated 
-    ? <MainAppView /> 
-    : <div className="app-container"><SignInPage /></div>;
+  return (
+    <ErrorBoundary>
+      {isAuthenticated 
+        ? <MainAppView /> 
+        : <div className="app-container"><SignInPage /></div>}
+    </ErrorBoundary>
+  );
 };
 
 export default App;

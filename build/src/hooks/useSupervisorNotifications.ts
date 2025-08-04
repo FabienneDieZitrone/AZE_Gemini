@@ -1,0 +1,90 @@
+import { useState, useEffect } from 'react';
+import { User, MasterDataEntry, TimeEntry, GlobalSettings, SupervisorNotification } from '../types';
+import { getStartOfWeek, calculateDurationInSeconds } from '../utils/time';
+import { TIME } from '../constants';
+
+interface UseSupervisorNotificationsProps {
+  currentUser: User | null;
+  users: User[];
+  masterData: Record<string, MasterDataEntry>;
+  timeEntries: TimeEntry[];
+  globalSettings: GlobalSettings | null;
+}
+
+export const useSupervisorNotifications = ({
+  currentUser,
+  users,
+  masterData,
+  timeEntries,
+  globalSettings
+}: UseSupervisorNotificationsProps) => {
+  const [supervisorNotifications, setSupervisorNotifications] = useState<SupervisorNotification[]>([]);
+  const [showSupervisorModal, setShowSupervisorModal] = useState(false);
+
+  useEffect(() => {
+    if (!currentUser || !globalSettings || !masterData || timeEntries.length === 0) return;
+    
+    // Check if user has supervisor role
+    const canCheck = ['Admin', 'Bereichsleiter', 'Standortleiter'].includes(currentUser.role);
+    if (!canCheck) return;
+
+    const notifications: SupervisorNotification[] = [];
+    const thresholdSeconds = globalSettings.overtimeThreshold * TIME.SECONDS_PER_HOUR;
+    
+    // Calculate last week's date range
+    const lastWeekStart = getStartOfWeek(new Date(new Date().setDate(new Date().getDate() - 7)));
+    const lastWeekEnd = new Date(lastWeekStart);
+    lastWeekEnd.setDate(lastWeekStart.getDate() + 6);
+
+    // Get subordinates (all users except current user)
+    const subordinates = users.filter(u => u.id !== currentUser.id);
+
+    // Check each subordinate's overtime deviation
+    subordinates.forEach(user => {
+      const userMaster = masterData[user.id];
+      if (!userMaster) return;
+
+      const weeklySollSeconds = userMaster.weeklyHours * TIME.SECONDS_PER_HOUR;
+      
+      // Filter time entries for last week
+      const userEntriesLastWeek = timeEntries.filter(e => {
+        return e.userId === user.id && 
+               e.date >= lastWeekStart.toISOString().split('T')[0] && 
+               e.date <= lastWeekEnd.toISOString().split('T')[0];
+      });
+      
+      // Calculate total worked seconds
+      const totalSecondsWorked = userEntriesLastWeek.reduce(
+        (sum, e) => sum + calculateDurationInSeconds(e.startTime, e.stopTime), 
+        0
+      );
+      
+      const deviationSeconds = totalSecondsWorked - weeklySollSeconds;
+      
+      // Check if deviation exceeds threshold
+      if (Math.abs(deviationSeconds) > thresholdSeconds) {
+        notifications.push({
+          employeeName: user.name,
+          deviationHours: deviationSeconds / TIME.SECONDS_PER_HOUR,
+        });
+      }
+    });
+
+    // Show modal if there are notifications
+    if (notifications.length > 0) {
+      setSupervisorNotifications(notifications);
+      setShowSupervisorModal(true);
+    }
+  }, [currentUser, users, masterData, timeEntries, globalSettings]);
+
+  const closeSupervisorModal = () => {
+    setShowSupervisorModal(false);
+    setSupervisorNotifications([]);
+  };
+
+  return {
+    supervisorNotifications,
+    showSupervisorModal,
+    closeSupervisorModal
+  };
+};

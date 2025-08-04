@@ -1,0 +1,54 @@
+{
+  "issues": [
+    {
+      "number": 138,
+      "title": "Debug-Dateien aus dem Produktions-Backend entfernen",
+      "priority": "KRITISCH",
+      "labels": ["security", "critical", "quick-win", "backend", "30-minutes"],
+      "created_at": "2025-08-03T21:44:47Z",
+      "updated_at": "2025-08-04T05:27:35Z",
+      "comments": 0,
+      "state": "open"
+    },
+    {
+      "number": 137,
+      "title": "Zeit-Berechnungs-Utilities extrahieren",
+      "priority": "MITTEL",
+      "labels": ["medium-priority", "refactoring", "1-hour", "utilities", "calculations"],
+      "created_at": "2025-08-03T21:43:54Z",
+      "updated_at": "2025-08-04T05:27:51Z",
+      "comments": 0,
+      "state": "open"
+    },
+    {
+      "number": 136,
+      "title": "SupervisorNotifications aus MainAppView extrahieren",
+      "priority": "HOCH",
+      "labels": ["refactoring", "high-priority", "frontend", "components", "1-hour"],
+      "created_at": "2025-08-03T21:43:52Z",
+      "updated_at": "2025-08-04T05:27:49Z",
+      "comments": 0,
+      "state": "open"
+    },
+    {
+      "number": 135,
+      "title": "React ErrorBoundary Komponente implementieren",
+      "priority": "HOCH",
+      "labels": ["high-priority", "frontend", "1-hour", "error-handling", "production-stability"],
+      "created_at": "2025-08-03T21:43:49Z",
+      "updated_at": "2025-08-04T05:27:46Z",
+      "comments": 0,
+      "state": "open"
+    },
+    {
+      "number": 134,
+      "title": "Mehrere README-Dateien konsolidieren",
+      "priority": "NIEDRIG",
+      "labels": ["documentation", "cleanup", "low-priority", "quick-win", "30-minutes"],
+      "created_at": "2025-08-03T21:43:46Z",
+      "updated_at": "2025-08-04T05:27:42Z",
+      "comments": 0,
+      "state": "open"
+    }
+  ]
+}
