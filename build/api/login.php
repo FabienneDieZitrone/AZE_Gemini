@@ -163,8 +163,25 @@ try {
     $time_entries = $time_entries_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     $time_entries_stmt->close();
 
-    // Alle offenen Genehmigungsanträge
-    $approvals_stmt = $conn->prepare("SELECT * FROM approval_requests WHERE status = 'pending'");
+    // Alle offenen Genehmigungsanträge (rollenbasierte Filterung)
+    $approval_query = "SELECT * FROM approval_requests WHERE status = 'pending'";
+    
+    // Rollenbasierte Filterung
+    if ($current_user_data['role'] === 'Honorarkraft' || $current_user_data['role'] === 'Mitarbeiter') {
+        // Honorarkraft und Mitarbeiter sehen nur ihre eigenen Anfragen
+        $approval_query .= " AND requested_by = ?";
+        $approvals_stmt = $conn->prepare($approval_query);
+        $approvals_stmt->bind_param("s", $current_user_data['username']);
+    } else if ($current_user_data['role'] === 'Standortleiter') {
+        // Standortleiter sehen Anfragen ihrer Location
+        $approval_query .= " AND JSON_EXTRACT(original_entry_data, '$.location') = ?";
+        $approvals_stmt = $conn->prepare($approval_query);
+        $approvals_stmt->bind_param("s", $current_user_data['location']);
+    } else {
+        // Bereichsleiter und Admin sehen alles
+        $approvals_stmt = $conn->prepare($approval_query);
+    }
+    
     $approvals_stmt->execute();
     $approval_requests_raw = $approvals_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     $approvals_stmt->close();
@@ -186,8 +203,25 @@ try {
         ];
     }, $approval_requests_raw);
     
-    // Komplette Änderungshistorie
-    $history_stmt = $conn->prepare("SELECT * FROM approval_requests WHERE status != 'pending' ORDER BY resolved_at DESC");
+    // Komplette Änderungshistorie (rollenbasierte Filterung)
+    $history_query = "SELECT * FROM approval_requests WHERE status != 'pending'";
+    
+    // Rollenbasierte Filterung
+    if ($current_user_data['role'] === 'Honorarkraft' || $current_user_data['role'] === 'Mitarbeiter') {
+        // Honorarkraft und Mitarbeiter sehen nur ihre eigene Historie
+        $history_query .= " AND requested_by = ?";
+        $history_stmt = $conn->prepare($history_query . " ORDER BY resolved_at DESC");
+        $history_stmt->bind_param("s", $current_user_data['username']);
+    } else if ($current_user_data['role'] === 'Standortleiter') {
+        // Standortleiter sehen Historie ihrer Location
+        $history_query .= " AND JSON_EXTRACT(original_entry_data, '$.location') = ?";
+        $history_stmt = $conn->prepare($history_query . " ORDER BY resolved_at DESC");
+        $history_stmt->bind_param("s", $current_user_data['location']);
+    } else {
+        // Bereichsleiter und Admin sehen alles
+        $history_stmt = $conn->prepare($history_query . " ORDER BY resolved_at DESC");
+    }
+    
     $history_stmt->execute();
     $history_raw = $history_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     $history_stmt->close();
