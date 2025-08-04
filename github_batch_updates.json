@@ -1,0 +1,18 @@
+{
+  "updates": [
+    {
+      "issue": 115,
+      "comment": "### ⚡ MFA-System implementiert!\n\n**Neue Komponenten:**\n- `/src/components/auth/mfa/MFASetup.tsx`\n- `/api/mfa/setup.php`\n- TOTP mit QR-Code\n- Backup-Codes\n- Session-basierte Verifizierung\n\n**Noch erforderlich:**\n- DB-Migration für mfa_secret Spalte\n- Integration in Login-Flow\n- Admin-Dashboard für MFA-Status"
+    },
+    {
+      "issue": 133,
+      "comment": "### ✅ Frontend Constants implementiert!\n\n**Datei:** `/src/utils/constants.ts`\n\n**Extrahierte Konstanten:**\n- TIME (alle Zeit-Berechnungen)\n- USER_ROLES\n- STATUS\n- API_ENDPOINTS\n- VALIDATION\n\nMagic Numbers wurden zentralisiert.",
+      "close": true
+    },
+    {
+      "issue": 67,
+      "comment": "### ✅ Service Worker implementiert!\n\n**Dateien:**\n- `/public/sw.js`\n- `/public/manifest.json`\n\n**Features:**\n- Offline-Caching\n- Background Sync\n- PWA-fähig\n\nApp kann jetzt als PWA installiert werden.",
+      "close": true
+    }
+  ]
+}
