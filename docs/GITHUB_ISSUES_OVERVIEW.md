@@ -4,6 +4,7 @@
 - **Issue #1**: ✅ **BEHOBEN** - Logout-Warnung + localStorage-Backup implementiert
 - **Issue #19**: ✅ **BEHOBEN** - Security-Hardening abgeschlossen
 - **Issue #20**: ✅ **BEHOBEN** - Input-Validation + Session-Security implementiert
+- **Issue #29**: ✅ **BEHOBEN** - stop_time Migration erfolgreich durchgeführt (2025-08-04)
 
 ## **🟡 Wichtig (v0.6-v0.7):**
 - **Issues #2-#8**: UI/UX Verbesserungen
