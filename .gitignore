@@ -46,3 +46,25 @@ dist/
 build/dist/
 
 gh.md
+
+# Debug and test files - SECURITY CRITICAL
+api/debug-*.php
+api/test-*.php
+api/temp-*.php
+api/quick-*.php
+api/*-debug.php
+api/*-test.php
+build/api/debug-*.php
+build/api/test-*.php
+build/api/*-debug*.php
+build/api/*-test*.php
+**/debug-*.php
+**/test-*.php
+test-*.php
+debug-*.php
+
+# Development only files
+*.debug
+*.test
+.debug/
+.test/
