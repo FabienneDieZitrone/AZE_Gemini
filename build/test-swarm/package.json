@@ -1,0 +1,26 @@
+{
+  "name": "aze-gemini-test-swarm",
+  "version": "1.0.0",
+  "description": "Claude Flow Swarm Testing Framework for AZE Gemini",
+  "main": "run-swarm.js",
+  "scripts": {
+    "start": "node run-swarm.js",
+    "init": "node swarm-init.js",
+    "test": "node test-executor.js",
+    "swarm": "npm start"
+  },
+  "keywords": [
+    "testing",
+    "swarm",
+    "claude",
+    "aze-gemini"
+  ],
+  "author": "Claude Flow Swarm",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

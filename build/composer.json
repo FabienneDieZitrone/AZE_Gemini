@@ -1,0 +1,26 @@
+{
+    "name": "mp-it/aze-gemini",
+    "description": "AZE Gemini Time Tracking Application - Backend API",
+    "type": "project",
+    "require": {
+        "php": ">=8.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^10.0",
+        "phpunit/php-code-coverage": "^10.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "AzeGemini\\": "src/",
+            "AzeGemini\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit",
+        "test-coverage": "phpunit --coverage-html coverage-php"
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true
+    }
+}

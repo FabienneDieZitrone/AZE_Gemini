@@ -1,0 +1,11 @@
+# Performance monitoring every 5 minutes
+*/5 * * * * /app/monitoring/scripts/performance-check.sh >> /app/monitoring/logs/performance.log 2>&1
+
+# Health check every 2 minutes
+*/2 * * * * /app/monitoring/scripts/health-check.sh >> /app/monitoring/logs/health.log 2>&1
+
+# Database monitoring every 10 minutes
+*/10 * * * * /app/monitoring/scripts/db-monitor.sh >> /app/monitoring/logs/database.log 2>&1
+
+# Daily report
+0 8 * * * /app/monitoring/scripts/daily-report.sh

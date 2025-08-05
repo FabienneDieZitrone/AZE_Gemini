@@ -1,0 +1,103 @@
+number,title,priority,category
+139,"🎯 AZE_Gemini KRITISCHE ROADMAP 2025 - Nach Schwarm-Analyse",LOW,Feature
+136,"SupervisorNotifications aus MainAppView extrahieren",LOW,Feature
+135,"React ErrorBoundary Komponente implementieren",HIGH,Feature
+134,"Mehrere README-Dateien konsolidieren",LOW,Feature
+131,"Timer Service aus MainAppView God Object extrahieren",LOW,Feature
+129,"Development Environment Consistency",LOW,Feature
+128,"Configuration Management Standardization",LOW,Feature
+127,"User Experience Monitoring",LOW,Feature
+126,"API Documentation Enhancement",MEDIUM,Feature
+125,"Component Reusability Improvements",LOW,Feature
+124,"Frontend Bundle Size Optimization",LOW,Feature
+123,"API Versioning Strategy Missing",LOW,Feature
+122,"Automated Security Testing Suite",CRITICAL,Security
+121,"Database Query Performance Monitoring",LOW,Performance
+120,"Infrastructure as Code Implementation",LOW,Feature
+119,"CI/CD Security Scanning Integration",CRITICAL,Security
+118,"Performance Optimization - Caching Layer",LOW,Performance
+117,"Implement Zero-Trust Security Architecture",CRITICAL,Security
+116,"Security Incident Response Playbook",CRITICAL,Security
+115,"Multi-Factor Authentication Implementation",CRITICAL,Security
+113,"Database Backup Automation Missing",LOW,Feature
+111,"Missing Test Coverage - Critical Security Risk",CRITICAL,Security
+109,"Login endpoint returns minimal data - missing full application state",LOW,Feature
+106,"Refactor K1: Complete Input Validation Implementation (1h)",LOW,Feature
+104,"Refactor F1: Update API Documentation (1h)",LOW,Feature
+100,"Security: Remove 15+ Debug/Test Files from Production API",CRITICAL,Security
+97,"manuelle Benutzersuche bei der Stammdatenänderung",LOW,Feature
+96,"Dashboard-Anzeige wirft Fragen auf",LOW,Feature
+94,"Data Export Limitations",LOW,Feature
+91,"Incomplete Mobile Responsiveness",LOW,Feature
+89,"Performance Monitoring Missing",LOW,Performance
+88,"React Production Build Used in Tests",LOW,Testing
+87,"Test Infrastructure Setup Failing",LOW,Testing
+86,"Code Duplication",LOW,Feature
+85,"Bundle Size Optimization Needed",LOW,Feature
+83,"No E2E Test Coverage",LOW,Testing
+80,"Missing API Documentation",LOW,Feature
+77,"Accessibility Issues",LOW,Feature
+75,"Incomplete Input Validation Coverage",LOW,Feature
+74,"Ich sehe als Honorarkraft Änderungen anderer Benutzer",LOW,Feature
+73,"Kontinuierliches Refactoring-Programm etablieren",LOW,Feature
+72,"Home Office Berechtigungs-System mit IP-basierter Standorterkennung",LOW,Feature
+70,"API Versioning Strategy implementieren",LOW,Feature
+69,"Development Environment Setup Guide erstellen",LOW,Feature
+66,"Code Splitting für bessere Performance implementieren",LOW,Performance
+65,"Frontend State Management Optimierung",LOW,Feature
+64,"Database Connection Pooling implementieren",LOW,Feature
+63,"API Response Caching Strategy implementieren",LOW,Feature
+62,"Bundle Size Optimization - Build unter 500KB erreichen",LOW,Feature
+60,"Frontend Tests Setup - Testabdeckung erhöhen",LOW,Testing
+59,"Logging aller Nutzungszeiten in health-check.log implementieren",LOW,Feature
+58,"Gemischte Sprachen in Kommentaren",LOW,Feature
+57,"Magic Numbers im gesamten Code",LOW,Feature
+56,"Inkonsistente Fehlerbehandlung",LOW,Feature
+55,"Keine Tastaturnavigations-Unterstützung",LOW,Feature
+54,"Fehlende ARIA-Labels",LOW,Feature
+53,"Kein Account-Sperrungsmechanismus",LOW,Feature
+52,"Session-Timeout zu lang",LOW,Feature
+51,"Keine Error Boundary in React",HIGH,Feature
+50,"Generische Fehlermeldungen an Benutzer",LOW,Feature
+49,"Kein Health-Check Endpoint",LOW,Feature
+48,"Kein Audit-Log",LOW,Feature
+47,"Kein Benachrichtigungssystem",LOW,Feature
+46,"Keine Export-Funktionalität für Admins",LOW,Feature
+45,"Schlechte Mobile Responsiveness",LOW,Feature
+44,"Keine Bestätigung für destruktive Aktionen",LOW,Feature
+43,"Komponenten-Komplexität zu hoch (TimeSheetView)",LOW,Feature
+42,"Keine Ladezustände während Daten-Mutationen",LOW,Feature
+41,"BUG: Keine Timezone-Behandlung - Falsche Zeiten für internationale Nutzer",HIGH,Feature
+40,"COMPLIANCE: Keine automatische Pausenerkennung nach ArbZG",LOW,Feature
+39,"HIGH: Minimale Test Coverage - Nur 2 Test-Dateien vorhanden",LOW,Testing
+38,"HIGH: Keine CI/CD Pipeline - Manuelle fehleranfällige Deployments",LOW,Feature
+37,"HIGH: Fehlende Zeitüberschneidungs-Validierung",LOW,Feature
+36,"PERFORMANCE: Keine Pagination für Time Entries - lädt ALLE Daten",LOW,Performance
+35,"PERFORMANCE: N+1 Query Problem in Approvals API",LOW,Performance
+34,"HIGH SECURITY: Fehlende CSRF-Token Validierung",CRITICAL,Security
+33,"HIGH SECURITY: Keine Rate-Limiting auf API-Endpoints",CRITICAL,Security
+32,"CRITICAL: Keine Datenbank-Backup-Strategie implementiert",LOW,Feature
+31,"CRITICAL SECURITY: Hardcoded FTP Credentials in deploy-updates.sh",CRITICAL,Security
+30,"BUG: Supervisor-Benachrichtigung erscheint unerwünscht beim Timer-Stop",HIGH,Feature
+28,"🚨 CRITICAL: Data Privacy & Authorization Vulnerabilities - PRODUCTION RISK",CRITICAL,Security
+26,"Feature: Fallback-Error Logging mit GitHub Integration",HIGH,Feature
+25,"Process: Testing-Pipeline für Pre-Commit Validation",LOW,Testing
+24,"Process: Refactoring als Standard etablieren",LOW,Feature
+23,"Meta: Master-Implementierungsplan und Erfolgsmetriken für alle 70 Issues",LOW,Feature
+22,"Feature: Mehrsprachigkeit mit 12+ Sprachen und automatischer Systemsprachen-Erkennung",MEDIUM,Feature
+21,"Legal: Tiefenanalyse aller gesetzlichen Anforderungen für Arbeitszeiterfassung",LOW,Compliance
+20,"Code Review: Systematische Analyse aller Projektdateien auf Fehler und Optimierungspotential",LOW,Feature
+19,"Security: Regelmäßige Security-Analysen und Penetrationstests etablieren",CRITICAL,Security
+17,"Feature: Standardisierte Qualitätsbewertung und Prozessverbesserung",MEDIUM,Feature
+16,"Feature: MP Laufwerke verbinden Link-Integration",MEDIUM,Feature
+15,"Feature: Live-Arbeitszeit-Anzeige im Header",MEDIUM,Feature
+14,"Feature: Admin-Reiter mit rollenbasierter Sichtbarkeit",MEDIUM,Feature
+13,"Feature: DSGVO-Reiter für Datenschutz-Compliance",MEDIUM,Compliance
+12,"Feature: Dokumentations-/Bedienungsanleitung-Reiter",MEDIUM,Feature
+11,"Policy: Claude-Name-Verbot in Commits und Dokumentation",LOW,Feature
+10,"Feature: Automatische Löschung inaktiver Benutzerdaten (DSGVO-Compliance)",MEDIUM,Compliance
+9,"Feature: Umfassendes Register-System (Datei, Doku, API, Compliance)",MEDIUM,Feature
+8,"Process: Selbstkritische Bewertung (1-10) etablieren - 10/10 als Pflicht",LOW,Feature
+6,"Feature: Pausenwecker mit gesetzlichen Vorgaben",MEDIUM,Feature
+5,"Enhancement: UI-Redesign mit Reiter-Menü und Iframe-Navigation",MEDIUM,Feature
+1,"Kritisch: Datenverlust bei Logout während aktiver Zeiterfassung",LOW,Feature

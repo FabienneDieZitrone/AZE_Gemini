@@ -1,0 +1,301 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  frontend-tests:
+    name: Frontend Tests (Vitest)
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        cache-dependency-path: 'build/package-lock.json'
+
+    - name: Install dependencies
+      working-directory: ./build
+      run: npm ci
+
+    - name: Run type checking
+      working-directory: ./build
+      run: npm run typecheck
+
+    - name: Run unit tests with coverage
+      working-directory: ./build
+      run: npm run test:coverage
+
+    - name: Upload frontend coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./build/coverage/lcov.info
+        flags: frontend
+        name: frontend-coverage
+        fail_ci_if_error: true
+
+    - name: Archive test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: frontend-test-results-${{ matrix.node-version }}
+        path: |
+          build/coverage/
+          build/test-results.xml
+
+  backend-tests:
+    name: Backend Tests (PHPUnit)
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        php-version: [8.0, 8.1, 8.2, 8.3]
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: aze_gemini_test
+          MYSQL_USER: test_user
+          MYSQL_PASSWORD: test_pass
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup PHP ${{ matrix.php-version }}
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: ${{ matrix.php-version }}
+        extensions: mbstring, xml, ctype, iconv, intl, pdo, pdo_mysql, dom, filter, gd, json, curl
+        tools: composer:v2
+        coverage: xdebug
+
+    - name: Get composer cache directory
+      id: composer-cache
+      working-directory: ./build
+      run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+    - name: Cache composer dependencies
+      uses: actions/cache@v4
+      with:
+        path: ${{ steps.composer-cache.outputs.dir }}
+        key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+        restore-keys: ${{ runner.os }}-composer-
+
+    - name: Install PHP dependencies
+      working-directory: ./build
+      run: composer install --prefer-dist --no-progress --no-suggest
+
+    - name: Wait for MySQL
+      run: |
+        while ! mysqladmin ping -h"127.0.0.1" -P3306 -uroot -proot --silent; do
+          sleep 1
+        done
+
+    - name: Setup test database
+      run: |
+        mysql -h127.0.0.1 -P3306 -uroot -proot -e "CREATE DATABASE IF NOT EXISTS aze_gemini_test;"
+        mysql -h127.0.0.1 -P3306 -uroot -proot -e "GRANT ALL PRIVILEGES ON aze_gemini_test.* TO 'test_user'@'%';"
+
+    - name: Run backend tests with coverage
+      working-directory: ./build
+      run: vendor/bin/phpunit --coverage-clover=coverage-php.xml --log-junit=phpunit-results.xml
+      env:
+        DB_HOST: 127.0.0.1
+        DB_PORT: 3306
+        DB_DATABASE: aze_gemini_test
+        DB_USERNAME: test_user
+        DB_PASSWORD: test_pass
+
+    - name: Upload backend coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./build/coverage-php.xml
+        flags: backend
+        name: backend-coverage
+        fail_ci_if_error: true
+
+    - name: Archive test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: backend-test-results-${{ matrix.php-version }}
+        path: |
+          build/coverage-php/
+          build/phpunit-results.xml
+
+  e2e-tests:
+    name: E2E Tests (Playwright)
+    runs-on: ubuntu-latest
+    needs: [frontend-tests]
+
+    strategy:
+      matrix:
+        browser: [chromium, firefox, webkit]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+        cache: 'npm'
+        cache-dependency-path: 'build/package-lock.json'
+
+    - name: Install dependencies
+      working-directory: ./build
+      run: npm ci
+
+    - name: Install Playwright browsers
+      working-directory: ./build
+      run: npx playwright install --with-deps ${{ matrix.browser }}
+
+    - name: Run E2E tests
+      working-directory: ./build
+      run: npx playwright test --project=${{ matrix.browser }}
+      env:
+        CI: true
+
+    - name: Upload E2E test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: e2e-test-results-${{ matrix.browser }}
+        path: |
+          build/playwright-report/
+          build/test-results/
+          build/e2e-results.xml
+
+  security-tests:
+    name: Security Tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+        cache: 'npm'
+        cache-dependency-path: 'build/package-lock.json'
+
+    - name: Install dependencies
+      working-directory: ./build
+      run: npm ci
+
+    - name: Run npm audit
+      working-directory: ./build
+      run: npm audit --audit-level=moderate
+
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: 8.2
+        tools: composer:v2
+
+    - name: Install PHP dependencies
+      working-directory: ./build
+      run: composer install --prefer-dist --no-progress
+
+    - name: Check for PHP security vulnerabilities
+      working-directory: ./build
+      run: composer audit
+
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+        cache: 'npm'
+        cache-dependency-path: 'build/package-lock.json'
+
+    - name: Install dependencies
+      working-directory: ./build
+      run: npm ci
+
+    - name: Run ESLint
+      working-directory: ./build
+      run: npx eslint src --ext .ts,.tsx --max-warnings 0
+
+    - name: Check code formatting
+      working-directory: ./build
+      run: npx prettier --check "src/**/*.{ts,tsx,css,md}"
+
+  coverage-report:
+    name: Coverage Report
+    runs-on: ubuntu-latest
+    needs: [frontend-tests, backend-tests]
+    if: always()
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download frontend coverage
+      uses: actions/download-artifact@v4
+      with:
+        pattern: frontend-test-results-*
+        merge-multiple: true
+        path: ./coverage-frontend
+
+    - name: Download backend coverage
+      uses: actions/download-artifact@v4
+      with:
+        pattern: backend-test-results-*
+        merge-multiple: true
+        path: ./coverage-backend
+
+    - name: Generate combined coverage report
+      run: |
+        echo "## Test Coverage Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -f "./coverage-frontend/coverage/lcov.info" ]; then
+          echo "### Frontend Coverage" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Frontend tests completed with coverage report" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Frontend coverage report not found" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [ -f "./coverage-backend/coverage-php.xml" ]; then
+          echo "### Backend Coverage" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Backend tests completed with coverage report" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Backend coverage report not found" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Upload combined coverage
+      uses: actions/upload-artifact@v4
+      with:
+        name: combined-coverage-report
+        path: |
+          coverage-frontend/
+          coverage-backend/

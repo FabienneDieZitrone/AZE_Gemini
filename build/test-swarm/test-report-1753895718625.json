@@ -1,0 +1,19 @@
+{
+  "summary": {
+    "total": 15,
+    "passed": 14,
+    "failed": 1,
+    "skipped": 0,
+    "duration": "1269ms",
+    "successRate": "93.33%"
+  },
+  "errors": [
+    {
+      "test": "XSS protection in validation",
+      "category": "security"
+    }
+  ],
+  "timestamp": "2025-07-30T17:15:18.625Z",
+  "swarmAgents": 5,
+  "executedTasks": 6
+}

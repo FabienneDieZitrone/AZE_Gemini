@@ -1,0 +1,67 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 2 * * *'  # Täglich um 2 Uhr nachts
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.0'
+    
+    - name: Check for Debug Files
+      run: |
+        echo "🔍 Checking for debug/test files in production..."
+        DEBUG_FILES=$(find . -name "*test*.php" -o -name "*debug*.php" -o -name "*backup*.php" | grep -E "(api|build)" || true)
+        if [ ! -z "$DEBUG_FILES" ]; then
+          echo "❌ CRITICAL: Debug files found in production!"
+          echo "$DEBUG_FILES"
+          exit 1
+        fi
+        echo "✅ No debug files found"
+    
+    - name: Check for Hardcoded Credentials
+      run: |
+        echo "🔍 Checking for hardcoded credentials..."
+        if grep -r "password\s*=\s*[\"'][^\"']*[\"']" --include="*.php" --include="*.js" --include="*.ts" . | grep -v ".env.example"; then
+          echo "❌ CRITICAL: Hardcoded credentials found!"
+          exit 1
+        fi
+        echo "✅ No hardcoded credentials found"
+    
+    - name: Check for SQL Injection Vulnerabilities
+      run: |
+        echo "🔍 Checking for SQL injection vulnerabilities..."
+        if grep -r "\$_\(GET\|POST\|REQUEST\)\[.*\].*mysql_query\|mysqli_query" --include="*.php" .; then
+          echo "❌ WARNING: Potential SQL injection vulnerability!"
+          exit 1
+        fi
+        echo "✅ No obvious SQL injection vulnerabilities"
+    
+    - name: Run OWASP Dependency Check
+      uses: dependency-check/Dependency-Check_Action@main
+      with:
+        project: 'AZE_Gemini'
+        path: '.'
+        format: 'ALL'
+        args: >
+          --enableRetired
+          --enableExperimental
+    
+    - name: Upload Security Reports
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: security-reports
+        path: reports/

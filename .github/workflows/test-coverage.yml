@@ -1,0 +1,95 @@
+name: Test Coverage
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  frontend-tests:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install Dependencies
+      run: npm ci
+    
+    - name: Run Tests with Coverage
+      run: npm test -- --coverage --watchAll=false
+    
+    - name: Check Coverage Thresholds
+      run: |
+        COVERAGE=$(cat coverage/coverage-summary.json | jq '.total.lines.pct')
+        echo "Current coverage: $COVERAGE%"
+        if (( $(echo "$COVERAGE < 80" | bc -l) )); then
+          echo "❌ Coverage below 80% threshold!"
+          exit 1
+        fi
+        echo "✅ Coverage meets threshold"
+    
+    - name: Upload Coverage Reports
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: ./coverage/lcov.info
+        
+  backend-tests:
+    runs-on: ubuntu-latest
+    
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: aze_test
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.0'
+        extensions: mbstring, mysql
+        coverage: xdebug
+    
+    - name: Install PHPUnit
+      run: |
+        composer require --dev phpunit/phpunit
+        
+    - name: Run PHP Tests
+      run: vendor/bin/phpunit --coverage-text
+      
+  e2e-tests:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install Playwright
+      run: |
+        npm ci
+        npx playwright install --with-deps
+        
+    - name: Run E2E Tests
+      run: npx playwright test
+      
+    - name: Upload Test Results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: playwright-report
+        path: playwright-report/
