@@ -11,12 +11,13 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { AggregatedTimeEntry, MasterData } from '../types';
 import { formatTime } from './time';
+import { TIME } from '../constants';
 
 export const exportToCsv = (data: AggregatedTimeEntry[], masterData: Record<number, MasterData>) => {
     const headers = ['Username', 'Datum', 'Startzeit', 'Stoppzeit', 'Gesamtzeit', 'Pause', 'Soll/Ist-Diff.', 'Standort', 'Rolle'];
     const rows = data.map(entry => {
         const userMasterData = masterData[entry.userId];
-        const dailySollTime = userMasterData && userMasterData.workdays.length > 0 ? (userMasterData.weeklyHours / userMasterData.workdays.length) * 3600 : 0;
+        const dailySollTime = userMasterData && userMasterData.workdays.length > 0 ? (userMasterData.weeklyHours / userMasterData.workdays.length) * TIME.SECONDS_PER_HOUR : 0;
         const diffSeconds = entry.totalSeconds - dailySollTime;
         const diffSign = diffSeconds >= 0 ? '+' : '-';
         
@@ -49,7 +50,7 @@ export const exportToPdf = (data: AggregatedTimeEntry[], masterData: Record<numb
     const head = [['Username', 'Datum', 'Startzeit', 'Stoppzeit', 'Gesamtzeit', 'Pause', 'Soll/Ist-Diff.', 'Standort']];
     const body = data.map(entry => {
         const userMasterData = masterData[entry.userId];
-        const dailySollTime = userMasterData && userMasterData.workdays.length > 0 ? (userMasterData.weeklyHours / userMasterData.workdays.length) * 3600 : 0;
+        const dailySollTime = userMasterData && userMasterData.workdays.length > 0 ? (userMasterData.weeklyHours / userMasterData.workdays.length) * TIME.SECONDS_PER_HOUR : 0;
         const diffSeconds = entry.totalSeconds - dailySollTime;
         const diffSign = diffSeconds >= 0 ? '+' : '-';
 

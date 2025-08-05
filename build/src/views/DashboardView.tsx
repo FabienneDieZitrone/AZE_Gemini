@@ -8,6 +8,7 @@
 import React, { useMemo } from 'react';
 import { TimeEntry, User } from '../types';
 import { calculateDurationInSeconds } from '../utils/time';
+import { TIME } from '../constants';
 
 export const DashboardView: React.FC<{
     onBack: () => void;
@@ -27,7 +28,7 @@ export const DashboardView: React.FC<{
                 .map(user => {
                     const userEntries = subordinateEntries.filter(e => e.userId === user.id);
                     const totalSeconds = userEntries.reduce((sum, e) => sum + calculateDurationInSeconds(e.startTime, e.stopTime), 0);
-                    return { name: user.name, hours: totalSeconds / 3600 };
+                    return { name: user.name, hours: totalSeconds / TIME.SECONDS_PER_HOUR };
                 }).filter(d => d.hours > 0);
             
             const hoursPerLocation = locations.map(loc => {

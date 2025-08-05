@@ -10,6 +10,7 @@ import { User, TimeEntry, AggregatedTimeEntry, MasterData, ApprovalRequest } fro
 import { getStartOfWeek, formatTime } from '../utils/time';
 import { exportToCsv, exportToPdf } from '../utils/export';
 import { aggregateTimeEntries } from '../utils/aggregate';
+import { TIME } from '../constants';
 
 export const TimeSheetView: React.FC<{
     onBack: () => void;
@@ -180,7 +181,7 @@ export const TimeSheetView: React.FC<{
           <tbody>
             {filteredEntries.map(entry => {
                 const userMasterData = masterData[entry.userId];
-                const dailySollTime = userMasterData && userMasterData.workdays.length > 0 ? (userMasterData.weeklyHours / userMasterData.workdays.length) * 3600 : 0;
+                const dailySollTime = userMasterData && userMasterData.workdays.length > 0 ? (userMasterData.weeklyHours / userMasterData.workdays.length) * TIME.SECONDS_PER_HOUR : 0;
                 const diffSeconds = entry.totalSeconds - dailySollTime;
                 const diffSign = diffSeconds >= 0 ? '+' : '-';
                 const request = approvalRequests.find(r => r.entry.id === entry.id);

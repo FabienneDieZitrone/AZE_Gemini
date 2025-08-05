@@ -16,6 +16,8 @@
  * - Session-ID-Regeneration alle 30 Minuten für zusätzliche Sicherheit
  */
 
+require_once __DIR__ . '/constants.php';
+
 /**
  * Polyfill für die Funktion getallheaders(), falls sie nicht existiert (z.B. bei FastCGI-Setups).
  */
@@ -53,7 +55,7 @@ function initialize_api() {
     header("Access-Control-Allow-Credentials: true");
     header("Content-Type: application/json; charset=UTF-8");
     header("Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS");
-    header("Access-Control-Max-Age: 3600");
+    header("Access-Control-Max-Age: " . SECONDS_PER_HOUR);
     header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 
     if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
@@ -115,8 +117,8 @@ function start_secure_session() {
  */
 function checkSessionTimeout() {
     // Definiere Timeout-Werte in Sekunden
-    $absolute_timeout = 86400; // 24 Stunden (24 * 60 * 60)
-    $inactivity_timeout = 3600; // 1 Stunde (60 * 60)
+    $absolute_timeout = SECONDS_PER_DAY; // 24 Stunden
+    $inactivity_timeout = SECONDS_PER_HOUR; // 1 Stunde
     
     $current_time = time();
     
