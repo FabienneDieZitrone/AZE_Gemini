@@ -1,122 +1,102 @@
 #!/usr/bin/env python3
 """
-Deploy essential updated files
+Essential Files Direct Deployment
+Uploads only the most important files for testing
 """
 
-import ftplib
 import os
-from pathlib import Path
+import ftplib
+import ssl
+from datetime import datetime
 
-FTPS_HOST = "wp10454681.server-he.de"
-FTPS_USER = "ftp10454681-aze"
-FTPS_PASS = "321Start321"
-FTPS_PORT = 21
+# FTP Configuration
+FTP_HOST = "wp10454681.server-he.de"
+FTP_USER = "ftp10454681-aze"
+FTP_PASS = "321Start321"
 
-def deploy_essential():
-    """Deploy essential files"""
+def upload_essential_files():
+    """Upload only essential files for security testing"""
+    print("=== Essential Files Deployment ===")
+    
+    # Connect via FTPS
+    context = ssl.create_default_context()
+    context.check_hostname = False
+    context.verify_mode = ssl.CERT_NONE
+    
+    ftp = ftplib.FTP_TLS(FTP_HOST, FTP_USER, FTP_PASS, context=context)
+    ftp.prot_p()
+    print("✅ Connected to FTPS")
+    
+    # Essential files for security testing
+    essential_files = [
+        # Fixed security files
+        ("build/api/time-entries.php", "/www/aze-test/api/time-entries.php"),
+        ("build/api/users.php", "/www/aze-test/api/users.php"),
+        
+        # Supporting files needed for API to work
+        ("build/api/db.php", "/www/aze-test/api/db.php"),
+        ("build/api/auth_helpers.php", "/www/aze-test/api/auth_helpers.php"),
+        ("build/api/validation.php", "/www/aze-test/api/validation.php"),
+        ("build/api/constants.php", "/www/aze-test/api/constants.php"),
+        ("build/api/security-middleware.php", "/www/aze-test/api/security-middleware.php"),
+        ("build/api/health.php", "/www/aze-test/api/health.php"),
+        ("build/api/login.php", "/www/aze-test/api/login.php"),
+        ("build/api/approvals.php", "/www/aze-test/api/approvals.php"),
+        ("build/api/history.php", "/www/aze-test/api/history.php"),
+    ]
+    
+    # Create directories
     try:
-        print("Connecting to FTPS...")
-        ftps = ftplib.FTP_TLS()
-        ftps.connect(FTPS_HOST, FTPS_PORT)
-        ftps.login(FTPS_USER, FTPS_PASS)
-        ftps.prot_p()
-        
-        # Navigate to web root
-        ftps.cwd('/www/aze')
-        print(f"Current directory: {ftps.pwd()}")
-        
-        # Create api directory if needed
-        try:
-            ftps.mkd('api')
-        except:
-            pass
-        
-        # Upload critical API files
-        api_files = [
-            ('build/api/timer-control.php', 'api/timer-control.php'),
-            ('build/api/constants.php', 'api/constants.php'),
-            ('build/api/auth_helpers.php', 'api/auth_helpers.php'),
-        ]
-        
-        for local, remote in api_files:
-            if os.path.exists(local):
-                print(f"Uploading {local} -> {remote}")
-                with open(local, 'rb') as f:
-                    ftps.storbinary(f'STOR {remote}', f)
-        
-        # Create src directory structure
-        try:
-            ftps.mkd('src')
-            ftps.mkd('src/hooks')
-            ftps.mkd('src/components')
-            ftps.mkd('src/views')
-            ftps.mkd('src/utils')
-        except:
-            pass
-        
-        # Upload source files
-        src_files = [
-            ('build/src/constants.ts', 'src/constants.ts'),
-            ('build/src/hooks/useTimer.ts', 'src/hooks/useTimer.ts'),
-            ('build/src/components/TimerService.tsx', 'src/components/TimerService.tsx'),
-            ('build/src/views/MainAppView.tsx', 'src/views/MainAppView.tsx'),
-            ('build/src/views/DashboardView.tsx', 'src/views/DashboardView.tsx'),
-        ]
-        
-        for local, remote in src_files:
-            if os.path.exists(local):
-                print(f"Uploading {local} -> {remote}")
-                with open(local, 'rb') as f:
-                    ftps.storbinary(f'STOR {remote}', f)
-        
-        # Upload dist files if they exist
-        try:
-            ftps.cwd('/www/aze')
-            ftps.mkd('dist')
-            ftps.mkd('dist/assets')
-        except:
-            pass
-        
-        dist_files = [
-            ('build/dist/index.html', 'dist/index.html'),
-        ]
-        
-        for local, remote in dist_files:
-            if os.path.exists(local):
-                print(f"Uploading {local} -> {remote}")
-                with open(local, 'rb') as f:
-                    ftps.storbinary(f'STOR {remote}', f)
-        
-        # Check for dist assets
-        dist_assets = Path('build/dist/assets')
-        if dist_assets.exists():
-            for asset in dist_assets.glob('*'):
-                if asset.is_file():
-                    remote_path = f'dist/assets/{asset.name}'
-                    print(f"Uploading {asset} -> {remote_path}")
-                    with open(asset, 'rb') as f:
-                        ftps.storbinary(f'STOR {remote_path}', f)
-        
-        ftps.quit()
-        print("\nEssential files deployed!")
-        
-        # Test
-        import subprocess
-        result = subprocess.run(
-            ["curl", "-k", "-s", "https://aze.mikropartner.de/api/health.php"],
-            capture_output=True,
-            text=True
-        )
-        if "healthy" in result.stdout:
-            print("✅ Health check: OK")
+        ftp.mkd("/www/aze-test")
+    except:
+        pass
+    
+    try:
+        ftp.mkd("/www/aze-test/api")
+    except:
+        pass
+    
+    # Upload files
+    success_count = 0
+    fail_count = 0
+    
+    for local_file, remote_file in essential_files:
+        if os.path.exists(local_file):
+            try:
+                with open(local_file, 'rb') as f:
+                    ftp.storbinary(f'STOR {remote_file}', f)
+                print(f"✅ {os.path.basename(remote_file)}")
+                success_count += 1
+            except Exception as e:
+                print(f"❌ {os.path.basename(remote_file)}: {e}")
+                fail_count += 1
         else:
-            print("❌ Health check: FAILED")
-            print(result.stdout)
-        
-    except Exception as e:
-        print(f"Error: {e}")
-        import traceback
-        traceback.print_exc()
+            print(f"⚠️  {local_file} not found locally")
+    
+    # Create test marker
+    marker = f"""Security Test Environment
+Deployed: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+Issue #74 Security Fixes
+- time-entries.php: Role-based access control
+- users.php: Admin-only role changes"""
+    
+    # Upload marker
+    import tempfile
+    with tempfile.NamedTemporaryFile(mode='w', delete=False) as tmp:
+        tmp.write(marker)
+        tmp_path = tmp.name
+    
+    with open(tmp_path, 'rb') as f:
+        ftp.storbinary('STOR /www/aze-test/SECURITY_TEST.txt', f)
+    os.unlink(tmp_path)
+    
+    ftp.quit()
+    
+    print(f"\n=== Summary ===")
+    print(f"✅ Uploaded: {success_count} files")
+    print(f"❌ Failed: {fail_count} files")
+    print(f"\nTest URL: https://aze.mikropartner.de/aze-test/api/health.php")
+    print(f"Marker: https://aze.mikropartner.de/aze-test/SECURITY_TEST.txt")
 
 if __name__ == "__main__":
-    deploy_essential()
+    upload_essential_files()

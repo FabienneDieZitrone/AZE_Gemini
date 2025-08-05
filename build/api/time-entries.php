@@ -97,9 +97,37 @@ function handle_get($conn, $current_user) {
         return;
     }
     
-    // TODO: Verfeinern, um nur Einträge anzuzeigen, die der Benutzer sehen darf
-    // (z.B. eigene Einträge oder die von unterstellten Mitarbeitern), basierend auf $current_user['role'].
-    $stmt = $conn->prepare("SELECT id, user_id AS userId, username, date, start_time AS startTime, stop_time AS stopTime, location, role, created_at AS createdAt, updated_by AS updatedBy, updated_at AS updatedAt FROM time_entries ORDER BY date DESC, start_time DESC");
+    // SECURITY FIX: Role-based authorization filtering
+    $base_query = "SELECT id, user_id AS userId, username, date, start_time AS startTime, stop_time AS stopTime, location, role, created_at AS createdAt, updated_by AS updatedBy, updated_at AS updatedAt FROM time_entries";
+    
+    // Apply role-based filtering
+    if ($current_user['role'] === 'Honorarkraft' || $current_user['role'] === 'Mitarbeiter') {
+        // Honorarkraft and Mitarbeiter can only see their own entries
+        $query = $base_query . " WHERE user_id = ? ORDER BY date DESC, start_time DESC";
+        $stmt = $conn->prepare($query);
+        if (!$stmt) {
+            $error_msg = 'Prepare failed for SELECT time_entries (user filter): ' . $conn->error;
+            error_log($error_msg);
+            send_response(500, ['message' => 'Datenbankfehler beim Abrufen der Zeiteinträge.', 'details' => $error_msg]);
+            return;
+        }
+        $stmt->bind_param("i", $current_user['id']);
+    } else if ($current_user['role'] === 'Standortleiter') {
+        // Standortleiter can see entries from their location
+        $query = $base_query . " WHERE location = ? ORDER BY date DESC, start_time DESC";
+        $stmt = $conn->prepare($query);
+        if (!$stmt) {
+            $error_msg = 'Prepare failed for SELECT time_entries (location filter): ' . $conn->error;
+            error_log($error_msg);
+            send_response(500, ['message' => 'Datenbankfehler beim Abrufen der Zeiteinträge.', 'details' => $error_msg]);
+            return;
+        }
+        $stmt->bind_param("s", $current_user['location']);
+    } else {
+        // Bereichsleiter and Admin can see all entries
+        $query = $base_query . " ORDER BY date DESC, start_time DESC";
+        $stmt = $conn->prepare($query);
+    }
     if (!$stmt) {
         $error_msg = 'Prepare failed for SELECT time_entries: ' . $conn->error;
         error_log($error_msg);

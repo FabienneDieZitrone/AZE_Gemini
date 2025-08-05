@@ -110,8 +110,11 @@ function handle_get($conn, $current_user) {
 }
 
 function handle_patch($conn, $current_user) {
-    // TODO: Rollenbasierte Berechtigungsprüfung (z.B. nur Admin darf Rollen ändern)
-    // $current_user['role'] kann hier für die Prüfung verwendet werden.
+    // SECURITY FIX: Only Admin can change user roles
+    if ($current_user['role'] !== 'Admin') {
+        send_response(403, ['message' => 'Forbidden: Only Admin users can change user roles']);
+        return;
+    }
     
     try {
         $required_fields = ['userId', 'newRole'];
@@ -123,8 +126,8 @@ function handle_patch($conn, $current_user) {
             return;
         }
         
-        // Validate newRole is one of allowed values
-        $allowed_roles = ['employee', 'manager', 'admin'];
+        // Validate newRole is one of allowed values (German role names)
+        $allowed_roles = ['Honorarkraft', 'Mitarbeiter', 'Standortleiter', 'Bereichsleiter', 'Admin'];
         if (!in_array($data['newRole'], $allowed_roles)) {
             send_response(400, ['message' => 'Invalid role. Allowed: ' . implode(', ', $allowed_roles)]);
             return;
