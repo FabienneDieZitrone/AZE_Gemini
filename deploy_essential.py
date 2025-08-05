@@ -5,14 +5,22 @@ Uploads only the most important files for testing
 """
 
 import os
+import sys
 import ftplib
 import ssl
 from datetime import datetime
 
-# FTP Configuration
-FTP_HOST = "wp10454681.server-he.de"
-FTP_USER = "ftp10454681-aze"
-FTP_PASS = "321Start321"
+# FTP Configuration from environment variables
+FTP_HOST = os.getenv('FTP_HOST', 'wp10454681.server-he.de')
+FTP_USER = os.getenv('FTP_USER', 'ftp10454681-aze')
+FTP_PASS = os.getenv('FTP_PASS')
+
+# Security check: Ensure password is not hardcoded
+if not FTP_PASS:
+    print("ERROR: FTP_PASS environment variable is not set!")
+    print("Please set the FTP_PASS environment variable before running this script.")
+    print("Example: export FTP_PASS='your-password-here'")
+    sys.exit(1)
 
 def upload_essential_files():
     """Upload only essential files for security testing"""

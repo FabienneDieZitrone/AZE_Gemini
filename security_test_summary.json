@@ -1,0 +1,12 @@
+{
+  "test_date": "2025-08-05T16:32:59+00:00",
+  "environment": "https://aze.mikropartner.de/aze-test/api",
+  "total_tests": 5,
+  "passed": 0,
+  "failed": 5,
+  "manual_testing_required": true,
+  "fixed_vulnerabilities": [
+    "time-entries.php: Role-based filtering implemented",
+    "users.php: Admin-only role changes enforced"
+  ]
+}

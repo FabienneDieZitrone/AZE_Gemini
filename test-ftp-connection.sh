@@ -3,10 +3,19 @@
 
 echo "=== Teste FTP-Verbindung ==="
 
-FTP_HOST="wp10454681.server-he.de"
-FTP_USER="ftp10454681-aze"
-FTP_PASS="321Start321"
-FTP_PATH="/www/aze/"
+# Load FTP configuration from environment variables
+FTP_HOST="${FTP_HOST:-wp10454681.server-he.de}"
+FTP_USER="${FTP_USER:-ftp10454681-aze}"
+FTP_PASS="${FTP_PASS}"
+FTP_PATH="${FTP_PATH:-/www/aze/}"
+
+# Security check: Ensure password is not hardcoded
+if [ -z "$FTP_PASS" ]; then
+    echo "ERROR: FTP_PASS environment variable is not set!"
+    echo "Please set the FTP_PASS environment variable before running this script."
+    echo "Example: export FTP_PASS='your-password-here'"
+    exit 1
+fi
 
 echo "Host: $FTP_HOST"
 echo "User: $FTP_USER"
