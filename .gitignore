@@ -1,82 +1,71 @@
-# Visual Studio user files
-*.user
-*.suo
 
-# Build results
-**/bin/
-**/obj/
-
-# VSCode settings
-.vscode/
-obj/
-bin/
-*.user
-*.suo
-*.cache
-*.AssemblyInfo.cs
-
-.vs/
-
-# Security - Never commit credentials
-CLAUDE.local.md
-CLAUDE.md
-.env
-.env.*
 !.env.example
-.env~
-*.env
-env/
-build/.env
-**/config.local.php
-**/.env.deployment
-.env.local
-.env.production
-
-# Veraltete Planungsdokumente entfernt (enthielten Credentials)
-
-# Node.js
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
 # Build outputs
-dist/
-build/dist/
-
-gh.md
-
+# Build results
 # Debug and test files - SECURITY CRITICAL
-api/debug-*.php
-api/test-*.php
-api/temp-*.php
-api/quick-*.php
-api/*-debug.php
-api/*-test.php
-build/api/debug-*.php
-build/api/test-*.php
-build/api/*-debug*.php
-build/api/*-test*.php
-**/debug-*.php
-**/test-*.php
-test-*.php
-debug-*.php
-
-# Development only files
-*.debug
-*.test
-.debug/
-.test/
 # Debug/Test-Dateien (Issue #100)
+# Development only files
+# Node.js
+# Security - Never commit credentials
+# VSCode settings
+# Veraltete Planungsdokumente entfernt (enthielten Credentials)
+# Visual Studio user files
+**/.env.deployment
+**/bin/
+**/config.local.php
+**/debug-*.php
+**/obj/
+**/test-*.php
 *-backup.php
-*-test.php
 *-debug.php
-*-simple.php
+*-fixed.php
 *-minimal.php
 *-original.php
-*-fixed.php
+*-simple.php
+*-test.php
 *-working.php
-session-*.php
+*.AssemblyInfo.cs
+*.cache
+*.debug
+*.env
+*.suo
+*.test
+*.user
+.debug/
+.env
+.env.*
+.env.local
+.env.production
+.env~
+.pnpm-debug.log*
+.test/
+.vs/
+.vscode/
+CLAUDE.local.md
+CLAUDE.md
+api/*-debug.php
+api/*-test.php
+api/debug-*.php
+api/quick-*.php
+api/temp-*.php
+api/test-*.php
+bin/
+build/.env
+build/api/*-debug*.php
+build/api/*-test*.php
+build/api/debug-*.php
+build/api/test-*.php
+build/dist/
 create-*.php
+debug-*.php
+dist/
+env/
+gh.md
+node_modules/
+npm-debug.log*
+obj/
 server.log
+session-*.php
+test-*.php
+yarn-debug.log*
+yarn-error.log*
