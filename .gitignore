@@ -68,3 +68,15 @@ debug-*.php
 *.test
 .debug/
 .test/
+# Debug/Test-Dateien (Issue #100)
+*-backup.php
+*-test.php
+*-debug.php
+*-simple.php
+*-minimal.php
+*-original.php
+*-fixed.php
+*-working.php
+session-*.php
+create-*.php
+server.log
