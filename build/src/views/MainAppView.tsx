@@ -9,6 +9,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { api } from '../../api';
 import { Role, Theme, User, TimeEntry, ViewState, MasterData, ApprovalRequest, HistoryEntry, SupervisorNotification, GlobalSettings, ReasonData } from '../types';
+import { TimerService } from '../components/TimerService';
+import { notificationService, Toaster } from '../services/NotificationService';
+import { ErrorDisplay } from '../components/common/ErrorDisplay';
+import '../components/common/ErrorDisplay.css';
 
 import { getStartOfWeek, formatTime, calculateDurationInSeconds } from '../utils/time';
 import { TIME } from '../constants';
@@ -38,10 +42,7 @@ export const MainAppView: React.FC = () => {
   const [globalSettings, setGlobalSettings] = useState<GlobalSettings | null>(null);
   
   const [viewState, setViewState] = useState<ViewState>({ current: 'main' });
-  const [isTracking, setIsTracking] = useState<boolean>(false);
-  const [elapsedTime, setElapsedTime] = useState<number>(0);
-  const [activeTimerStartTime, setActiveTimerStartTime] = useState<number | null>(null);
-  const [currentTimerId, setCurrentTimerId] = useState<number | null>(null);
+  const [hasRunningTimer, setHasRunningTimer] = useState<boolean>(false);
   
   const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
   const [deletingEntry, setDeletingEntry] = useState<TimeEntry | null>(null);
@@ -87,34 +88,16 @@ export const MainAppView: React.FC = () => {
     initializeAndFetchData();
   }, [initializeAndFetchData]);
 
-  const hasCheckedForRunningTimer = React.useRef(false);
-  
-  useEffect(() => {
-    if (currentUser && !hasCheckedForRunningTimer.current) {
-      hasCheckedForRunningTimer.current = true;
-      checkForRunningTimer();
-    }
-  }, [currentUser]);
+  // Timer callbacks
+  const handleTimerStart = useCallback((timerId: number) => {
+    setHasRunningTimer(true);
+    refreshData();
+  }, []);
 
-  const checkForRunningTimer = async () => {
-    try {
-      const response = await fetch('/api/time-entries.php?action=check_running', {
-        method: 'GET',
-        credentials: 'include'
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.hasRunningTimer && data.runningTimer) {
-          const startTime = new Date(`${data.runningTimer.date}T${data.runningTimer.startTime}`).getTime();
-          setActiveTimerStartTime(startTime);
-          setIsTracking(true);
-          setCurrentTimerId(data.runningTimer.id);
-        }
-      }
-    } catch (error) {
-    }
-  };
+  const handleTimerStop = useCallback((timerId: number) => {
+    setHasRunningTimer(false);
+    refreshData();
+  }, []);
 
 
   const currentDate = useMemo(() => {
@@ -131,25 +114,10 @@ export const MainAppView: React.FC = () => {
     document.body.setAttribute('data-theme', theme);
   }, [theme]);
   
+  // Make notificationService available globally for timer
   useEffect(() => {
-    let interval: ReturnType<typeof setInterval> | null = null;
-    let reminderTimeout: ReturnType<typeof setTimeout> | null = null;
-    if (isTracking && activeTimerStartTime) {
-      interval = setInterval(() => {
-        setElapsedTime(Math.floor((Date.now() - activeTimerStartTime) / 1000));
-      }, 1000);
-      
-      reminderTimeout = setTimeout(() => {
-        if(isTracking){
-            alert("Erinnerung: Die Zeiterfassung läuft noch. Haben Sie vergessen, auf 'Stop' zu klicken?");
-        }
-      }, 8 * 60 * 60 * 1000); // 8 hours reminder
-    }
-    return () => { 
-        if (interval) clearInterval(interval); 
-        if (reminderTimeout) clearTimeout(reminderTimeout);
-    };
-  }, [isTracking, activeTimerStartTime]);
+    window.notificationService = notificationService;
+  }, []);
   
   useEffect(() => {
     if (!currentUser || !globalSettings || !masterData || timeEntries.length === 0) return;
@@ -208,116 +176,10 @@ export const MainAppView: React.FC = () => {
     }
   }
   
-  const handleToggleTracking = async () => {
-    if (!currentUser) return;
-
-    try {
-      if (isTracking) {
-        // WORKAROUND: Use POST with action=stop instead of PUT (Apache blocks PUT)
-        if (!currentTimerId) {
-          throw new Error('No timer ID available');
-        }
-        
-        const now = new Date();
-        const stopTime = now.toTimeString().split(' ')[0]; // HH:MM:SS format
-        
-        const response = await fetch('/api/time-entries.php?action=stop', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ 
-            id: currentTimerId,
-            stopTime: stopTime,
-            updatedBy: currentUser.name
-          })
-        });
-
-        if (response.ok) {
-          
-          // Update local state IMMEDIATELY
-          setIsTracking(false);
-          setActiveTimerStartTime(null);
-          setCurrentTimerId(null);
-          setElapsedTime(0);
-          
-          // Double-check that no timer is running after stop
-          // This prevents race conditions
-          setTimeout(async () => {
-            try {
-              const checkResponse = await fetch('/api/time-entries.php?action=check_running', {
-                method: 'GET',
-                credentials: 'include'
-              });
-              
-              if (checkResponse.ok) {
-                const checkData = await checkResponse.json();
-                if (checkData.hasRunningTimer) {
-                  // Force stop any remaining timer
-                  setIsTracking(false);
-                  setActiveTimerStartTime(null);
-                  setCurrentTimerId(null);
-                  setElapsedTime(0);
-                }
-              }
-            } catch (error) {
-            }
-          }, 100);
-          
-          // Reload time entries to show completed entry
-          await refreshData();
-        } else {
-          throw new Error('Failed to stop timer on server');
-        }
-      } else {
-        // QUICK-FIX: Start timer using time-entries.php POST method with NULL stop_time
-        const now = new Date();
-        const startTime = now.toTimeString().split(' ')[0]; // HH:MM:SS format
-        const date = now.toISOString().split('T')[0]; // YYYY-MM-DD format
-        
-        const response = await fetch('/api/time-entries.php', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ 
-            userId: currentUser.id,
-            username: currentUser.name,
-            date: date,
-            startTime: startTime,
-            stopTime: null, // DB allows NULL for running timers
-            location: currentLocation,
-            role: currentUser.role,
-            updatedBy: currentUser.name
-          })
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          
-          // Update local state
-          const startTimeMs = new Date(`${date}T${startTime}`).getTime();
-          setActiveTimerStartTime(startTimeMs);
-          setIsTracking(true);
-          setCurrentTimerId(data.id);
-          setElapsedTime(0);
-        } else {
-          throw new Error('Failed to start timer on server');
-        }
-      }
-    } catch (err) {
-      const action = isTracking ? 'Stoppen' : 'Starten';
-      const msg = `Fehler beim ${action} der Zeiterfassung: ${(err as Error).message}`;
-      setError(msg);
-      api.logError({
-        message: msg, 
-        stack: (err as Error).stack, 
-        context: `handleToggleTracking - ${action.toLowerCase()}`
-      });
-    }
-  };
   
   const handleLocalLinkClick = (e: React.MouseEvent, url: string) => {
     e.preventDefault();
-    alert(`In der finalen Anwendung würde nun der lokale Pfad geöffnet:\n${url}\n\nDies ist in einem Web-Browser aus Sicherheitsgründen nicht möglich.`);
+    notificationService.localPathInfo(url);
   };
 
   const handleEditRequest = async (entry: TimeEntry, reasonData: ReasonData) => {
@@ -331,7 +193,7 @@ export const MainAppView: React.FC = () => {
       try {
         await api.requestEntryChange(requestData);
         await refreshData();
-        alert('Ihre Änderung wurde erfasst und wird zur Genehmigung weitergeleitet.');
+        notificationService.success('Ihre Änderung wurde erfasst und wird zur Genehmigung weitergeleitet.');
         setEditingEntry(null);
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Fehler beim Beantragen der Änderung.';
@@ -359,7 +221,8 @@ export const MainAppView: React.FC = () => {
       try {
         await api.updateMasterData(userId, data);
         await refreshData();
-        alert(`Stammdaten für ${users.find(u=>u.id===userId)?.name} wurden gespeichert.`);
+        const userName = users.find(u=>u.id===userId)?.name || 'Benutzer';
+        notificationService.success(`Stammdaten für ${userName} wurden gespeichert.`);
       } catch(err) {
         const msg = err instanceof Error ? err.message : 'Fehler beim Speichern der Stammdaten.';
         setError(msg);
@@ -371,7 +234,8 @@ export const MainAppView: React.FC = () => {
     try {
         await api.updateUserRole(userId, newRole);
         await refreshData();
-        alert(`Rolle für ${users.find(u=>u.id===userId)?.name} wurde auf ${newRole} geändert.`);
+        const userName = users.find(u=>u.id===userId)?.name || 'Benutzer';
+        notificationService.success(`Rolle für ${userName} wurde auf ${newRole} geändert.`);
     } catch(err) {
         const msg = err instanceof Error ? err.message : 'Fehler beim Ändern der Rolle.';
         setError(msg);
@@ -394,7 +258,7 @@ export const MainAppView: React.FC = () => {
       try {
         await api.updateGlobalSettings(settings);
         await refreshData();
-        alert('Globale Einstellungen gespeichert.');
+        notificationService.success('Globale Einstellungen gespeichert.');
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Fehler beim Speichern der Einstellungen.';
         setError(msg);
@@ -441,7 +305,7 @@ export const MainAppView: React.FC = () => {
   }, [calculatedOvertimeSeconds]);
 
   const handleLogout = () => {
-    if (isTracking && activeTimerStartTime) {
+    if (hasRunningTimer) {
       const confirmLogout = window.confirm(
         'Sie haben eine laufende Zeiterfassung!\n\n' +
         'Die Zeit wird auf dem Server weiterverfolgt und kann beim nächsten Login fortgesetzt werden.\n\n' +
@@ -460,7 +324,7 @@ export const MainAppView: React.FC = () => {
   
   const renderContent = () => {
     if (isLoading) return <LoadingSpinner />;
-    if (error) return <div className="error-message full-page-error">{error}</div>;
+    if (error) return <ErrorDisplay error={{ message: error }} onRetry={initializeAndFetchData} />;
     if (!currentUser || !globalSettings) return <LoadingSpinner />;
   
     const canSeeMasterData = ['Admin', 'Bereichsleiter', 'Standortleiter'].includes(currentUser.role);
@@ -481,7 +345,12 @@ export const MainAppView: React.FC = () => {
           <>
             <header className="main-view-header" aria-live="polite">{`${currentUser.name} ${formattedOvertime} - ${currentDate}`}</header>
             <div className="location-display">Erkannter Standort: <strong>{currentLocation}</strong></div>
-            <section className="tracking-section" aria-label="Zeiterfassung"><div className="label">Zeiterfassung starten / stoppen</div><div className="tracking-controls"><button onClick={handleToggleTracking} className={`toggle-button ${isTracking ? 'stop-button' : 'start-button'}`} aria-live="polite">{isTracking ? 'Stop' : 'Start'}</button>{isTracking && (<div className="timer-display" aria-label="Abgelaufene Zeit">{formatTime(elapsedTime, true)}</div>)}</div></section>
+            <TimerService 
+              currentUser={currentUser}
+              onTimerStart={handleTimerStart}
+              onTimerStop={handleTimerStop}
+              onError={setError}
+            />
             <nav className="nav-buttons" aria-label="Hauptnavigation">
               <button className="nav-button" onClick={() => setViewState({ current: 'timesheet' })}>Arbeitszeiten anzeigen</button>
               <button className="nav-button" onClick={() => setViewState({ current: 'dashboard' })}>Dashboard</button>
@@ -499,17 +368,20 @@ export const MainAppView: React.FC = () => {
   const links: {name: string, url: string, isLocal?: boolean}[] = [ { name: 'Jobrouter/Urlaubsworkflow', url: 'http://jobrouter.mikropartner.de' }, { name: 'Ticketsystem', url: 'http://ticket.mikropartner.de' }, { name: 'MPWeb 3.0', url: 'http://mpweb.mikropartner.de' }, { name: 'Verbis', url: 'https://jobboerse2.arbeitsagentur.de/verbis/login' }, { name: 'MP-Laufwerke verbinden', url: 'C:\\tools\\NetzLW.bat', isLocal: true }, { name: 'Aktuelle Telefonliste', url: 'O:\\Mikropartner_Allgemein\\Telefonliste _13_12_2024 Änderungen vorbehalten.pdf', isLocal: true }];
 
   return (
-    <div className="app-container">
-      <div className="app-header-bar">
-        <Logo />
-        <h1 className="app-main-title">MP Arbeitszeiterfassung</h1>
-        {currentUser && <button onClick={handleLogout} className="logout-button">Abmelden</button>}
+    <>
+      <div className="app-container">
+        <div className="app-header-bar">
+          <Logo />
+          <h1 className="app-main-title">MP Arbeitszeiterfassung</h1>
+          {currentUser && <button onClick={handleLogout} className="logout-button">Abmelden</button>}
+        </div>
+        {renderContent()}
+        {editingEntry && currentUser && globalSettings &&( <EditEntryModal entry={editingEntry} onClose={() => setEditingEntry(null)} onSave={handleEditRequest} changeReasons={globalSettings.changeReasons} currentUser={currentUser}/> )}
+        {deletingEntry && ( <ConfirmDeleteModal onCancel={() => setDeletingEntry(null)} onConfirm={handleDeleteRequest}/> )}
+        {editingRoleForUser && currentUser && ( <RoleAssignmentModal user={editingRoleForUser} currentUser={currentUser} onClose={() => setEditingRoleForUser(null)} onSave={handleRoleSave}/> )}
+        {showSupervisorModal && ( <SupervisorNotificationModal notifications={supervisorNotifications} onClose={() => setShowSupervisorModal(false)}/> )}
       </div>
-      {renderContent()}
-      {editingEntry && currentUser && globalSettings &&( <EditEntryModal entry={editingEntry} onClose={() => setEditingEntry(null)} onSave={handleEditRequest} changeReasons={globalSettings.changeReasons} currentUser={currentUser}/> )}
-      {deletingEntry && ( <ConfirmDeleteModal onCancel={() => setDeletingEntry(null)} onConfirm={handleDeleteRequest}/> )}
-      {editingRoleForUser && currentUser && ( <RoleAssignmentModal user={editingRoleForUser} currentUser={currentUser} onClose={() => setEditingRoleForUser(null)} onSave={handleRoleSave}/> )}
-      {showSupervisorModal && ( <SupervisorNotificationModal notifications={supervisorNotifications} onClose={() => setShowSupervisorModal(false)}/> )}
-    </div>
+      <Toaster position="top-right" />
+    </>
   );
 };
