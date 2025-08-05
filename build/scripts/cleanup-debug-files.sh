@@ -5,7 +5,7 @@
 
 echo "Starting cleanup of debug/test files..."
 
-cd /app/build/api
+cd /app/projects/aze-gemini/build/api
 
 # List of debug/test files to remove
 FILES_TO_REMOVE=(

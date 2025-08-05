@@ -28,17 +28,21 @@ ini_set('display_startup_errors', 0);
 ini_set('log_errors', 1);
 error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED);
 
-// Keine Authentifizierung für diesen Endpunkt erforderlich.
+// Define API guard constant
+define('API_GUARD', true);
+
+require_once __DIR__ . '/auth_helpers.php';
+require_once __DIR__ . '/auth-middleware.php';
+require_once __DIR__ . '/security-middleware.php';
 require_once __DIR__ . '/validation.php';
 
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+initialize_api();
 
-if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-    exit(0);
-}
+// Apply security headers
+initSecurityMiddleware();
+
+// Logs können ohne Auth geschrieben werden (für Frontend-Errors)
+// aber Lesen erfordert Admin-Rechte (siehe auth-middleware.php)
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);

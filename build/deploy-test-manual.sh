@@ -1,0 +1,26 @@
+#!/bin/bash
+
+# Manuelle FTP-Upload Anweisungen für Test-Deployment
+
+echo "=== MANUELLES TEST-DEPLOYMENT ==="
+echo ""
+echo "Da kein FTP-Client verfügbar ist, bitte manuell uploaden:"
+echo ""
+echo "1. FTP-Verbindung zu wp10454681.server-he.de"
+echo "   User: ftp10454681-aze3"
+echo ""
+echo "2. Navigiere zu: /www/aze/test/"
+echo ""
+echo "3. Uploade folgende Dateien:"
+echo "   - api/auth-middleware.php (NEU)"
+echo "   - api/time-entries.php (AKTUALISIERT)"
+echo "   - api/users.php (AKTUALISIERT)"
+echo "   - api/approvals.php (AKTUALISIERT)"
+echo "   - api/settings.php (AKTUALISIERT)"
+echo "   - api/masterdata.php (AKTUALISIERT)"
+echo "   - api/history.php (AKTUALISIERT)"
+echo "   - api/logs.php (AKTUALISIERT)"
+echo ""
+echo "4. Stelle sicher, dass .env konfiguriert ist"
+echo ""
+echo "5. Teste mit: https://aze.mikropartner.de/test/api/"

@@ -40,6 +40,7 @@ error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED);
 
 require_once __DIR__ . '/db-init.php';
 require_once __DIR__ . '/auth_helpers.php';
+require_once __DIR__ . '/auth-middleware.php';
 require_once __DIR__ . '/validation.php';
 
 initialize_api();
@@ -48,8 +49,8 @@ initialize_api();
 initSecurityMiddleware();
 
 
-// Stellt sicher, dass der Benutzer authentifiziert ist.
-$user_from_session = verify_session_and_get_user();
+// Stellt sicher, dass der Benutzer authentifiziert ist und autorisiert ist.
+$user_from_session = authorize_request();
 
 // CRITICAL: Get user ID from session
 if (!isset($user_from_session['id'])) {

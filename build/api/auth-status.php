@@ -20,9 +20,16 @@ session_set_cookie_params([
     'samesite' => 'Lax'
 ]);
 
+// Define API guard constant
+define('API_GUARD', true);
+
 require_once __DIR__ . '/auth_helpers.php';
+require_once __DIR__ . '/security-middleware.php';
 
 initialize_api();
+
+// Apply security headers
+initSecurityMiddleware();
 
 // Diese Funktion erledigt die gesamte Arbeit: Sie startet die Session, prüft auf einen
 // gültigen 'user'-Eintrag und sendet automatisch eine 401-Antwort, falls keiner gefunden wird.

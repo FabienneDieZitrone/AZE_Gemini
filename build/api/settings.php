@@ -35,14 +35,22 @@ ini_set('display_startup_errors', 0);
 ini_set('log_errors', 1);
 error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED);
 
+// Define API guard constant
+define('API_GUARD', true);
+
 require_once __DIR__ . '/db-init.php';
 require_once __DIR__ . '/auth_helpers.php';
 require_once __DIR__ . '/validation.php';
+require_once __DIR__ . '/security-middleware.php';
 
 initialize_api();
 
-// Stellt sicher, dass der Benutzer authentifiziert ist.
-$user_from_session = verify_session_and_get_user();
+// Apply security headers
+initSecurityMiddleware();
+
+// Stellt sicher, dass der Benutzer authentifiziert und autorisiert ist.
+require_once __DIR__ . '/auth-middleware.php';
+$user_from_session = authorize_request();
 
 $method = $_SERVER['REQUEST_METHOD'];
 

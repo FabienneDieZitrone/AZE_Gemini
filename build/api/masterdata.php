@@ -48,8 +48,9 @@ initialize_api();
 // Apply security headers
 initSecurityMiddleware();
 
-// Stellt sicher, dass der Benutzer authentifiziert ist.
-$user_from_session = verify_session_and_get_user();
+// Stellt sicher, dass der Benutzer authentifiziert und autorisiert ist.
+require_once __DIR__ . '/auth-middleware.php';
+$user_from_session = authorize_request();
 
 $method = $_SERVER['REQUEST_METHOD'];
 

@@ -44,21 +44,22 @@ if (!function_exists('getallheaders')) {
  * Initialisiert die Standard-Header für einen API-Endpunkt und prüft auf OPTIONS-Requests.
  */
 function initialize_api() {
-    // Die Herkunft wird nun dynamisch ermittelt, um lokale Entwicklung und Produktion zu unterstützen.
-    $origin = $_SERVER['HTTP_ORIGIN'] ?? 'https://aze.mikropartner.de';
-    $allowed_origins = ['https://aze.mikropartner.de']; // Fügen Sie hier bei Bedarf lokale Entwicklungsumgebungen hinzu
+    // Security Headers werden jetzt durch security-middleware.php gesetzt
+    // Diese Funktion behandelt nur noch OPTIONS requests
     
-    if (in_array($origin, $allowed_origins)) {
-        header("Access-Control-Allow-Origin: " . $origin);
-    }
-    
-    header("Access-Control-Allow-Credentials: true");
-    header("Content-Type: application/json; charset=UTF-8");
-    header("Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS");
-    header("Access-Control-Max-Age: " . SECONDS_PER_HOUR);
-    header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
-
     if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+        // CORS Headers für OPTIONS
+        $origin = $_SERVER['HTTP_ORIGIN'] ?? 'https://aze.mikropartner.de';
+        $allowed_origins = ['https://aze.mikropartner.de'];
+        
+        if (in_array($origin, $allowed_origins)) {
+            header("Access-Control-Allow-Origin: " . $origin);
+        }
+        
+        header("Access-Control-Allow-Credentials: true");
+        header("Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS");
+        header("Access-Control-Max-Age: " . SECONDS_PER_HOUR);
+        header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With, X-CSRF-Token");
         exit(0);
     }
 }
