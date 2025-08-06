@@ -38,16 +38,26 @@ ini_set('display_startup_errors', 0);
 ini_set('log_errors', 1);
 error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED);
 
-require_once __DIR__ . '/db-init.php';
+require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/auth_helpers.php';
 require_once __DIR__ . '/validation.php';
 require_once __DIR__ . '/security-middleware.php';
+require_once __DIR__ . '/rate-limiting.php';
+require_once __DIR__ . '/csrf-middleware.php';
 
 // --- Hilfsfunktionen & Header ---
 initialize_api();
 
 // Apply security headers
 initSecurityMiddleware();
+
+// Apply rate limiting
+checkRateLimit('users');
+
+// Validate CSRF for state-changing operations
+if (requiresCsrfProtection()) {
+    validateCsrfProtection();
+}
 
 // Stellt sicher, dass der Benutzer authentifiziert und autorisiert ist.
 require_once __DIR__ . '/auth-middleware.php';
@@ -73,41 +83,113 @@ $conn->close();
 // --- Handler-Funktionen ---
 
 function handle_get($conn, $current_user) {
-    // Rollenbasierte Filterung implementiert
-    $query = "SELECT id, display_name AS name, role, azure_oid AS azureOid FROM users";
+    // Pagination parameters
+    $page = max(1, intval($_GET['page'] ?? 1));
+    $limit = min(100, max(10, intval($_GET['limit'] ?? 20)));
+    $offset = ($page - 1) * $limit;
+    
+    // Rollenbasierte Filterung implementiert with pagination
+    $base_query = "SELECT id, display_name AS name, role, azure_oid AS azureOid FROM users";
+    $count_query = "SELECT COUNT(*) as total FROM users";
     
     // Berechtigungsprüfung basierend auf Rolle
     if ($current_user['role'] === 'Honorarkraft') {
         // Honorarkraft sieht nur sich selbst
-        $query .= " WHERE id = ?";
+        $where_clause = " WHERE id = ?";
+        $query = $base_query . $where_clause . " ORDER BY display_name ASC LIMIT ? OFFSET ?";
+        $count_query_full = $count_query . $where_clause;
+        
         $stmt = $conn->prepare($query);
-        $stmt->bind_param("i", $current_user['id']);
+        $count_stmt = $conn->prepare($count_query_full);
+        
+        if (!$stmt || !$count_stmt) {
+            $error_msg = 'Prepare failed for SELECT users (Honorarkraft): ' . $conn->error;
+            error_log($error_msg);
+            send_response(500, ['message' => 'Datenbankfehler beim Abrufen der Benutzer.', 'details' => $error_msg]);
+            return;
+        }
+        
+        $stmt->bind_param("iii", $current_user['id'], $limit, $offset);
+        $count_stmt->bind_param("i", $current_user['id']);
+        
     } else if ($current_user['role'] === 'Mitarbeiter') {
         // Mitarbeiter sehen alle außer Honorarkräfte
-        $query .= " WHERE role != 'Honorarkraft' OR id = ?";
+        $where_clause = " WHERE role != 'Honorarkraft' OR id = ?";
+        $query = $base_query . $where_clause . " ORDER BY display_name ASC LIMIT ? OFFSET ?";
+        $count_query_full = $count_query . $where_clause;
+        
         $stmt = $conn->prepare($query);
-        $stmt->bind_param("i", $current_user['id']);
+        $count_stmt = $conn->prepare($count_query_full);
+        
+        if (!$stmt || !$count_stmt) {
+            $error_msg = 'Prepare failed for SELECT users (Mitarbeiter): ' . $conn->error;
+            error_log($error_msg);
+            send_response(500, ['message' => 'Datenbankfehler beim Abrufen der Benutzer.', 'details' => $error_msg]);
+            return;
+        }
+        
+        $stmt->bind_param("iii", $current_user['id'], $limit, $offset);
+        $count_stmt->bind_param("i", $current_user['id']);
+        
     } else if ($current_user['role'] === 'Standortleiter') {
         // Standortleiter sehen alle ihrer Location (benötigt location-Spalte in users)
         // Vorerst: Alle außer andere Standortleiter anderer Locations
+        $query = $base_query . " ORDER BY display_name ASC LIMIT ? OFFSET ?";
+        
         $stmt = $conn->prepare($query);
+        $count_stmt = $conn->prepare($count_query);
+        
+        if (!$stmt || !$count_stmt) {
+            $error_msg = 'Prepare failed for SELECT users (Standortleiter): ' . $conn->error;
+            error_log($error_msg);
+            send_response(500, ['message' => 'Datenbankfehler beim Abrufen der Benutzer.', 'details' => $error_msg]);
+            return;
+        }
+        
+        $stmt->bind_param("ii", $limit, $offset);
+        
     } else {
         // Bereichsleiter und Admin sehen alle Benutzer
+        $query = $base_query . " ORDER BY display_name ASC LIMIT ? OFFSET ?";
+        
         $stmt = $conn->prepare($query);
-    }
-    if (!$stmt) {
-        $error_msg = 'Prepare failed for SELECT users: ' . $conn->error;
-        error_log($error_msg);
-        send_response(500, ['message' => 'Datenbankfehler beim Abrufen der Benutzer.', 'details' => $error_msg]);
-        return;
+        $count_stmt = $conn->prepare($count_query);
+        
+        if (!$stmt || !$count_stmt) {
+            $error_msg = 'Prepare failed for SELECT users: ' . $conn->error;
+            error_log($error_msg);
+            send_response(500, ['message' => 'Datenbankfehler beim Abrufen der Benutzer.', 'details' => $error_msg]);
+            return;
+        }
+        
+        $stmt->bind_param("ii", $limit, $offset);
     }
     
+    // Execute both queries
     $stmt->execute();
     $result = $stmt->get_result();
     $users = $result->fetch_all(MYSQLI_ASSOC);
     
-    send_response(200, $users);
+    $count_stmt->execute();
+    $count_result = $count_stmt->get_result();
+    $total_count = $count_result->fetch_assoc()['total'];
+    
+    // Return paginated response
+    $response = [
+        'data' => $users,
+        'pagination' => [
+            'page' => $page,
+            'limit' => $limit,
+            'total' => (int)$total_count,
+            'pages' => (int)ceil($total_count / $limit),
+            'hasNext' => $page < ceil($total_count / $limit),
+            'hasPrev' => $page > 1
+        ]
+    ];
+    
+    send_response(200, $response);
     $stmt->close();
+    $count_stmt->close();
 }
 
 function handle_patch($conn, $current_user) {

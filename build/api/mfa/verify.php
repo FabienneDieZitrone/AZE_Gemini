@@ -1,7 +1,12 @@
 <?php
+// Define API guard constant
+define('API_GUARD', true);
+
 require_once '../config/database.php';
 require_once '../middleware/auth.php';
 require_once '../vendor/autoload.php';
+require_once '../rate-limiting.php';
+require_once '../csrf-middleware.php';
 
 use OTPHP\TOTP;
 
@@ -10,9 +15,17 @@ header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
+// Apply rate limiting
+checkRateLimit('mfa');
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode(['error' => 'Method not allowed']);
+    exit;
+}
+
+// Validate CSRF protection
+if (!validateCsrfProtection()) {
     exit;
 }
 

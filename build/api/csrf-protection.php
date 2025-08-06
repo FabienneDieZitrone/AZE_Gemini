@@ -9,54 +9,32 @@ define('API_GUARD', true);
 
 require_once __DIR__ . '/auth_helpers.php';
 require_once __DIR__ . '/security-middleware.php';
+require_once __DIR__ . '/csrf-middleware.php';
+require_once __DIR__ . '/rate-limiting.php';
 
 initialize_api();
 
 // Apply security headers
 initSecurityMiddleware();
 
-// CSRF Token Funktionen
-function generateCsrfToken() {
-    if (session_status() === PHP_SESSION_NONE) {
-        start_secure_session();
-    }
-    
-    // Generate a cryptographically secure random token
-    $token = bin2hex(random_bytes(32));
-    
-    // Store token in session with timestamp
-    $_SESSION['csrf_token'] = $token;
-    $_SESSION['csrf_token_time'] = time();
-    
-    return $token;
-}
+// Apply rate limiting for CSRF endpoint
+checkRateLimit('csrf');
 
-function validateCsrfToken($token) {
-    if (session_status() === PHP_SESSION_NONE) {
-        start_secure_session();
-    }
-    
-    // Check if token exists in session
-    if (!isset($_SESSION['csrf_token']) || !isset($_SESSION['csrf_token_time'])) {
-        return false;
-    }
-    
-    // Check token age (24 hours)
-    if (time() - $_SESSION['csrf_token_time'] > 86400) {
-        unset($_SESSION['csrf_token']);
-        unset($_SESSION['csrf_token_time']);
-        return false;
-    }
-    
-    // Validate token
-    return hash_equals($_SESSION['csrf_token'], $token);
-}
+// CSRF token functions are now handled by csrf-middleware.php
 
 // Handle request
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    // Generate new token
+    // Generate new token using enhanced middleware
     $token = generateCsrfToken();
-    send_response(200, ['csrf_token' => $token]);
+    
+    // Add rate limiting headers
+    addRateLimitHeaders('csrf');
+    
+    send_response(200, [
+        'csrf_token' => $token,
+        'token_name' => 'csrf_token',
+        'expires_in' => 3600 // 1 hour
+    ]);
 } else {
     send_response(405, ['message' => 'Method not allowed']);
 }

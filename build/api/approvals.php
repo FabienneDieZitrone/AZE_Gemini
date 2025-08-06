@@ -30,15 +30,25 @@ ini_set('display_startup_errors', 0);
 ini_set('log_errors', 1);
 error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED);
 
-require_once __DIR__ . '/db-init.php';
+require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/auth_helpers.php';
 require_once __DIR__ . '/validation.php';
 require_once __DIR__ . '/security-middleware.php';
+require_once __DIR__ . '/rate-limiting.php';
+require_once __DIR__ . '/csrf-middleware.php';
 
 initialize_api();
 
 // Apply security headers
 initSecurityMiddleware();
+
+// Apply rate limiting
+checkRateLimit('approvals');
+
+// Validate CSRF for state-changing operations
+if (requiresCsrfProtection()) {
+    validateCsrfProtection();
+}
 
 // Stellt sicher, dass der Benutzer authentifiziert und autorisiert ist.
 require_once __DIR__ . '/auth-middleware.php';
@@ -64,49 +74,139 @@ switch ($method) {
 $conn->close();
 
 function handle_get($conn, $current_user) {
-    // Rollenbasierte Filterung implementiert
-    $query = "SELECT * FROM approval_requests WHERE status = 'pending'";
+    // Pagination parameters
+    $page = max(1, intval($_GET['page'] ?? 1));
+    $limit = min(100, max(10, intval($_GET['limit'] ?? 20)));
+    $offset = ($page - 1) * $limit;
     
-    // Berechtigungsprüfung basierend auf Rolle
+    // FIX N+1 QUERY: Use JOIN to fetch approval requests with time entry data in one query
+    $base_query = "
+        SELECT 
+            ar.*,
+            te.id as entry_id,
+            te.user_id AS entry_userId, 
+            te.username as entry_username, 
+            te.date as entry_date, 
+            te.start_time AS entry_startTime, 
+            te.stop_time AS entry_stopTime, 
+            te.location as entry_location, 
+            te.role as entry_role, 
+            te.created_at AS entry_createdAt, 
+            te.updated_by AS entry_updatedBy, 
+            te.updated_at AS entry_updatedAt
+        FROM approval_requests ar 
+        LEFT JOIN time_entries te ON ar.entry_id = te.id 
+        WHERE ar.status = 'pending'";
+    
+    $count_query = "SELECT COUNT(*) as total FROM approval_requests ar WHERE ar.status = 'pending'";
+    
+    // Role-based filtering
     if ($current_user['role'] === 'Honorarkraft' || $current_user['role'] === 'Mitarbeiter') {
         // Honorarkraft und Mitarbeiter sehen nur ihre eigenen Anträge
-        $query .= " AND requested_by = ?";
-        $stmt = $conn->prepare($query);
-        $stmt->bind_param("s", $current_user['username']);
+        $base_query .= " AND ar.requested_by = ?";
+        $count_query .= " AND ar.requested_by = ?";
+        
+        $stmt = $conn->prepare($base_query . " ORDER BY ar.requested_at DESC LIMIT ? OFFSET ?");
+        $count_stmt = $conn->prepare($count_query);
+        
+        if (!$stmt || !$count_stmt) {
+            error_log('Prepare failed for approval requests query: ' . $conn->error);
+            send_response(500, ['message' => 'Database error']);
+            return;
+        }
+        
+        $stmt->bind_param("sii", $current_user['username'], $limit, $offset);
+        $count_stmt->bind_param("s", $current_user['username']);
+        
     } else if ($current_user['role'] === 'Standortleiter') {
         // Standortleiter sehen Anträge ihrer Location
-        $query .= " AND JSON_EXTRACT(original_entry_data, '$.location') = ?";
-        $stmt = $conn->prepare($query);
-        $stmt->bind_param("s", $current_user['location']);
+        $base_query .= " AND JSON_EXTRACT(ar.original_entry_data, '$.location') = ?";
+        $count_query .= " AND JSON_EXTRACT(ar.original_entry_data, '$.location') = ?";
+        
+        $stmt = $conn->prepare($base_query . " ORDER BY ar.requested_at DESC LIMIT ? OFFSET ?");
+        $count_stmt = $conn->prepare($count_query);
+        
+        if (!$stmt || !$count_stmt) {
+            error_log('Prepare failed for approval requests query: ' . $conn->error);
+            send_response(500, ['message' => 'Database error']);
+            return;
+        }
+        
+        $stmt->bind_param("sii", $current_user['location'], $limit, $offset);
+        $count_stmt->bind_param("s", $current_user['location']);
+        
     } else {
         // Bereichsleiter und Admin sehen alle Anträge
-        $stmt = $conn->prepare($query);
-    }
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $requests = $result->fetch_all(MYSQLI_ASSOC);
-
-    // Hydrate requests with full entry data
-    foreach ($requests as $i => $req) {
-        $entry_id = $req['entry_id'];
-        $entry_stmt = $conn->prepare("SELECT id, user_id AS userId, username, date, start_time AS startTime, stop_time AS stopTime, location, role, created_at AS createdAt, updated_by AS updatedBy, updated_at AS updatedAt FROM time_entries WHERE id = ?");
-        if (!$entry_stmt) {
-             error_log('Prepare failed for SELECT entry details in approvals: ' . $conn->error);
-             continue; // Skip this request if entry can't be fetched
-        }
-        $entry_stmt->bind_param("i", $entry_id);
-        $entry_stmt->execute();
-        $entry_result = $entry_stmt->get_result();
-        $entry_data = $entry_result->fetch_assoc();
+        $stmt = $conn->prepare($base_query . " ORDER BY ar.requested_at DESC LIMIT ? OFFSET ?");
+        $count_stmt = $conn->prepare($count_query);
         
-        $requests[$i]['entry'] = $entry_data;
-        $requests[$i]['newData'] = json_decode($req['new_data']);
-        $requests[$i]['reasonData'] = json_decode($req['reason_data']);
-        $entry_stmt->close();
+        if (!$stmt || !$count_stmt) {
+            error_log('Prepare failed for approval requests query: ' . $conn->error);
+            send_response(500, ['message' => 'Database error']);
+            return;
+        }
+        
+        $stmt->bind_param("ii", $limit, $offset);
     }
     
-    send_response(200, $requests);
+    // Execute queries
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    $count_stmt->execute();
+    $count_result = $count_stmt->get_result();
+    $total_count = $count_result->fetch_assoc()['total'];
+    
+    $requests = [];
+    while ($row = $result->fetch_assoc()) {
+        // Build entry data from JOIN results
+        $entry_data = null;
+        if ($row['entry_id']) {
+            $entry_data = [
+                'id' => (int)$row['entry_id'],
+                'userId' => (int)$row['entry_userId'],
+                'username' => $row['entry_username'],
+                'date' => $row['entry_date'],
+                'startTime' => $row['entry_startTime'],
+                'stopTime' => $row['entry_stopTime'],
+                'location' => $row['entry_location'],
+                'role' => $row['entry_role'],
+                'createdAt' => $row['entry_createdAt'],
+                'updatedBy' => $row['entry_updatedBy'],
+                'updatedAt' => $row['entry_updatedAt']
+            ];
+        }
+        
+        $requests[] = [
+            'id' => $row['id'],
+            'type' => $row['type'],
+            'entry_id' => $row['entry_id'],
+            'entry' => $entry_data,
+            'original_entry_data' => $row['original_entry_data'],
+            'newData' => json_decode($row['new_data']),
+            'reasonData' => json_decode($row['reason_data']),
+            'requested_by' => $row['requested_by'],
+            'requested_at' => $row['requested_at'],
+            'status' => $row['status']
+        ];
+    }
+    
+    // Return paginated response
+    $response = [
+        'data' => $requests,
+        'pagination' => [
+            'page' => $page,
+            'limit' => $limit,
+            'total' => (int)$total_count,
+            'pages' => (int)ceil($total_count / $limit),
+            'hasNext' => $page < ceil($total_count / $limit),
+            'hasPrev' => $page > 1
+        ]
+    ];
+    
+    send_response(200, $response);
     $stmt->close();
+    $count_stmt->close();
 }
 
 function handle_post($conn, $current_user) {

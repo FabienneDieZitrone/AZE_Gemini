@@ -62,33 +62,79 @@ if ($method == 'GET') {
 $conn->close();
 
 function handle_get($conn, $current_user) {
-    // Rollenbasierte Filterung implementiert
-    $query = "SELECT * FROM approval_requests WHERE status != 'pending'";
+    // Pagination parameters
+    $page = max(1, intval($_GET['page'] ?? 1));
+    $limit = min(100, max(10, intval($_GET['limit'] ?? 20)));
+    $offset = ($page - 1) * $limit;
+    
+    // Rollenbasierte Filterung implementiert with pagination
+    $base_query = "SELECT * FROM approval_requests WHERE status != 'pending'";
+    $count_query = "SELECT COUNT(*) as total FROM approval_requests WHERE status != 'pending'";
     
     // Berechtigungsprüfung basierend auf Rolle
     if ($current_user['role'] === 'Honorarkraft' || $current_user['role'] === 'Mitarbeiter') {
         // Honorarkraft und Mitarbeiter sehen nur ihre eigene Historie
-        $query .= " AND requested_by = ?";
-        $stmt = $conn->prepare($query . " ORDER BY resolved_at DESC");
-        $stmt->bind_param("s", $current_user['username']);
+        $where_clause = " AND requested_by = ?";
+        $query = $base_query . $where_clause . " ORDER BY resolved_at DESC LIMIT ? OFFSET ?";
+        $count_query_full = $count_query . $where_clause;
+        
+        $stmt = $conn->prepare($query);
+        $count_stmt = $conn->prepare($count_query_full);
+        
+        if (!$stmt || !$count_stmt) {
+            $error_msg = 'Prepare failed for SELECT history: ' . $conn->error;
+            error_log($error_msg);
+            send_response(500, ['message' => 'Datenbankfehler beim Abrufen der Änderungshistorie.', 'details' => $error_msg]);
+            return;
+        }
+        
+        $stmt->bind_param("sii", $current_user['username'], $limit, $offset);
+        $count_stmt->bind_param("s", $current_user['username']);
+        
     } else if ($current_user['role'] === 'Standortleiter') {
         // Standortleiter sehen Historie ihrer Location
-        $query .= " AND JSON_EXTRACT(original_entry_data, '$.location') = ?";
-        $stmt = $conn->prepare($query . " ORDER BY resolved_at DESC");
-        $stmt->bind_param("s", $current_user['location']);
+        $where_clause = " AND JSON_EXTRACT(original_entry_data, '$.location') = ?";
+        $query = $base_query . $where_clause . " ORDER BY resolved_at DESC LIMIT ? OFFSET ?";
+        $count_query_full = $count_query . $where_clause;
+        
+        $stmt = $conn->prepare($query);
+        $count_stmt = $conn->prepare($count_query_full);
+        
+        if (!$stmt || !$count_stmt) {
+            $error_msg = 'Prepare failed for SELECT history: ' . $conn->error;
+            error_log($error_msg);
+            send_response(500, ['message' => 'Datenbankfehler beim Abrufen der Änderungshistorie.', 'details' => $error_msg]);
+            return;
+        }
+        
+        $stmt->bind_param("sii", $current_user['location'], $limit, $offset);
+        $count_stmt->bind_param("s", $current_user['location']);
+        
     } else {
         // Bereichsleiter und Admin sehen alle Historie
-        $stmt = $conn->prepare($query . " ORDER BY resolved_at DESC");
-    }
-    if (!$stmt) {
-        $error_msg = 'Prepare failed for SELECT history: ' . $conn->error;
-        error_log($error_msg);
-        send_response(500, ['message' => 'Datenbankfehler beim Abrufen der Änderungshistorie.', 'details' => $error_msg]);
-        return;
+        $query = $base_query . " ORDER BY resolved_at DESC LIMIT ? OFFSET ?";
+        
+        $stmt = $conn->prepare($query);
+        $count_stmt = $conn->prepare($count_query);
+        
+        if (!$stmt || !$count_stmt) {
+            $error_msg = 'Prepare failed for SELECT history: ' . $conn->error;
+            error_log($error_msg);
+            send_response(500, ['message' => 'Datenbankfehler beim Abrufen der Änderungshistorie.', 'details' => $error_msg]);
+            return;
+        }
+        
+        $stmt->bind_param("ii", $limit, $offset);
     }
     
+    // Execute both queries
     $stmt->execute();
     $result = $stmt->get_result();
+    
+    $count_stmt->execute();
+    $count_result = $count_stmt->get_result();
+    $total_count = $count_result->fetch_assoc()['total'];
+    
     $history_items = [];
     
     while ($row = $result->fetch_assoc()) {
@@ -122,6 +168,20 @@ function handle_get($conn, $current_user) {
         ];
     }
     
-    send_response(200, $history_items);
+    // Return paginated response
+    $response = [
+        'data' => $history_items,
+        'pagination' => [
+            'page' => $page,
+            'limit' => $limit,
+            'total' => (int)$total_count,
+            'pages' => (int)ceil($total_count / $limit),
+            'hasNext' => $page < ceil($total_count / $limit),
+            'hasPrev' => $page > 1
+        ]
+    ];
+    
+    send_response(200, $response);
     $stmt->close();
+    $count_stmt->close();
 }

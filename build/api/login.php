@@ -18,6 +18,8 @@ require_once __DIR__ . '/security-headers.php';
 require_once __DIR__ . '/error-handler.php';
 require_once __DIR__ . '/structured-logger.php';
 require_once __DIR__ . '/security-middleware.php';
+require_once __DIR__ . '/rate-limiting.php';
+require_once __DIR__ . '/csrf-middleware.php';
 
 // Initialize security
 initializeSecurity(false); // We'll check auth manually after
@@ -25,6 +27,9 @@ validateRequestMethod('POST');
 
 // Apply security headers
 initSecurityMiddleware();
+
+// Apply rate limiting for login attempts
+checkRateLimit('login');
 
 // --- Robuster Fatal-Error-Handler ---
 register_shutdown_function(function () {
@@ -44,7 +49,7 @@ ini_set('display_errors', 0);
 ini_set('log_errors', 1);
 error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED);
 
-require_once __DIR__ . '/db-init.php';
+require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/auth_helpers.php';
 
 initialize_api();
@@ -52,6 +57,12 @@ initialize_api();
 // Nur POST-Anfragen erlauben
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     send_response(405, ['message' => 'Method Not Allowed']);
+    exit();
+}
+
+// Validate CSRF token for login requests
+if (!validateCsrfProtection()) {
+    // Error response already sent by validateCsrfProtection()
     exit();
 }
 

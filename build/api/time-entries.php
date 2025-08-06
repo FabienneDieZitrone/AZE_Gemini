@@ -38,15 +38,25 @@ ini_set('display_startup_errors', 0);
 ini_set('log_errors', 1);
 error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED);
 
-require_once __DIR__ . '/db-init.php';
+require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/auth_helpers.php';
 require_once __DIR__ . '/auth-middleware.php';
 require_once __DIR__ . '/validation.php';
+require_once __DIR__ . '/rate-limiting.php';
+require_once __DIR__ . '/csrf-middleware.php';
 
 initialize_api();
 
 // Apply security headers
 initSecurityMiddleware();
+
+// Apply rate limiting
+checkRateLimit('time-entries');
+
+// Validate CSRF for state-changing operations
+if (requiresCsrfProtection()) {
+    validateCsrfProtection();
+}
 
 
 // Stellt sicher, dass der Benutzer authentifiziert ist und autorisiert ist.
@@ -98,50 +108,96 @@ function handle_get($conn, $current_user) {
         return;
     }
     
-    // SECURITY FIX: Role-based authorization filtering
+    // Pagination parameters
+    $page = max(1, intval($_GET['page'] ?? 1));
+    $limit = min(100, max(10, intval($_GET['limit'] ?? 20)));
+    $offset = ($page - 1) * $limit;
+    
+    // SECURITY FIX: Role-based authorization filtering with pagination
     $base_query = "SELECT id, user_id AS userId, username, date, start_time AS startTime, stop_time AS stopTime, location, role, created_at AS createdAt, updated_by AS updatedBy, updated_at AS updatedAt FROM time_entries";
+    $count_query = "SELECT COUNT(*) as total FROM time_entries";
     
     // Apply role-based filtering
     if ($current_user['role'] === 'Honorarkraft' || $current_user['role'] === 'Mitarbeiter') {
         // Honorarkraft and Mitarbeiter can only see their own entries
-        $query = $base_query . " WHERE user_id = ? ORDER BY date DESC, start_time DESC";
+        $where_clause = " WHERE user_id = ?";
+        $query = $base_query . $where_clause . " ORDER BY date DESC, start_time DESC LIMIT ? OFFSET ?";
+        $count_query_full = $count_query . $where_clause;
+        
         $stmt = $conn->prepare($query);
-        if (!$stmt) {
+        $count_stmt = $conn->prepare($count_query_full);
+        
+        if (!$stmt || !$count_stmt) {
             $error_msg = 'Prepare failed for SELECT time_entries (user filter): ' . $conn->error;
             error_log($error_msg);
             send_response(500, ['message' => 'Datenbankfehler beim Abrufen der Zeiteinträge.', 'details' => $error_msg]);
             return;
         }
-        $stmt->bind_param("i", $current_user['id']);
+        
+        $stmt->bind_param("iii", $current_user['id'], $limit, $offset);
+        $count_stmt->bind_param("i", $current_user['id']);
+        
     } else if ($current_user['role'] === 'Standortleiter') {
         // Standortleiter can see entries from their location
-        $query = $base_query . " WHERE location = ? ORDER BY date DESC, start_time DESC";
+        $where_clause = " WHERE location = ?";
+        $query = $base_query . $where_clause . " ORDER BY date DESC, start_time DESC LIMIT ? OFFSET ?";
+        $count_query_full = $count_query . $where_clause;
+        
         $stmt = $conn->prepare($query);
-        if (!$stmt) {
+        $count_stmt = $conn->prepare($count_query_full);
+        
+        if (!$stmt || !$count_stmt) {
             $error_msg = 'Prepare failed for SELECT time_entries (location filter): ' . $conn->error;
             error_log($error_msg);
             send_response(500, ['message' => 'Datenbankfehler beim Abrufen der Zeiteinträge.', 'details' => $error_msg]);
             return;
         }
-        $stmt->bind_param("s", $current_user['location']);
+        
+        $stmt->bind_param("sii", $current_user['location'], $limit, $offset);
+        $count_stmt->bind_param("s", $current_user['location']);
+        
     } else {
         // Bereichsleiter and Admin can see all entries
-        $query = $base_query . " ORDER BY date DESC, start_time DESC";
+        $query = $base_query . " ORDER BY date DESC, start_time DESC LIMIT ? OFFSET ?";
+        
         $stmt = $conn->prepare($query);
-    }
-    if (!$stmt) {
-        $error_msg = 'Prepare failed for SELECT time_entries: ' . $conn->error;
-        error_log($error_msg);
-        send_response(500, ['message' => 'Datenbankfehler beim Abrufen der Zeiteinträge.', 'details' => $error_msg]);
-        return;
+        $count_stmt = $conn->prepare($count_query);
+        
+        if (!$stmt || !$count_stmt) {
+            $error_msg = 'Prepare failed for SELECT time_entries: ' . $conn->error;
+            error_log($error_msg);
+            send_response(500, ['message' => 'Datenbankfehler beim Abrufen der Zeiteinträge.', 'details' => $error_msg]);
+            return;
+        }
+        
+        $stmt->bind_param("ii", $limit, $offset);
     }
 
+    // Execute both queries
     $stmt->execute();
     $result = $stmt->get_result();
     $entries = $result->fetch_all(MYSQLI_ASSOC);
+    
+    $count_stmt->execute();
+    $count_result = $count_stmt->get_result();
+    $total_count = $count_result->fetch_assoc()['total'];
+    
+    // Return paginated response
+    $response = [
+        'data' => $entries,
+        'pagination' => [
+            'page' => $page,
+            'limit' => $limit,
+            'total' => (int)$total_count,
+            'pages' => (int)ceil($total_count / $limit),
+            'hasNext' => $page < ceil($total_count / $limit),
+            'hasPrev' => $page > 1
+        ]
+    ];
 
-    send_response(200, $entries);
+    send_response(200, $response);
     $stmt->close();
+    $count_stmt->close();
 }
 
 function handle_post($conn, $current_user) {

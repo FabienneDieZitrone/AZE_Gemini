@@ -1,0 +1,540 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run nightly tests at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      test_suite:
+        description: 'Specific test suite to run (leave empty for all)'
+        required: false
+        type: choice
+        options:
+          - ''
+          - auth
+          - time-tracking
+          - approval-workflow
+          - security
+          - rbac
+          - cross-browser
+          - data-export
+          - api-integration
+      browser:
+        description: 'Browser to test with'
+        required: false
+        default: 'chromium'
+        type: choice
+        options:
+          - chromium
+          - firefox
+          - webkit
+          - all
+      environment:
+        description: 'Target environment'
+        required: false
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      headed:
+        description: 'Run tests in headed mode'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  NODE_VERSION: '18'
+  PLAYWRIGHT_BROWSERS_PATH: ~/.cache/playwright
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Set test matrix
+        id: set-matrix
+        run: |
+          if [ "${{ github.event.inputs.browser }}" == "all" ] || [ "${{ github.event.inputs.browser }}" == "" ]; then
+            echo "matrix={\"browser\":[\"chromium\",\"firefox\",\"webkit\"]}" >> $GITHUB_OUTPUT
+          else
+            echo "matrix={\"browser\":[\"${{ github.event.inputs.browser || 'chromium' }}\"]}" >> $GITHUB_OUTPUT
+          fi
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: 'build/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: ./build
+        run: npm ci
+
+      - name: Run unit tests
+        working-directory: ./build
+        run: npm run test:run
+
+      - name: Upload unit test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit-test-results
+          path: build/coverage/
+          retention-days: 30
+
+  e2e-tests:
+    needs: [setup, unit-tests]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: 'build/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: ./build
+        run: npm ci
+
+      - name: Get Playwright version
+        working-directory: ./build
+        id: playwright-version
+        run: echo "version=$(npm list @playwright/test --json | jq -r '.dependencies."@playwright/test".version')" >> $GITHUB_OUTPUT
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v3
+        id: playwright-cache
+        with:
+          path: ~/.cache/playwright
+          key: playwright-${{ steps.playwright-version.outputs.version }}-${{ matrix.browser }}
+
+      - name: Install Playwright browsers
+        working-directory: ./build
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install ${{ matrix.browser }} --with-deps
+
+      - name: Install system dependencies
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install-deps ${{ matrix.browser }}
+
+      - name: Build application
+        working-directory: ./build
+        run: npm run build
+
+      - name: Setup test environment
+        run: |
+          echo "Setting up test environment..."
+          # Create necessary directories
+          mkdir -p build/logs
+          mkdir -p build/e2e-reports
+          
+          # Set environment variables based on target environment
+          if [ "${{ github.event.inputs.environment }}" == "production" ]; then
+            echo "BASE_URL=https://aze.mikropartner.de" >> $GITHUB_ENV
+            echo "REAL_BACKEND=true" >> $GITHUB_ENV
+            echo "TEST_ENV=production" >> $GITHUB_ENV
+          elif [ "${{ github.event.inputs.environment }}" == "staging" ]; then
+            echo "BASE_URL=https://staging.aze.mikropartner.de" >> $GITHUB_ENV
+            echo "REAL_BACKEND=true" >> $GITHUB_ENV
+            echo "TEST_ENV=staging" >> $GITHUB_ENV
+          else
+            echo "BASE_URL=http://localhost:3000" >> $GITHUB_ENV
+            echo "REAL_BACKEND=false" >> $GITHUB_ENV
+            echo "TEST_ENV=test" >> $GITHUB_ENV
+          fi
+          
+          # Set browser-specific environment
+          echo "BROWSER=${{ matrix.browser }}" >> $GITHUB_ENV
+          echo "HEADED=${{ github.event.inputs.headed || false }}" >> $GITHUB_ENV
+
+      - name: Start application (if local testing)
+        if: env.REAL_BACKEND == 'false'
+        working-directory: ./build
+        run: |
+          npm run preview &
+          sleep 10
+          # Wait for server to be ready
+          timeout 60 bash -c 'until curl -f http://localhost:3000; do sleep 2; done'
+
+      - name: Run E2E tests
+        working-directory: ./build
+        run: |
+          # Determine test suite to run
+          if [ -n "${{ github.event.inputs.test_suite }}" ]; then
+            TEST_SUITE_ARG="--suite ${{ github.event.inputs.test_suite }}"
+          else
+            TEST_SUITE_ARG=""
+          fi
+          
+          # Determine headed mode
+          if [ "${{ github.event.inputs.headed }}" == "true" ]; then
+            HEADED_ARG="--headed"
+          else
+            HEADED_ARG=""
+          fi
+          
+          # Run tests with custom script
+          ./scripts/run-e2e-tests.sh \
+            --browser ${{ matrix.browser }} \
+            --base-url ${{ env.BASE_URL }} \
+            $TEST_SUITE_ARG \
+            $HEADED_ARG \
+            $([ "${{ env.REAL_BACKEND }}" == "true" ] && echo "--real-backend")
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-results-${{ matrix.browser }}
+          path: |
+            build/e2e-reports/
+            build/test-results/
+            build/playwright-report/
+          retention-days: 30
+
+      - name: Upload screenshots on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: screenshots-${{ matrix.browser }}
+          path: build/test-results/
+          retention-days: 7
+
+      - name: Create test summary
+        if: always()
+        run: |
+          echo "## E2E Test Results (${{ matrix.browser }})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f "build/e2e-reports/*/consolidated-report.html" ]; then
+            echo "✅ Test report generated successfully" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Test execution failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Environment Details" >> $GITHUB_STEP_SUMMARY
+          echo "- Browser: ${{ matrix.browser }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Environment: ${{ env.TEST_ENV }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Base URL: ${{ env.BASE_URL }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Real Backend: ${{ env.REAL_BACKEND }}" >> $GITHUB_STEP_SUMMARY
+
+  accessibility-tests:
+    needs: unit-tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: 'build/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: ./build
+        run: npm ci
+
+      - name: Install Playwright
+        working-directory: ./build
+        run: npx playwright install chromium
+
+      - name: Build application
+        working-directory: ./build
+        run: npm run build
+
+      - name: Start application
+        working-directory: ./build
+        run: |
+          npm run preview &
+          sleep 10
+          timeout 60 bash -c 'until curl -f http://localhost:3000; do sleep 2; done'
+
+      - name: Run accessibility tests
+        working-directory: ./build
+        run: |
+          # Install axe-core if not present
+          npm install --no-save @axe-core/playwright
+          
+          # Run accessibility tests
+          npx playwright test --grep "accessibility|a11y" --reporter=html
+
+      - name: Upload accessibility results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: accessibility-results
+          path: build/playwright-report/
+          retention-days: 30
+
+  performance-tests:
+    needs: unit-tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: 'build/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: ./build
+        run: npm ci
+
+      - name: Install Playwright
+        working-directory: ./build
+        run: npx playwright install chromium
+
+      - name: Build application
+        working-directory: ./build
+        run: npm run build
+
+      - name: Start application
+        working-directory: ./build
+        run: |
+          npm run preview &
+          sleep 10
+          timeout 60 bash -c 'until curl -f http://localhost:3000; do sleep 2; done'
+
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v10
+        with:
+          configPath: './build/.lighthouserc.json'
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+
+      - name: Upload performance results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lighthouse-results
+          path: .lighthouseci/
+          retention-days: 30
+
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: 'build/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: ./build
+        run: npm ci
+
+      - name: Run npm audit
+        working-directory: ./build
+        run: |
+          npm audit --audit-level=moderate
+          npm audit --json > npm-audit-results.json
+        continue-on-error: true
+
+      - name: Run OWASP ZAP scan
+        if: env.REAL_BACKEND == 'true'
+        uses: zaproxy/action-baseline@v0.7.0
+        with:
+          target: ${{ env.BASE_URL }}
+          rules_file_name: '.zap/rules.tsv'
+          cmd_options: '-a'
+
+      - name: Upload security results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-results
+          path: |
+            build/npm-audit-results.json
+            report_html.html
+            report_md.md
+          retention-days: 30
+
+  consolidate-results:
+    needs: [e2e-tests, accessibility-tests, performance-tests, security-scan]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+
+      - name: Consolidate test results
+        run: |
+          echo "## 📊 Test Execution Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Count test results
+          E2E_PASSED=0
+          E2E_FAILED=0
+          
+          for browser in chromium firefox webkit; do
+            if [ -d "artifacts/e2e-results-${browser}" ]; then
+              if ls artifacts/e2e-results-${browser}/**/html-report/index.html 1> /dev/null 2>&1; then
+                E2E_PASSED=$((E2E_PASSED + 1))
+                echo "✅ E2E Tests ($browser): PASSED" >> $GITHUB_STEP_SUMMARY
+              else
+                E2E_FAILED=$((E2E_FAILED + 1))
+                echo "❌ E2E Tests ($browser): FAILED" >> $GITHUB_STEP_SUMMARY
+              fi
+            fi
+          done
+          
+          # Accessibility results
+          if [ -d "artifacts/accessibility-results" ]; then
+            echo "✅ Accessibility Tests: Completed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Accessibility Tests: Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Performance results
+          if [ -d "artifacts/lighthouse-results" ]; then
+            echo "✅ Performance Tests: Completed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Performance Tests: Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Security results
+          if [ -d "artifacts/security-results" ]; then
+            echo "✅ Security Scan: Completed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Security Scan: Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Statistics" >> $GITHUB_STEP_SUMMARY
+          echo "- E2E Tests Passed: $E2E_PASSED" >> $GITHUB_STEP_SUMMARY
+          echo "- E2E Tests Failed: $E2E_FAILED" >> $GITHUB_STEP_SUMMARY
+          echo "- Total Browsers Tested: $((E2E_PASSED + E2E_FAILED))" >> $GITHUB_STEP_SUMMARY
+
+      - name: Create consolidated report artifact
+        run: |
+          mkdir -p consolidated-report
+          
+          # Create HTML summary
+          cat > consolidated-report/summary.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>AZE Gemini E2E Test Summary</title>
+              <style>
+                  body { font-family: Arial, sans-serif; margin: 20px; }
+                  .header { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+                  .test-suite { background: white; border: 1px solid #dee2e6; border-radius: 8px; margin: 10px 0; padding: 15px; }
+                  .passed { border-left: 4px solid #28a745; }
+                  .failed { border-left: 4px solid #dc3545; }
+                  .warning { border-left: 4px solid #ffc107; }
+                  .badge { padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+                  .badge-success { background: #28a745; color: white; }
+                  .badge-danger { background: #dc3545; color: white; }
+                  .badge-warning { background: #ffc107; color: black; }
+          EOF
+          
+          echo "              </style>" >> consolidated-report/summary.html
+          echo "          </head>" >> consolidated-report/summary.html
+          echo "          <body>" >> consolidated-report/summary.html
+          echo "              <div class=\"header\">" >> consolidated-report/summary.html
+          echo "                  <h1>AZE Gemini E2E Test Summary</h1>" >> consolidated-report/summary.html
+          echo "                  <p>Generated: $(date)</p>" >> consolidated-report/summary.html
+          echo "                  <p>Commit: ${{ github.sha }}</p>" >> consolidated-report/summary.html
+          echo "                  <p>Branch: ${{ github.ref_name }}</p>" >> consolidated-report/summary.html
+          echo "              </div>" >> consolidated-report/summary.html
+          
+          # Add individual test suite results
+          for artifact in artifacts/*; do
+            if [ -d "$artifact" ]; then
+              artifact_name=$(basename "$artifact")
+              echo "              <div class=\"test-suite\">" >> consolidated-report/summary.html
+              echo "                  <h3>$artifact_name</h3>" >> consolidated-report/summary.html
+              echo "                  <p>Artifact available: Yes</p>" >> consolidated-report/summary.html
+              echo "              </div>" >> consolidated-report/summary.html
+            fi
+          done
+          
+          echo "          </body>" >> consolidated-report/summary.html
+          echo "      </html>" >> consolidated-report/summary.html
+
+      - name: Upload consolidated report
+        uses: actions/upload-artifact@v4
+        with:
+          name: consolidated-test-report
+          path: consolidated-report/
+          retention-days: 90
+
+      - name: Comment on PR (if applicable)
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            
+            // Read test results and create comment
+            let comment = "## 🧪 E2E Test Results\n\n";
+            
+            // Add browser-specific results
+            const browsers = ['chromium', 'firefox', 'webkit'];
+            browsers.forEach(browser => {
+              const artifactPath = `artifacts/e2e-results-${browser}`;
+              if (fs.existsSync(artifactPath)) {
+                comment += `✅ ${browser} tests passed\n`;
+              } else {
+                comment += `❌ ${browser} tests failed\n`;
+              }
+            });
+            
+            comment += "\n📊 Detailed reports available in the [Actions tab](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})";
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  notify-teams:
+    needs: [consolidate-results]
+    runs-on: ubuntu-latest
+    if: always() && (github.ref == 'refs/heads/main' || github.event_name == 'schedule')
+    steps:
+      - name: Notify Microsoft Teams
+        if: env.TEAMS_WEBHOOK_URL
+        uses: skitionek/notify-microsoft-teams@master
+        with:
+          webhook_url: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          needs: ${{ toJson(needs) }}
+          job: ${{ toJson(job) }}
+          steps: ${{ toJson(steps) }}

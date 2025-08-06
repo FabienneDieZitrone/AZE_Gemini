@@ -38,15 +38,25 @@ error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED);
 // Define API guard constant
 define('API_GUARD', true);
 
-require_once __DIR__ . '/db-init.php';
+require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/auth_helpers.php';
 require_once __DIR__ . '/validation.php';
 require_once __DIR__ . '/security-middleware.php';
+require_once __DIR__ . '/rate-limiting.php';
+require_once __DIR__ . '/csrf-middleware.php';
 
 initialize_api();
 
 // Apply security headers
 initSecurityMiddleware();
+
+// Apply rate limiting
+checkRateLimit('settings');
+
+// Validate CSRF for state-changing operations
+if (requiresCsrfProtection()) {
+    validateCsrfProtection();
+}
 
 // Stellt sicher, dass der Benutzer authentifiziert und autorisiert ist.
 require_once __DIR__ . '/auth-middleware.php';

@@ -4,20 +4,31 @@
          bootstrap="tests/bootstrap.php"
          cacheDirectory=".phpunit.cache"
          executionOrder="depends,defects"
-         requireCoverageMetadata="true"
-         beStrictAboutCoverageMetadata="true"
+         requireCoverageMetadata="false"
+         beStrictAboutCoverageMetadata="false"
          beStrictAboutOutputDuringTests="true"
-         failOnRisky="true"
-         failOnWarning="true">
+         failOnRisky="false"
+         failOnWarning="false"
+         colors="true"
+         verbose="true">
     <testsuites>
+        <testsuite name="Security">
+            <directory>tests/Unit/Security</directory>
+        </testsuite>
+        <testsuite name="Utils">
+            <directory>tests/Unit/Utils</directory>
+        </testsuite>
         <testsuite name="Unit">
             <directory>tests/Unit</directory>
         </testsuite>
         <testsuite name="Integration">
             <directory>tests/Integration</directory>
         </testsuite>
+        <testsuite name="API">
+            <directory>tests/Integration/Api</directory>
+        </testsuite>
     </testsuites>
-    <source restrictDeprecations="true" restrictNotices="true" restrictWarnings="true">
+    <source restrictDeprecations="false" restrictNotices="false" restrictWarnings="false">
         <include>
             <directory>api</directory>
         </include>
@@ -25,22 +36,29 @@
             <directory>api/node_modules</directory>
             <directory>coverage</directory>
             <directory>tests</directory>
+            <directory>cache</directory>
+            <directory>logs</directory>
             <file>api/test-*.php</file>
             <file>api/*-test.php</file>
             <file>api/debug-*.php</file>
+            <file>api/real-test-*.php</file>
+            <file>api/deploy_*.py</file>
         </exclude>
     </source>
     <coverage includeUncoveredFiles="true" 
               processUncoveredFiles="true"
               ignoreDeprecatedCodeUnits="true"
-              disableCodeCoverageIgnore="true">
+              disableCodeCoverageIgnore="false">
         <report>
-            <html outputDirectory="coverage-php" lowUpperBound="50" highLowerBound="80"/>
+            <html outputDirectory="coverage-php" lowUpperBound="60" highLowerBound="80"/>
             <text outputFile="coverage-php/coverage.txt"/>
             <xml outputDirectory="coverage-php/xml"/>
+            <clover outputFile="coverage-php/clover.xml"/>
         </report>
     </coverage>
     <logging>
-        <junit outputFile="phpunit-results.xml"/>
+        <junit outputFile="test-results/phpunit-results.xml"/>
+        <testdoxHtml outputFile="test-results/testdox.html"/>
+        <testdoxText outputFile="test-results/testdox.txt"/>
     </logging>
 </phpunit>

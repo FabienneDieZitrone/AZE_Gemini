@@ -9,11 +9,19 @@ require_once '../db.php';
 require_once '../error-handler.php';
 require_once '../csrf-protection.php';
 require_once '../structured-logger.php';
+require_once '../rate-limiting.php';
+require_once '../csrf-middleware.php';
+
+// Define API guard constant
+define('API_GUARD', true);
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST');
 header('Access-Control-Allow-Headers: Content-Type');
+
+// Apply rate limiting
+checkRateLimit('mfa');
 
 // OPTIONS Request für CORS
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -35,9 +43,9 @@ if (!$session_user) {
     exit();
 }
 
-// CSRF-Schutz
-if (!validate_csrf_token()) {
-    send_response(403, ['message' => 'CSRF-Token ungültig']);
+// Enhanced CSRF protection
+if (!validateCsrfProtection()) {
+    // Error response already sent by validateCsrfProtection()
     exit();
 }
 

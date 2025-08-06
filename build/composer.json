@@ -7,7 +7,9 @@
     },
     "require-dev": {
         "phpunit/phpunit": "^10.0",
-        "phpunit/php-code-coverage": "^10.0"
+        "phpunit/php-code-coverage": "^10.0",
+        "phpunit/php-timer": "^6.0",
+        "sebastian/diff": "^5.0"
     },
     "autoload": {
         "psr-4": {
@@ -17,10 +19,17 @@
     },
     "scripts": {
         "test": "phpunit",
-        "test-coverage": "phpunit --coverage-html coverage-php"
+        "test-coverage": "phpunit --coverage-html coverage-php --coverage-clover coverage.xml",
+        "test-unit": "phpunit --testsuite=Unit",
+        "test-integration": "phpunit --testsuite=Integration",
+        "test-security": "phpunit tests/Unit/Security/",
+        "test-api": "phpunit tests/Integration/Api/"
     },
     "config": {
         "optimize-autoloader": true,
-        "sort-packages": true
+        "sort-packages": true,
+        "allow-plugins": {
+            "phpunit/phpunit": true
+        }
     }
 }
