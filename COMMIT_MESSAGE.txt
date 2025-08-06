@@ -1,0 +1,12 @@
+fix: Remove hardcoded credentials and add environment template
+
+- Remove build/.env from repository (security critical)
+- Add build/.env.example as configuration template
+- Update .gitignore to prevent credential commits
+- Add comprehensive security documentation
+
+BREAKING CHANGE: Developers must now create their own .env file
+from .env.example template. Never commit actual credentials.
+
+Related to: #31, #140
+Security: High priority credential removal

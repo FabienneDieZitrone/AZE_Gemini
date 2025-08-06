@@ -1,0 +1,11 @@
+fix: Correct production deployment configuration
+
+- Fix index.html to load built JavaScript bundle instead of TypeScript source
+- Remove incorrect /src/index.tsx reference
+- Update to use proper Vite build output paths
+- Ensure production loads compiled assets from /assets/ directory
+
+This fixes the NS_ERROR_CORRUPTED_CONTENT and 500 errors in production.
+
+Related to: #140
+Priority: Critical production fix

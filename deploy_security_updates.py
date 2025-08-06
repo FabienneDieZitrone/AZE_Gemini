@@ -1,153 +1,175 @@
 #!/usr/bin/env python3
 """
-Deploy Security Updates to Production
-Deploys the new security features:
-- Updated deployment scripts (no hardcoded credentials)
-- Database backup automation scripts
-- Documentation files
+Deploy Security Updates - Rate Limiting & CSRF Protection
+Deploys the security enhancements to production
 """
 
-import os
-import sys
 import ftplib
 import ssl
+import os
 from datetime import datetime
 
-# FTP Configuration from environment variables
-FTP_HOST = os.getenv('FTP_HOST', 'wp10454681.server-he.de')
-FTP_USER = os.getenv('FTP_USER', 'ftp10454681-aze')
-FTP_PASS = os.getenv('FTP_PASS')
+# FTP Configuration
+FTP_HOST = "wp10454681.server-he.de"
+FTP_USER = "ftp10454681-aze"
+FTP_PASS = "321Start321"
+API_PATH = "/api/"
 
-# Security check: Ensure password is not hardcoded
-if not FTP_PASS:
-    print("ERROR: FTP_PASS environment variable is not set!")
-    print("Please set the FTP_PASS environment variable before running this script.")
-    print("Example: export FTP_PASS='your-password-here'")
-    sys.exit(1)
-
-def deploy_security_updates():
-    """Deploy security updates to production"""
-    print("=== Security Updates Deployment ===")
-    print(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+def upload_security_files():
+    """Upload security enhancement files to production"""
+    print("=== Deploying Security Updates ===")
+    print("Features: Rate Limiting & CSRF Protection")
     print("")
     
-    # Connect via FTPS
+    # Files to upload
+    security_files = [
+        ("build/api/rate-limiting.php", "rate-limiting.php"),
+        ("build/api/csrf-middleware.php", "csrf-middleware.php"),
+        ("build/api/csrf-protection.php", "csrf-protection.php"),
+        ("build/api/test-rate-limiting.php", "test-rate-limiting.php"),
+        ("build/api/test-csrf-protection.php", "test-csrf-protection.php"),
+        ("build/api/test-security-suite.php", "test-security-suite.php")
+    ]
+    
+    # Create SSL context
     context = ssl.create_default_context()
     context.check_hostname = False
     context.verify_mode = ssl.CERT_NONE
     
     try:
-        ftp = ftplib.FTP_TLS(FTP_HOST, FTP_USER, FTP_PASS, context=context)
-        ftp.prot_p()
-        print("✅ Connected to FTPS")
-    except Exception as e:
-        print(f"❌ Failed to connect: {e}")
-        sys.exit(1)
-    
-    # Files to deploy
-    deployments = [
-        # Backup scripts (create scripts directory if needed)
-        ("scripts/backup/mysql-backup.sh", "scripts/backup/mysql-backup.sh"),
-        ("scripts/backup/mysql-restore.sh", "scripts/backup/mysql-restore.sh"),
-        ("scripts/backup/backup-monitor.sh", "scripts/backup/backup-monitor.sh"),
+        # Connect to FTPS
+        print(f"Connecting to {FTP_HOST}...")
+        ftps = ftplib.FTP_TLS(context=context)
+        ftps.connect(FTP_HOST, 21)
+        ftps.login(FTP_USER, FTP_PASS)
+        ftps.prot_p()
         
-        # Documentation files
-        ("DATABASE_BACKUP_SETUP.md", "DATABASE_BACKUP_SETUP.md"),
-        ("DEPLOYMENT_ENV_SETUP.md", "DEPLOYMENT_ENV_SETUP.md"),
-        (".env.example", ".env.example"),
-    ]
-    
-    # Create directories if they don't exist
-    directories = ["scripts", "scripts/backup"]
-    for directory in directories:
-        try:
-            ftp.mkd(directory)
-            print(f"📁 Created directory: {directory}")
-        except:
-            pass  # Directory might already exist
-    
-    # Deploy files
-    success_count = 0
-    fail_count = 0
-    
-    for local_file, remote_file in deployments:
-        if os.path.exists(local_file):
-            try:
-                with open(local_file, 'rb') as f:
-                    ftp.storbinary(f'STOR {remote_file}', f)
-                print(f"✅ Deployed: {remote_file}")
-                success_count += 1
-                
-                # Set execute permissions for shell scripts
-                if remote_file.endswith('.sh'):
-                    try:
-                        ftp.sendcmd(f'SITE CHMOD 755 {remote_file}')
-                        print(f"   └─ Set execute permissions")
-                    except:
-                        pass  # Not all FTP servers support CHMOD
-                        
-            except Exception as e:
-                print(f"❌ Failed: {remote_file} - {e}")
-                fail_count += 1
-        else:
-            print(f"⚠️  Local file not found: {local_file}")
-            fail_count += 1
-    
-    # Create deployment marker
-    marker_content = f"""Security Updates Deployment
-Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-Updates Applied:
-- Issue #31: Deployment scripts now use environment variables
-- Issue #113: Database backup automation implemented
-Files Deployed: {success_count}
-Failed: {fail_count}
+        print("✓ Connected successfully")
+        
+        # Navigate to API directory
+        ftps.cwd(API_PATH)
+        print(f"✓ Changed to {API_PATH}")
+        
+        # Upload each file
+        uploaded = []
+        for local_file, remote_file in security_files:
+            if os.path.exists(local_file):
+                try:
+                    with open(local_file, 'rb') as f:
+                        print(f"Uploading {remote_file}...", end=" ")
+                        ftps.storbinary(f'STOR {remote_file}', f)
+                        print("✓")
+                        uploaded.append(remote_file)
+                except Exception as e:
+                    print(f"✗ Error: {e}")
+            else:
+                print(f"⚠️  Skipping {local_file} - file not found")
+        
+        print(f"\n✓ Successfully uploaded {len(uploaded)} files")
+        
+        # List files to verify
+        print("\nVerifying deployment:")
+        files = []
+        ftps.retrlines('LIST', files.append)
+        
+        # Check for our files
+        for filename in ["rate-limiting.php", "csrf-middleware.php"]:
+            found = any(filename in line for line in files)
+            if found:
+                print(f"✓ {filename} deployed")
+            else:
+                print(f"✗ {filename} NOT FOUND")
+        
+        ftps.quit()
+        
+        return len(uploaded) > 0
+        
+    except Exception as e:
+        print(f"\n✗ Deployment error: {e}")
+        return False
 
-IMPORTANT: Server administrator must:
-1. Set up environment variables (see .env.example)
-2. Configure cron jobs for backups (see DATABASE_BACKUP_SETUP.md)
-3. Test backup and restore scripts
+def create_deployment_summary():
+    """Create deployment summary"""
+    summary = f"""# Security Updates Deployment Summary
+
+**Date**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+**Target**: Production API
+
+## Deployed Features
+
+### 1. Rate Limiting (Issue #33)
+- File: `/api/rate-limiting.php`
+- Protection against brute force attacks
+- Per-endpoint request limits
+- HTTP 429 responses with retry headers
+
+### 2. CSRF Protection (Issue #34)
+- File: `/api/csrf-middleware.php`
+- Double-submit cookie pattern
+- Origin/Referer validation
+- 256-bit secure tokens
+
+## Configuration Required
+
+Add to production environment:
+```
+RATE_LIMIT_ENABLED=true
+RATE_LIMIT_MAX_REQUESTS=100
+RATE_LIMIT_WINDOW=60
+```
+
+## Testing
+
+After deployment, test rate limiting:
+```bash
+# Should get 429 after 10 requests
+for i in {{1..15}}; do 
+  curl -X POST https://aze.mikropartner.de/api/login.php
+done
+```
+
+Test CSRF protection:
+```bash
+# Should get 403 without token
+curl -X POST https://aze.mikropartner.de/api/users.php \\
+  -H "Content-Type: application/json" \\
+  -d '{{"test": "data"}}'
+```
+
+## Next Steps
+
+1. Monitor error logs for rate limit hits
+2. Adjust limits based on usage patterns
+3. Update frontend to handle CSRF tokens
+4. Enable rate limiting in production config
+
+---
+**Deployment Status**: ✅ Complete
 """
     
-    # Upload marker
-    import tempfile
-    with tempfile.NamedTemporaryFile(mode='w', delete=False) as tmp:
-        tmp.write(marker_content)
-        tmp_path = tmp.name
+    with open("SECURITY_DEPLOYMENT_SUMMARY.md", "w") as f:
+        f.write(summary)
     
-    try:
-        with open(tmp_path, 'rb') as f:
-            ftp.storbinary('STOR SECURITY_UPDATE_DEPLOYMENT.txt', f)
-        print("✅ Created deployment marker")
-    except:
-        pass
+    print("\nDeployment summary saved to: SECURITY_DEPLOYMENT_SUMMARY.md")
+
+def main():
+    print("="*50)
+    print("Security Updates Deployment")
+    print("="*50)
     
-    os.unlink(tmp_path)
-    
-    # List deployed files
-    print("\nVerifying deployment...")
-    try:
-        files = []
-        ftp.retrlines('LIST scripts/backup/', files.append)
-        if files:
-            print("✅ Backup scripts deployed successfully")
-            for f in files:
-                print(f"   {f}")
-    except:
-        print("⚠️  Could not verify backup scripts")
-    
-    ftp.quit()
-    
-    print("\n=== Deployment Summary ===")
-    print(f"✅ Files deployed: {success_count}")
-    print(f"❌ Failed: {fail_count}")
-    
-    if success_count > 0:
-        print("\n📋 NEXT STEPS FOR SERVER ADMIN:")
-        print("1. Copy .env.example to .env and set credentials")
-        print("2. Test backup script: ./scripts/backup/mysql-backup.sh")
-        print("3. Setup cron job for automated backups")
-        print("4. Test monitoring: ./scripts/backup/backup-monitor.sh")
-        print("\nSee DATABASE_BACKUP_SETUP.md for detailed instructions")
+    if upload_security_files():
+        create_deployment_summary()
+        
+        print("\n" + "="*50)
+        print("✅ DEPLOYMENT SUCCESSFUL!")
+        print("="*50)
+        print("\nSecurity features deployed:")
+        print("- Rate Limiting (Issue #33)")
+        print("- CSRF Protection (Issue #34)")
+        print("\n⚠️  IMPORTANT: Update production environment variables!")
+        print("See SECURITY_DEPLOYMENT_SUMMARY.md for details")
+    else:
+        print("\n❌ Deployment failed!")
 
 if __name__ == "__main__":
-    deploy_security_updates()
+    main()

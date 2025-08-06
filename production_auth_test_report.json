@@ -1,0 +1,51 @@
+{
+  "test_date": "2025-08-05T22:13:33.670282",
+  "api_endpoint": "https://aze.mikropartner.de/api",
+  "summary": {
+    "total": 8,
+    "passed": 8,
+    "failed": 0
+  },
+  "results": {
+    "unauthenticated_access": [
+      {
+        "endpoint": "/time-entries.php",
+        "status": "PASS",
+        "code": 401
+      },
+      {
+        "endpoint": "/users.php",
+        "status": "PASS",
+        "code": 401
+      },
+      {
+        "endpoint": "/approvals.php",
+        "status": "PASS",
+        "code": 401
+      },
+      {
+        "endpoint": "/history.php",
+        "status": "PASS",
+        "code": 401
+      }
+    ],
+    "role_change_protection": {
+      "status": "PASS",
+      "code": 401
+    },
+    "sql_injection": [
+      {
+        "injection": "1' OR '1'='1",
+        "status": "BLOCKED"
+      },
+      {
+        "injection": "1; DROP TABLE users;--",
+        "status": "BLOCKED"
+      },
+      {
+        "injection": "1 UNION SELECT * FROM users",
+        "status": "BLOCKED"
+      }
+    ]
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "test_run": "2025-08-05T22:06:29.695984",
+  "environment": "https://aze.mikropartner.de/aze-test/api",
+  "summary": {
+    "total": 8,
+    "passed": 0,
+    "failed": 8
+  },
+  "results": [
+    {
+      "test": "API Health Check",
+      "passed": false,
+      "details": "HTTPSConnectionPool(host='aze.mikropartner.de', port=443): Max retries exceeded with url: /aze-test/api/health.php (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1010)')))",
+      "timestamp": "2025-08-05T22:06:29.335100"
+    },
+    {
+      "test": "Test Environment Check",
+      "passed": false,
+      "details": "HTTPSConnectionPool(host='aze.mikropartner.de', port=443): Max retries exceeded with url: /aze-test/TEST_ENVIRONMENT.txt (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1010)')))",
+      "timestamp": "2025-08-05T22:06:29.388207"
+    },
+    {
+      "test": "Unauthenticated Access Test",
+      "passed": false,
+      "details": "HTTPSConnectionPool(host='aze.mikropartner.de', port=443): Max retries exceeded with url: /aze-test/api/time-entries.php (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1010)')))",
+      "timestamp": "2025-08-05T22:06:29.438282"
+    },
+    {
+      "test": "Role Change Authorization Test",
+      "passed": false,
+      "details": "HTTPSConnectionPool(host='aze.mikropartner.de', port=443): Max retries exceeded with url: /aze-test/api/users.php (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1010)')))",
+      "timestamp": "2025-08-05T22:06:29.492000"
+    },
+    {
+      "test": "SQL Injection Test - 1' OR '1'='1...",
+      "passed": false,
+      "details": "HTTPSConnectionPool(host='aze.mikropartner.de', port=443): Max retries exceeded with url: /aze-test/api/time-entries.php?user_id=1%27+OR+%271%27%3D%271 (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1010)')))",
+      "timestamp": "2025-08-05T22:06:29.538279"
+    },
+    {
+      "test": "SQL Injection Test - 1; DROP TABLE users;...",
+      "passed": false,
+      "details": "HTTPSConnectionPool(host='aze.mikropartner.de', port=443): Max retries exceeded with url: /aze-test/api/time-entries.php?user_id=1%3B+DROP+TABLE+users%3B-- (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1010)')))",
+      "timestamp": "2025-08-05T22:06:29.590614"
+    },
+    {
+      "test": "SQL Injection Test - 1 UNION SELECT * FRO...",
+      "passed": false,
+      "details": "HTTPSConnectionPool(host='aze.mikropartner.de', port=443): Max retries exceeded with url: /aze-test/api/time-entries.php?user_id=1+UNION+SELECT+%2A+FROM+users (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1010)')))",
+      "timestamp": "2025-08-05T22:06:29.636115"
+    },
+    {
+      "test": "SQL Injection Test - '; DELETE FROM time_...",
+      "passed": false,
+      "details": "HTTPSConnectionPool(host='aze.mikropartner.de', port=443): Max retries exceeded with url: /aze-test/api/time-entries.php?user_id=%27%3B+DELETE+FROM+time_entries+WHERE+%271%27%3D%271 (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1010)')))",
+      "timestamp": "2025-08-05T22:06:29.695834"
+    }
+  ]
+}
