@@ -23,6 +23,7 @@ import { EditEntryModal } from '../components/modals/EditEntryModal';
 import { ConfirmDeleteModal } from '../components/modals/ConfirmDeleteModal';
 import { RoleAssignmentModal } from '../components/modals/RoleAssignmentModal';
 import { SupervisorNotificationModal } from '../components/modals/SupervisorNotificationModal';
+import { useSupervisorNotifications } from '../hooks/useSupervisorNotifications';
 
 import { TimeSheetView } from './TimeSheetView';
 import { MasterDataView } from './MasterDataView';
@@ -48,8 +49,6 @@ export const MainAppView: React.FC = () => {
   const [deletingEntry, setDeletingEntry] = useState<TimeEntry | null>(null);
   const [editingRoleForUser, setEditingRoleForUser] = useState<User | null>(null);
 
-  const [supervisorNotifications, setSupervisorNotifications] = useState<SupervisorNotification[]>([]);
-  const [showSupervisorModal, setShowSupervisorModal] = useState(false);
   const [currentLocation] = useState('Zentrale Berlin');
   const [theme, setTheme] = useState<Theme>('light');
   
@@ -119,45 +118,18 @@ export const MainAppView: React.FC = () => {
     window.notificationService = notificationService;
   }, []);
   
-  useEffect(() => {
-    if (!currentUser || !globalSettings || !masterData || timeEntries.length === 0) return;
-    const canCheck = ['Admin', 'Bereichsleiter', 'Standortleiter'].includes(currentUser.role);
-    if (!canCheck) return;
-
-    const notifications: SupervisorNotification[] = [];
-    const thresholdSeconds = globalSettings.overtimeThreshold * TIME.SECONDS_PER_HOUR;
-    
-    const lastWeekStart = getStartOfWeek(new Date(new Date().setDate(new Date().getDate() - 7)));
-    const lastWeekEnd = new Date(lastWeekStart);
-    lastWeekEnd.setDate(lastWeekStart.getDate() + 6);
-
-    const subordinates = users.filter(u => u.id !== currentUser.id);
-
-    subordinates.forEach(user => {
-      const userMaster = masterData[user.id];
-      if (!userMaster) return;
-
-      const weeklySollSeconds = userMaster.weeklyHours * TIME.SECONDS_PER_HOUR;
-      const userEntriesLastWeek = timeEntries.filter(e => {
-        return e.userId === user.id && e.date >= lastWeekStart.toISOString().split('T')[0] && e.date <= lastWeekEnd.toISOString().split('T')[0];
-      });
-      
-      const totalSecondsWorked = userEntriesLastWeek.reduce((sum, e) => sum + calculateDurationInSeconds(e.startTime, e.stopTime), 0);
-      const deviationSeconds = totalSecondsWorked - weeklySollSeconds;
-      
-      if(Math.abs(deviationSeconds) > thresholdSeconds) {
-          notifications.push({
-              employeeName: user.name,
-              deviationHours: deviationSeconds / TIME.SECONDS_PER_HOUR,
-          });
-      }
-    });
-
-    if(notifications.length > 0) {
-        setSupervisorNotifications(notifications);
-        setShowSupervisorModal(true);
-    }
-  }, [currentUser, users, masterData, timeEntries, globalSettings]);
+  // Use the supervisor notifications hook
+  const { 
+    supervisorNotifications, 
+    showSupervisorModal, 
+    closeSupervisorModal 
+  } = useSupervisorNotifications({
+    currentUser,
+    users,
+    masterData,
+    timeEntries,
+    globalSettings
+  });
   
   const refreshData = async () => {
     try {
@@ -379,7 +351,7 @@ export const MainAppView: React.FC = () => {
         {editingEntry && currentUser && globalSettings &&( <EditEntryModal entry={editingEntry} onClose={() => setEditingEntry(null)} onSave={handleEditRequest} changeReasons={globalSettings.changeReasons} currentUser={currentUser}/> )}
         {deletingEntry && ( <ConfirmDeleteModal onCancel={() => setDeletingEntry(null)} onConfirm={handleDeleteRequest}/> )}
         {editingRoleForUser && currentUser && ( <RoleAssignmentModal user={editingRoleForUser} currentUser={currentUser} onClose={() => setEditingRoleForUser(null)} onSave={handleRoleSave}/> )}
-        {showSupervisorModal && ( <SupervisorNotificationModal notifications={supervisorNotifications} onClose={() => setShowSupervisorModal(false)}/> )}
+        {showSupervisorModal && ( <SupervisorNotificationModal notifications={supervisorNotifications} onClose={closeSupervisorModal}/> )}
       </div>
       <Toaster position="top-right" />
     </>
