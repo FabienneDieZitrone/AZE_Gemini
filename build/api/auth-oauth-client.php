@@ -51,7 +51,7 @@ define('OAUTH_AUTHORIZE_ENDPOINT', OAUTH_AUTHORITY . '/oauth2/v2.0/authorize');
 define('OAUTH_TOKEN_ENDPOINT', OAUTH_AUTHORITY . '/oauth2/v2.0/token');
 
 // Scopes, die von der Anwendung angefordert werden. 'offline_access' ist für Refresh-Tokens.
-define('OAUTH_SCOPES', 'openid profile email User.Read offline_access api://737740ef-8ab9-44eb-8570-5e3027ddf207/access_as_user');
+define('OAUTH_SCOPES', 'openid profile email User.Read offline_access api://REMOVED_FOR_SECURITY/access_as_user');
 
 /**
  * Erstellt die Authorisierungs-URL und speichert den state in der Session.

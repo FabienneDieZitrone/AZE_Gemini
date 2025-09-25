@@ -1,0 +1,11 @@
+# Minimal API Configuration
+# Allow PHP execution
+AddType application/x-httpd-php .php
+
+# Basic settings
+Options -Indexes
+DirectoryIndex index.php
+
+# Allow access
+Order Allow,Deny
+Allow from all

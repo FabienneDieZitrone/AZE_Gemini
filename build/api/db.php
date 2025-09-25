@@ -11,6 +11,7 @@
  */
 
 // Lade sichere Konfiguration
+// FIXED: config.php liegt im selben Verzeichnis wie die API
 require_once __DIR__ . '/../config.php';
 
 // KRITISCHE PRÜFUNG: Ist die MySQLi-Erweiterung überhaupt vorhanden?

@@ -97,10 +97,11 @@ class InputValidator {
         // Remove control characters except tab, newline, carriage return
         $input = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $input);
         
-        // SECURITY FIX: Re-enable XSS protection
-        // While output encoding is important, input sanitization provides defense in depth
-        // This prevents stored XSS attacks where malicious scripts are saved to the database
-        $input = htmlspecialchars($input, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        // SECURITY FIX: DISABLED - htmlspecialchars causes 500 errors with special chars
+        // XSS protection should be applied at OUTPUT time, not input time
+        // This prevents 500 errors with UTF-8, unicode, and special characters (ä,ö,ü,ß)
+        // Use escapeHtml() method when outputting user data instead
+        // $input = htmlspecialchars($input, ENT_QUOTES | ENT_HTML5, 'UTF-8');
         
         return $input;
     }

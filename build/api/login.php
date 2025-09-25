@@ -1,13 +1,15 @@
 <?php
 /**
  * Titel: Zentraler Login- und Synchronisierungs-Endpunkt
- * Version: 2.0 (BFF-Architektur)
+ * Version: 2.1 (Include-Path Fix)
  * Letzte Aktualisierung: 19.07.2025
  * Autor: MP-IT
  * Status: Final
  * Datei: /api/login.php
  * Beschreibung: Dieser Endpunkt wird nun nach der erfolgreichen serverseitigen Authentifizierung aufgerufen.
  *              Er validiert die bestehende Session und synchronisiert dann den Benutzer mit der Datenbank.
+ * 
+ * FIXED: Variable-Referenz-Fehler - $current_user_data -> $current_user_for_frontend
  */
 
 // Include security and error handling
@@ -49,8 +51,9 @@ ini_set('display_errors', 0);
 ini_set('log_errors', 1);
 error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED);
 
-require_once __DIR__ . '/db.php';
-require_once __DIR__ . '/auth_helpers.php';
+require_once __DIR__ . '/DatabaseConnection.php';
+require_once __DIR__ . '/AuthenticationService.php';
+require_once __DIR__ . '/InputValidationService.php';
 
 initialize_api();
 
@@ -66,7 +69,9 @@ if (!validateCsrfProtection()) {
     exit();
 }
 
-$conn->begin_transaction();
+$dbConnection = DatabaseConnection::getInstance();
+$conn = $dbConnection->getConnection();
+$dbConnection->beginTransaction();
 
 try {
     // --- 1. DSGVO-konforme Datenbereinigung ---
@@ -83,11 +88,11 @@ try {
     $user_from_session = verify_session_and_get_user();
     
     // SECURITY FIX: Validate and sanitize session data
-    require_once __DIR__ . '/validation.php';
+    $validator = InputValidationService::getInstance();
     
-    $azure_oid = InputValidator::sanitizeString($user_from_session['oid'] ?? '');
-    $display_name_from_session = InputValidator::sanitizeString($user_from_session['name'] ?? '');
-    $username_from_session = InputValidator::sanitizeString($user_from_session['username'] ?? ''); // E-Mail
+    $azure_oid = $validator->sanitizeString($user_from_session['oid'] ?? '');
+    $display_name_from_session = $validator->sanitizeString($user_from_session['name'] ?? '');
+    $username_from_session = $validator->sanitizeString($user_from_session['username'] ?? ''); // E-Mail
     
     // Validate required fields
     if (empty($azure_oid) || empty($display_name_from_session) || empty($username_from_session)) {
@@ -95,7 +100,7 @@ try {
     }
     
     // Validate email format
-    if (!InputValidator::isValidEmail($username_from_session)) {
+    if (!$validator->validateEmail($username_from_session)) {
         throw new Exception('Invalid email format in session');
     }
 
@@ -177,17 +182,18 @@ try {
     // Alle offenen Genehmigungsanträge (rollenbasierte Filterung)
     $approval_query = "SELECT * FROM approval_requests WHERE status = 'pending'";
     
-    // Rollenbasierte Filterung
-    if ($current_user_data['role'] === 'Honorarkraft' || $current_user_data['role'] === 'Mitarbeiter') {
+    // FIXED: Rollenbasierte Filterung - verwende $current_user_for_frontend statt $current_user_data
+    if ($current_user_for_frontend['role'] === 'Honorarkraft' || $current_user_for_frontend['role'] === 'Mitarbeiter') {
         // Honorarkraft und Mitarbeiter sehen nur ihre eigenen Anfragen
         $approval_query .= " AND requested_by = ?";
         $approvals_stmt = $conn->prepare($approval_query);
-        $approvals_stmt->bind_param("s", $current_user_data['username']);
-    } else if ($current_user_data['role'] === 'Standortleiter') {
+        $approvals_stmt->bind_param("s", $username_from_session);
+    } else if ($current_user_for_frontend['role'] === 'Standortleiter') {
         // Standortleiter sehen Anfragen ihrer Location
+        // HINWEIS: Location-Feld fehlt in current_user_for_frontend - muss aus user_data geholt werden
         $approval_query .= " AND JSON_EXTRACT(original_entry_data, '$.location') = ?";
         $approvals_stmt = $conn->prepare($approval_query);
-        $approvals_stmt->bind_param("s", $current_user_data['location']);
+        $approvals_stmt->bind_param("s", $user_data['location'] ?? '');
     } else {
         // Bereichsleiter und Admin sehen alles
         $approvals_stmt = $conn->prepare($approval_query);
@@ -217,17 +223,17 @@ try {
     // Komplette Änderungshistorie (rollenbasierte Filterung)
     $history_query = "SELECT * FROM approval_requests WHERE status != 'pending'";
     
-    // Rollenbasierte Filterung
-    if ($current_user_data['role'] === 'Honorarkraft' || $current_user_data['role'] === 'Mitarbeiter') {
+    // FIXED: Rollenbasierte Filterung - verwende $current_user_for_frontend statt $current_user_data
+    if ($current_user_for_frontend['role'] === 'Honorarkraft' || $current_user_for_frontend['role'] === 'Mitarbeiter') {
         // Honorarkraft und Mitarbeiter sehen nur ihre eigene Historie
         $history_query .= " AND requested_by = ?";
         $history_stmt = $conn->prepare($history_query . " ORDER BY resolved_at DESC");
-        $history_stmt->bind_param("s", $current_user_data['username']);
-    } else if ($current_user_data['role'] === 'Standortleiter') {
+        $history_stmt->bind_param("s", $username_from_session);
+    } else if ($current_user_for_frontend['role'] === 'Standortleiter') {
         // Standortleiter sehen Historie ihrer Location
         $history_query .= " AND JSON_EXTRACT(original_entry_data, '$.location') = ?";
         $history_stmt = $conn->prepare($history_query . " ORDER BY resolved_at DESC");
-        $history_stmt->bind_param("s", $current_user_data['location']);
+        $history_stmt->bind_param("s", $user_data['location'] ?? '');
     } else {
         // Bereichsleiter und Admin sehen alles
         $history_stmt = $conn->prepare($history_query . " ORDER BY resolved_at DESC");
@@ -263,7 +269,7 @@ try {
         'locations' => json_decode($settings_raw['locations'])
     ];
 
-    $conn->commit();
+    $dbConnection->commit();
 
     send_response(200, [
         'currentUser' => $current_user_for_frontend,
@@ -276,10 +282,10 @@ try {
     ]);
 
 } catch (Exception $e) {
-    $conn->rollback();
+    $dbConnection->rollback();
     error_log("Login transaction failed: " . $e->getMessage());
     send_response(500, ['message' => 'Ein interner Fehler ist während des Anmeldevorgangs aufgetreten.', 'error' => $e->getMessage()]);
 }
 
-$conn->close();
+$dbConnection->close();
 ?>
