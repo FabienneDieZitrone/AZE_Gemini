@@ -1,7 +1,13 @@
 # Deployment Status Report
 
-**Date**: 2025-07-30  
-**Status**: ❌ BLOCKED - FTP Login Failed
+**Date**: 2025-09-02  
+**Status**: 🟠 VERIFYING — Zugangsdaten abweichend gemeldet; Live-Check ausstehend
+
+## Update 2025-09-02
+
+- Hinweis vom Auftraggeber: Aktuell verwendete Zugangsdaten sind falsch/abweichend; Validierung steht aus.
+- Remote-Inventar-Dateien vom 2025‑09‑01 deuten auf funktionsfähigen FTPS-Zugriff hin, dennoch erneute Prüfung erforderlich.
+- Skripte angepasst: Harte Credentials entfernt, `.env`-Laden vereinheitlicht (siehe `test-ftp-connection.sh`, `upload_and_extract.py`).
 
 ## ✅ Completed Tasks
 
@@ -22,34 +28,30 @@
 - ✅ test-deployment.sh for automated testing
 - ✅ FTP configured for SSL/TLS (working)
 
-## ❌ Blocking Issue: FTP Authentication
+## ❌ Blocking Issue: FTP Authentication (Credentials verifizieren)
 
 ### Problem
-FTP connection establishes SSL/TLS successfully but login fails with error 530.
+Frühere Versuche scheiterten mit 530 (Login). Aktuell gemeldete Abweichung der Zugangsdaten erfordert erneute Validierung und ggf. Korrektur der `.env`.
 
-### Tested Credentials
-```
-Host: wp10454681.server-he.de ✅ (connects)
-User: ftp10454681-aze3 ✅ (accepted)
-Pass: ??? ❌ (all variants rejected)
-```
+### To-Verify
+- Host: `wp10454681.server-he.de`
+- User: aus sicherer Quelle (nicht raten)
+- Pass: aus sicherer Quelle (nicht raten)
 
-### Password Variants Tried
-1. `321Start321` - Failed
-2. `321MPStart321` - Failed
-3. `MPintF2022` - Not tested (from old docs)
+### Notes
+- Unterschiede in Variablennamen führten zu Test-Fehlschlägen (z. B. `FTP_PASS` vs. `FTP_PASSWORD`). Dies wurde in Skripten vereinheitlicht.
 
 ### SSL/TLS Status
 ✅ Connection uses TLS 1.3 successfully
 ✅ Certificate verified (*.server-he.de)
 ❌ Authentication fails after secure connection
 
-## 📋 Next Steps Required
+## 📋 Next Steps
 
-1. **Verify FTP Credentials**
-   - Contact HostEurope support
-   - Check admin panel for correct password
-   - Reset password if necessary
+1. **Final live verification (pending network)**
+   - `bash scripts/ftps_inventory.sh` (lädt `.env`, nutzt `FTP_SERVER/FTP_USER/FTP_PASSWORD`).
+   - `bash ./test-ftp-connection.sh` (kompatibel mit `FTP_PASS`/`FTP_PASSWORD`).
+   - `curl -I https://aze.mikropartner.de/api/health`.
 
 2. **Alternative Deployment Options**
    - Consider SFTP instead of FTPS

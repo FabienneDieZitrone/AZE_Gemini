@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { type ReactNode } from 'react';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 
@@ -35,7 +35,7 @@ export const useResponsive = (): ResponsiveValues => {
 };
 
 // Responsive Container Komponente
-export const ResponsiveContainer: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const ResponsiveContainer: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { isMobile } = useResponsive();
   
   return (

@@ -1,30 +1,35 @@
-#!/bin/bash
-# Test FTP-Verbindung zum Produktivserver
+#!/usr/bin/env bash
+set -euo pipefail
 
-echo "=== Teste FTP-Verbindung ==="
+# Test FTP(S) Verbindung zum Produktivserver
+echo "=== Teste FTPS-Verbindung ==="
 
-# Load FTP configuration from environment variables
-FTP_HOST="${FTP_HOST:-wp10454681.server-he.de}"
-FTP_USER="${FTP_USER:-ftp10454681-aze}"
-FTP_PASS="${FTP_PASS}"
-FTP_PATH="${FTP_PATH:-/www/aze/}"
-
-# Security check: Ensure password is not hardcoded
-if [ -z "$FTP_PASS" ]; then
-    echo "ERROR: FTP_PASS environment variable is not set!"
-    echo "Please set the FTP_PASS environment variable before running this script."
-    echo "Example: export FTP_PASS='your-password-here'"
-    exit 1
+# 1) .env laden, falls vorhanden (setzt FTP_SERVER, FTP_USER, FTP_PASSWORD)
+if [[ -f .env ]]; then
+  # shellcheck disable=SC1091
+  set -a; source .env; set +a
 fi
 
-echo "Host: $FTP_HOST"
-echo "User: $FTP_USER"
-echo "Path: $FTP_PATH"
+# 2) Variablen vereinheitlichen (Kompatibilität beider Namensschemata)
+FTP_HOST="${FTP_HOST:-${FTP_SERVER:-}}"
+FTP_USER="${FTP_USER:-}"
+FTP_PASS="${FTP_PASS:-${FTP_PASSWORD:-}}"
+FTP_PATH="${FTP_PATH:-${FTP_TARGET_DIR:-/www/aze/}}"
 
-# Teste mit curl (FTP über curl)
-echo -e "\nTeste FTP-Verbindung mit curl..."
-curl -v --ftp-ssl ftp://$FTP_USER:$FTP_PASS@$FTP_HOST$FTP_PATH --list-only 2>&1 | head -20
+if [[ -z "${FTP_HOST}" || -z "${FTP_USER}" || -z "${FTP_PASS}" ]]; then
+  echo "ERROR: FTP credentials not set (need FTP_HOST/FTP_SERVER, FTP_USER, FTP_PASS/FTP_PASSWORD)."
+  echo "Hint: store them in .env (FTP_SERVER, FTP_USER, FTP_PASSWORD) or export them before running."
+  exit 1
+fi
 
-# Alternative: Teste als HTTPS
+echo "Host: ${FTP_HOST}"
+echo "User: ${FTP_USER}"
+echo "Path: ${FTP_PATH}"
+
+# 3) Test: FTPS Listing via curl (explicit TLS)
+echo -e "\nTeste FTPS-Verbindung mit curl..."
+curl -v --ssl-reqd "ftp://${FTP_USER}:${FTP_PASS}@${FTP_HOST}${FTP_PATH}" --list-only 2>&1 | head -20 || true
+
+# 4) Test: HTTPS Health Endpoint
 echo -e "\nTeste HTTPS-Verbindung zu aze.mikropartner.de..."
-curl -I https://aze.mikropartner.de/api/health -k 2>&1 | head -10
+curl -I https://aze.mikropartner.de/api/health -k 2>&1 | head -10 || true

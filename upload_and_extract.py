@@ -14,14 +14,42 @@ import ssl
 import os
 from urllib.parse import urljoin
 
-# FTPS Configuration
-FTP_HOST = "wp10454681.server-he.de"
-FTP_USER = "ftp10454681-aze"
-FTP_PASS = "321Start321"
-FTP_TARGET_DIR = "/www/aze-test/"
+# Simple .env loader (no external deps)
+def load_env_file(path: str = ".env") -> None:
+    if not os.path.exists(path):
+        return
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if "=" not in line:
+                    continue
+                key, value = line.split("=", 1)
+                key = key.strip()
+                value = value.strip()
+                # Do not overwrite existing environment variables
+                if key and key not in os.environ:
+                    os.environ[key] = value
+    except Exception:
+        # Non-fatal: continue without .env
+        pass
+
+# Load .env to populate environment variables if present
+load_env_file()
+
+# FTPS Configuration (prefer env; do not hardcode secrets)
+FTP_HOST = os.getenv("FTP_HOST") or os.getenv("FTP_SERVER")
+FTP_USER = os.getenv("FTP_USER")
+FTP_PASS = os.getenv("FTP_PASS") or os.getenv("FTP_PASSWORD")
+FTP_TARGET_DIR = os.getenv("FTP_TARGET_DIR", "/www/aze/")
+
+if not FTP_HOST or not FTP_USER or not FTP_PASS:
+    raise RuntimeError("Missing FTP credentials (FTP_HOST/FTP_SERVER, FTP_USER, FTP_PASS/FTP_PASSWORD)")
 
 # HTTP Configuration
-HTTP_BASE_URL = "https://aze.mikropartner.de/aze-test/"
+HTTP_BASE_URL = os.getenv("HTTP_BASE_URL", "https://aze.mikropartner.de/")
 
 def upload_file_ftps():
     """Upload simple_extract.php to the FTP server using FTPS."""
