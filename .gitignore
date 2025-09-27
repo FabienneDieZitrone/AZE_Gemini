@@ -34,6 +34,8 @@
 .debug/
 .env
 .env.*
+.env-bak
+.env-backup
 .env.local
 .env.production
 .env~
@@ -69,3 +71,8 @@ session-*.php
 test-*.php
 yarn-debug.log*
 yarn-error.log*
+backups/
+remote_inventory*.csv
+remote_inventory*.txt
+build/.npm-cache/
+*.tar.gz
