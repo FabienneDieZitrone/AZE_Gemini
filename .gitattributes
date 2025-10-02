@@ -1,0 +1,23 @@
+* text=auto eol=lf
+
+# Treat lockfiles and JSON as text for diffs
+package-lock.json -diff
+*.lock -diff
+
+# Normalize shell and scripts
+*.sh text eol=lf
+*.py text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.css text eol=lf
+*.php text eol=lf
+
+# Images/binaries
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.tar.gz binary

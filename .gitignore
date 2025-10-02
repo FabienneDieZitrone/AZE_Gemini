@@ -76,3 +76,21 @@ remote_inventory*.csv
 remote_inventory*.txt
 build/.npm-cache/
 *.tar.gz
+# Python virtualenv
+venv/
+
+# Temporary deployment assets and probes
+tmp_*/
+tmp_api_deploy/
+tmp_index-*.js
+probe_*.txt
+
+# Generated asset lists from deployment tooling
+*_assets.list
+delete_*_assets.list
+names_*_assets.txt
+remote_list_*.txt
+current_assets.list
+
+# Local overrides or environment-specific build files
+build/htaccess_aze
