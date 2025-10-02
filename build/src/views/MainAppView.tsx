@@ -87,6 +87,13 @@ export const MainAppView: React.FC = () => {
     initializeAndFetchData();
   }, [initializeAndFetchData]);
 
+  // Auto-refresh entries when navigating to the timesheet view
+  useEffect(() => {
+    if (viewState.current === 'timesheet') {
+      refreshData();
+    }
+  }, [viewState.current]);
+
   // Timer callbacks
   const handleTimerStart = useCallback((timerId: number) => {
     setHasRunningTimer(true);

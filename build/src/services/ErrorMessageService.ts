@@ -49,6 +49,14 @@ export class ErrorMessageService {
       action: 'Bitte versuchen Sie es erneut. Bei wiederholten Problemen wenden Sie sich an den Support.',
       support: 'Fehlercode: NET_002'
     }],
+    // CSRF Errors
+    ['CSRF_TOKEN_INVALID', {
+      code: 'SEC_001',
+      technical: 'Invalid or missing CSRF token',
+      user: 'Sicherheitsüberprüfung fehlgeschlagen. Bitte Seite aktualisieren und erneut versuchen.',
+      action: 'Aktualisieren Sie die Seite (F5) und melden Sie sich ggf. neu an.',
+      support: 'Fehlercode: SEC_001'
+    }],
     
     // Validation Errors
     ['VALIDATION_REQUIRED', {
@@ -177,7 +185,12 @@ export class ErrorMessageService {
       
       return errorContext;
     }
-    
+
+    // Detect CSRF-related messages
+    if (typeof error?.message === 'string' && /csrf/i.test(error.message)) {
+      return this.errorMap.get('CSRF_TOKEN_INVALID')!;
+    }
+
     // Handle network errors
     if (error.name === 'NetworkError' || !navigator.onLine) {
       return this.errorMap.get('NETWORK_ERROR')!;

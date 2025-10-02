@@ -23,7 +23,7 @@ export const TimeSheetView: React.FC<{
     locations: string[];
 }> = ({ onBack, currentUser, onShowDetails, timeEntries, masterData, approvalRequests, allUsers, locations }) => {
   const [filters, setFilters] = useState({
-    zeitraum: 'diese-woche',
+    zeitraum: 'alle',
     standort: 'Alle Standorte',
     benutzer: String(currentUser.id),
   });

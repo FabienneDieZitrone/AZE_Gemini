@@ -5,7 +5,8 @@
  * Extrahiert aus MainAppView.tsx (Issue #027)
  */
 
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useRef } from 'react';
+import { notificationService } from '../services/NotificationService';
 import { useTimer } from '../hooks/useTimer';
 import { User } from '../types';
 
@@ -59,6 +60,20 @@ export const TimerService: React.FC<TimerServiceProps> = ({
   onError 
 }) => {
   const timer = useTimer();
+  const csrfTokenRef = useRef<string | null>(null);
+
+  const fetchCsrfToken = useCallback(async (): Promise<string> => {
+    if (csrfTokenRef.current) return csrfTokenRef.current;
+    const resp = await fetch('/api/csrf-token.php', { credentials: 'include' });
+    if (!resp.ok) throw new Error('CSRF Token konnte nicht geladen werden');
+    const data = await resp.json();
+    csrfTokenRef.current = data.csrfToken;
+    // kurze Info für den Nutzer, dass die Sicherheit initialisiert wurde
+    try {
+      notificationService.info('Sicherheit aktualisiert: CSRF-Token geladen', { position: 'top-center', duration: 2000, icon: '🔒' });
+    } catch {}
+    return csrfTokenRef.current;
+  }, []);
 
   /**
    * Prüft beim Laden auf laufenden Timer
@@ -107,14 +122,16 @@ export const TimerService: React.FC<TimerServiceProps> = ({
         const now = new Date();
         const stopTime = now.toTimeString().split(' ')[0]; // HH:MM:SS format
         
+        const csrf = await fetchCsrfToken();
         const response = await fetch('/api/time-entries.php?action=stop', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
           credentials: 'include',
           body: JSON.stringify({ 
             id: timer.timerId,
             stopTime: stopTime,
-            updatedBy: currentUser.name
+            updatedBy: currentUser.name,
+            csrf_token: csrf
           })
         });
 
@@ -142,8 +159,11 @@ export const TimerService: React.FC<TimerServiceProps> = ({
             }
           }, 100);
         } else {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Fehler beim Stoppen der Zeiterfassung');
+          const errorData = await response.json().catch(() => ({}));
+          const err: any = new Error(errorData.message || 'Fehler beim Stoppen der Zeiterfassung');
+          err.status = response.status;
+          err.code = errorData.error || errorData.code;
+          throw err;
         }
       } else {
         // Start timer
@@ -151,15 +171,17 @@ export const TimerService: React.FC<TimerServiceProps> = ({
         const currentDate = now.toISOString().split('T')[0];
         const startTime = now.toTimeString().split(' ')[0];
         
+        const csrf = await fetchCsrfToken();
         const response = await fetch('/api/time-entries.php?action=start', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
           credentials: 'include',
           body: JSON.stringify({
             userId: currentUser.id,
             date: currentDate,
             startTime: startTime,
-            createdBy: currentUser.name
+            createdBy: currentUser.name,
+            csrf_token: csrf
           })
         });
 
@@ -169,8 +191,11 @@ export const TimerService: React.FC<TimerServiceProps> = ({
           timer.start(startTimestamp, data.id);
           onTimerStart(data.id);
         } else {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Fehler beim Starten der Zeiterfassung');
+          const errorData = await response.json().catch(() => ({}));
+          const err: any = new Error(errorData.message || 'Fehler beim Starten der Zeiterfassung');
+          err.status = response.status;
+          err.code = errorData.error || errorData.code;
+          throw err;
         }
       }
     } catch (err) {
