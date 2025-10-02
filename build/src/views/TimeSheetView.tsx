@@ -22,11 +22,39 @@ export const TimeSheetView: React.FC<{
     allUsers: User[];
     locations: string[];
 }> = ({ onBack, currentUser, onShowDetails, timeEntries, masterData, approvalRequests, allUsers, locations }) => {
+  const defaultBenutzer = ['Admin', 'Bereichsleiter', 'Standortleiter'].includes(currentUser.role)
+    ? 'Alle Benutzer'
+    : String(currentUser.id);
   const [filters, setFilters] = useState({
     zeitraum: 'alle',
     standort: 'Alle Standorte',
-    benutzer: String(currentUser.id),
+    benutzer: defaultBenutzer,
   });
+
+  // Persist filters in localStorage
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('aze.timesheet.filters.v1');
+      if (raw) {
+        const saved = JSON.parse(raw);
+        // Basic shape validation
+        if (saved && typeof saved === 'object') {
+          setFilters(prev => ({
+            zeitraum: saved.zeitraum || prev.zeitraum,
+            standort: saved.standort || prev.standort,
+            benutzer: saved.benutzer || prev.benutzer,
+          }));
+        }
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('aze.timesheet.filters.v1', JSON.stringify(filters));
+    } catch {}
+  }, [filters]);
   
   const [filteredEntries, setFilteredEntries] = useState<AggregatedTimeEntry[]>([]);
   
@@ -161,6 +189,11 @@ export const TimeSheetView: React.FC<{
       </div>
 
       <div className="table-wrapper">
+        {filteredEntries.length === 0 ? (
+          <div className="empty-state" role="status" aria-live="polite" style={{ padding: '1rem' }}>
+            Keine Einträge gefunden. Passen Sie ggf. die Filter an (Zeitraum, Standort, Benutzer).
+          </div>
+        ) : (
         <table className="data-table">
           <thead>
             <tr>
@@ -209,6 +242,7 @@ export const TimeSheetView: React.FC<{
             })}
           </tbody>
         </table>
+        )}
       </div>
       
       <footer className="view-footer">
