@@ -1,0 +1,83 @@
+# Cleanup/Exclusion list for files found only on LIVE webspace (not in repo build)
+# Scope: /api (document root /www/api or similar)
+# Action: Remove from LIVE or exclude from future deployments.
+
+# Explicit files from remote inventory (webspace-only)
+api/API_DEPLOYMENT_LOG.txt
+api/auth-callback.php.backup
+api/constants.php.backup_*
+api/csrf-middleware.php.backup_*
+api/db-wrapper.php.backup_*
+api/db.php.backup*
+api/error-handler.php.backup_*
+api/health.php.backup_*
+api/history.php.backup_*
+api/login.php.backup_*
+api/logs.php.backup_*
+api/masterdata.php.backup_*
+api/rate-limiting.php.backup_*
+api/security-headers.php.backup_*
+api/security-middleware.php.backup_*
+api/structured-logger.php.backup_*
+api/settings.php.backup_*
+api/debug-500-error.php
+api/debug-oauth-callback.php
+api/debug-timer.php
+api/debug_error.php
+api/server-diagnostic.php
+api/emergency-session-check.php
+api/emergency-test.php
+api/emergency_health.php
+api/emergency.log
+api/error.log
+api/debug-time-entries.log
+api/diagnose-500.php
+api/fix-user-id-mapping.php
+api/fix_role.php
+api/force-logout.php
+api/health-login.php
+api/kill-all-sessions.php
+api/list-users.php
+api/login-fixed-final.php
+api/login-health-based.php
+api/login-production-ready.php
+api/login_emergency_fix.php
+api/logout.php
+api/logs_emergency_fix.php
+api/migrate-stop-time-nullable.php
+api/minimal_test.php
+api/projects.php
+api/quick-session-fix.php
+api/schema-update-running-entries.sql
+api/schwarm_analyze.php
+api/schwarm_analyze_apis.php
+api/schwarm_fix.php
+api/session_handler.php
+api/simple-debug.php
+api/test-csrf-protection.php
+api/test-db-schema.php
+api/test-production-schema.php
+api/test-rate-limiting.php
+api/test-running-timer.php
+api/test-security-suite.php
+api/test-stop.php
+api/test_db_simple.php
+api/test_new_db.php
+
+# Patterns to keep the webroot clean (use with care)
+api/*backup_*
+api/*.log
+api/*.bak
+api/*.sql
+api/debug-*.php
+api/*debug*.php
+api/emergency*.php
+api/*_fix*.php
+api/test-*.php
+api/*_test*.php
+
+# Note:
+# - Do NOT remove files that exist in build/api (deploy source) even if names overlap.
+# - Review before deletion; some tools may be needed temporarily in staging.
+# - Prefer moving diagnostics outside of webroot or guard with strict auth.
+

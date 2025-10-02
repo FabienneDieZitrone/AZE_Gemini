@@ -14,6 +14,7 @@ from datetime import datetime
 FTP_HOST = os.getenv('FTP_HOST', 'wp10454681.server-he.de')
 FTP_USER = os.getenv('FTP_USER', 'ftp10454681-aze')
 FTP_PASS = os.getenv('FTP_PASS')
+FTP_BASE_DIR = os.getenv('FTP_BASE_DIR', '/www/it/aze')
 
 # Security check: Ensure password is not hardcoded
 if not FTP_PASS:
@@ -36,21 +37,22 @@ def upload_essential_files():
     print("✅ Connected to FTPS")
     
     # Essential files for security testing
+    test_base = FTP_BASE_DIR.rstrip('/') + '-test'
     essential_files = [
         # Fixed security files
-        ("build/api/time-entries.php", "/www/aze-test/api/time-entries.php"),
-        ("build/api/users.php", "/www/aze-test/api/users.php"),
+        ("build/api/time-entries.php", f"{test_base}/api/time-entries.php"),
+        ("build/api/users.php", f"{test_base}/api/users.php"),
         
         # Supporting files needed for API to work
-        ("build/api/db.php", "/www/aze-test/api/db.php"),
-        ("build/api/auth_helpers.php", "/www/aze-test/api/auth_helpers.php"),
-        ("build/api/validation.php", "/www/aze-test/api/validation.php"),
-        ("build/api/constants.php", "/www/aze-test/api/constants.php"),
-        ("build/api/security-middleware.php", "/www/aze-test/api/security-middleware.php"),
-        ("build/api/health.php", "/www/aze-test/api/health.php"),
-        ("build/api/login.php", "/www/aze-test/api/login.php"),
-        ("build/api/approvals.php", "/www/aze-test/api/approvals.php"),
-        ("build/api/history.php", "/www/aze-test/api/history.php"),
+        ("build/api/db.php", f"{test_base}/api/db.php"),
+        ("build/api/auth_helpers.php", f"{test_base}/api/auth_helpers.php"),
+        ("build/api/validation.php", f"{test_base}/api/validation.php"),
+        ("build/api/constants.php", f"{test_base}/api/constants.php"),
+        ("build/api/security-middleware.php", f"{test_base}/api/security-middleware.php"),
+        ("build/api/health.php", f"{test_base}/api/health.php"),
+        ("build/api/login.php", f"{test_base}/api/login.php"),
+        ("build/api/approvals.php", f"{test_base}/api/approvals.php"),
+        ("build/api/history.php", f"{test_base}/api/history.php"),
     ]
     
     # Create directories
@@ -95,7 +97,7 @@ Issue #74 Security Fixes
         tmp_path = tmp.name
     
     with open(tmp_path, 'rb') as f:
-        ftp.storbinary('STOR /www/aze-test/SECURITY_TEST.txt', f)
+        ftp.storbinary(f'STOR {test_base}/SECURITY_TEST.txt', f)
     os.unlink(tmp_path)
     
     ftp.quit()

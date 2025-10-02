@@ -15,6 +15,7 @@ from pathlib import Path
 FTP_HOST = os.getenv('FTP_HOST', 'wp10454681.server-he.de')
 FTP_USER = os.getenv('FTP_USER', 'ftp10454681-aze')
 FTP_PASS = os.getenv('FTP_PASS')
+FTP_BASE_DIR = os.getenv('FTP_BASE_DIR', '/www/it/aze')
 
 # Security check: Ensure password is not hardcoded
 if not FTP_PASS:
@@ -24,7 +25,11 @@ if not FTP_PASS:
     sys.exit(1)
 
 class DirectFTPSDeployer:
-    def __init__(self, target_path="/www/aze-test/"):
+    def __init__(self, target_path=None):
+        if target_path is None:
+            # default test path next to base dir
+            base = FTP_BASE_DIR.rstrip('/')
+            target_path = f"{base}-test/"
         self.target_path = target_path
         self.ftp = None
         self.uploaded_files = []
@@ -177,9 +182,11 @@ Header set X-Environment "test"
         self.connect()
         
         # Security fixed files
+        base = FTP_BASE_DIR.rstrip('/')
         fixes = [
-            ("build/api/time-entries.php", "/www/aze/api/time-entries.php"),
-            ("build/api/users.php", "/www/aze/api/users.php"),
+            ("build/api/time-entries.php", f"{base}/api/time-entries.php"),
+            ("build/api/time-entries.impl.php", f"{base}/api/time-entries.impl.php"),
+            ("build/api/users.php", f"{base}/api/users.php"),
         ]
         
         print("\nBacking up and deploying fixes...")

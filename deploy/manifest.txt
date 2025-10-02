@@ -1,0 +1,27 @@
+# Deploy manifest (whitelist)
+# Only these paths should be deployed to production
+
+/index.html
+/assets/
+/build/
+/api/auth-*.php
+/api/login.php
+/api/logout.php
+/api/users.php
+/api/masterdata.php
+/api/time-entries.php
+/api/security-headers.php
+/api/security-middleware.php
+/api/error-handler.php
+/api/structured-logger.php
+/api/rate-limiting.php
+/api/csrf-middleware.php
+/api/validation.php
+/api/validation-safe.php
+/api/db.php
+/api/db-wrapper.php
+/api/health.php
+/api/settings.php
+/api/monitoring.php
+# exclude any test/debug/backup/log files from deployment
+

@@ -7,7 +7,7 @@ echo "This script prepares the deployment for FTPS upload"
 # Configuration from .env.deployment
 FTPS_HOST="wp10454681.server-he.de"
 FTPS_USER="ftp10454681-aze3"
-REMOTE_PATH="/www/aze/"
+REMOTE_PATH="${FTP_BASE_DIR:-/www/it/aze}"
 ARCHIVE="aze-deployment.tar.gz"
 
 # Check if archive exists
