@@ -11,6 +11,7 @@ if (isset($_GET['code'])) {
 }
 
 // ALWAYS redirect - NEVER output JSON
-header('Location: /');
+// Redirect to the application subpath
+header('Location: /aze/');
 exit();
 ?>

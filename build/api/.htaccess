@@ -1,11 +1,4 @@
-# Minimal API Configuration
-# Allow PHP execution
-AddType application/x-httpd-php .php
+RewriteEngine On
+# Temporary rewrite to bypass OPCache on original endpoint
+RewriteRule ^time-entries\.php$ time-entries.stub.php [L]
 
-# Basic settings
-Options -Indexes
-DirectoryIndex index.php
-
-# Allow access
-Order Allow,Deny
-Allow from all
