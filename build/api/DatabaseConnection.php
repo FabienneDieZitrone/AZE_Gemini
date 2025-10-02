@@ -9,7 +9,11 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../config.php';
+// Try to include configuration from multiple known locations
+@include_once __DIR__ . '/../config.php'; // repo-level config
+@include_once __DIR__ . '/config.php';    // live server config under /api
+// Provide compatibility layer if Config class is missing or env names differ
+require_once __DIR__ . '/config-compat.php';
 require_once __DIR__ . '/structured-logger.php';
 
 interface DatabaseConnectionInterface {
