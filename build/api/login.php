@@ -84,7 +84,7 @@ ini_set('log_errors', 1);
 error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED);
 
 require_once __DIR__ . '/DatabaseConnection.php';
-require_once __DIR__ . '/AuthenticationService.php';
+// Avoid initialize_api() duplication from AuthenticationService.php
 require_once __DIR__ . '/InputValidationService.php';
 
 initialize_api();
