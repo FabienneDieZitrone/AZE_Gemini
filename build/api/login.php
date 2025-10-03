@@ -91,6 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 // Validate CSRF token for login requests (relax for same-origin + valid session)
+llog('before_csrf');
 if (!validateCsrfProtection()) {
     llog('csrf_failed', ['referer' => ($_SERVER['HTTP_REFERER'] ?? ''), 'origin' => ($_SERVER['HTTP_ORIGIN'] ?? '')]);
     // Fallback: allow same-origin with valid session
@@ -101,6 +102,7 @@ if (!validateCsrfProtection()) {
         exit(); // Error already sent by validateCsrfProtection()
     }
 }
+llog('after_csrf');
 
 $dbConnection = DatabaseConnection::getInstance();
 $conn = $dbConnection->getConnection();
@@ -126,6 +128,7 @@ try {
     // --- 2. Benutzer-Synchronisierung ---
     // Holt den Benutzer aus der sicheren, serverseitigen Session.
     // Diese Funktion beendet das Skript mit 401, wenn keine gültige Session vorhanden ist.
+    llog('before_verify_session');
     $user_from_session = verify_session_and_get_user();
     llog('session_user', $user_from_session);
     
