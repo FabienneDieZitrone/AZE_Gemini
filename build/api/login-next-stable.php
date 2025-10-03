@@ -210,6 +210,64 @@ try {
   $conn->commit();
   $_SESSION['user_id'] = $user_id;
   $_SESSION['user_role'] = $user['role'] ?? 'Mitarbeiter';
+  
+  // Pending approvals laden (Admin/Bereichs-/Standortleiter: alle; Mitarbeiter nur eigene)
+  $role = $user['role'] ?? 'Mitarbeiter';
+  $approvals = [];
+  $sqlAppr = "SELECT id, type, original_entry_data, new_data, reason_data, requested_by, status FROM approval_requests WHERE status = 'pending'";
+  if ($role === 'Mitarbeiter' || $role === 'Honorarkraft') {
+    $sqlAppr .= " AND requested_by = '" . $conn->real_escape_string($email) . "'";
+  }
+  if ($a = $conn->query($sqlAppr)) {
+    while ($row = $a->fetch_assoc()) {
+      $orig = json_decode($row['original_entry_data'] ?? '[]', true) ?: [];
+      $newd = json_decode($row['new_data'] ?? '[]', true) ?: [];
+      $reas = json_decode($row['reason_data'] ?? '[]', true) ?: [];
+      // Entry für Anzeige bauen
+      $entry = [];
+      if (!empty($orig) && isset($orig['id'])) {
+        $entry = [
+          'id' => (int)$orig['id'],
+          'userId' => (int)($orig['user_id'] ?? $user_id),
+          'username' => $orig['username'] ?? $display_name,
+          'date' => $orig['date'] ?? $today,
+          'startTime' => $orig['start_time'] ?? ($newd['startTime'] ?? '00:00:00'),
+          'stopTime' => $orig['stop_time'] ?? ($newd['stopTime'] ?? '00:00:00'),
+          'location' => $orig['location'] ?? ($newd['location'] ?? ($response['globalSettings']['locations'][0] ?? '')),
+          'role' => $orig['role'] ?? ($newd['role'] ?? ($user['role'] ?? 'Mitarbeiter')),
+          'createdAt' => $orig['created_at'] ?? date('c'),
+          'updatedBy' => $orig['updated_by'] ?? $row['requested_by'],
+          'updatedAt' => $orig['updated_at'] ?? date('c'),
+        ];
+      } else {
+        // 'create' oder fehlende Originaldaten → aus newData bauen
+        $entry = [
+          'id' => 0,
+          'userId' => (int)($newd['userId'] ?? $user_id),
+          'username' => $newd['username'] ?? $display_name,
+          'date' => $newd['date'] ?? date('Y-m-d'),
+          'startTime' => $newd['startTime'] ?? '00:00:00',
+          'stopTime' => $newd['stopTime'] ?? '00:00:00',
+          'location' => $newd['location'] ?? ($response['globalSettings']['locations'][0] ?? ''),
+          'role' => $newd['role'] ?? ($user['role'] ?? 'Mitarbeiter'),
+          'createdAt' => date('c'),
+          'updatedBy' => $row['requested_by'],
+          'updatedAt' => date('c'),
+        ];
+      }
+      $approvals[] = [
+        'id' => (string)$row['id'],
+        'type' => $row['type'],
+        'entry' => $entry,
+        'newData' => $newd,
+        'reasonData' => $reas,
+        'requestedBy' => $row['requested_by'],
+        'status' => 'pending',
+      ];
+    }
+    $a->close();
+  }
+  $response['approvalRequests'] = $approvals;
   echo json_encode($response);
 } catch (Throwable $e) {
   $conn->rollback();

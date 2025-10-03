@@ -38,7 +38,7 @@ export const ApprovalView: React.FC<{
                             <tr key={req.id}>
                                 <td className="text-left">{req.requestedBy}</td>
                                 <td className="cell-center">{new Date(req.entry.date + "T00:00:00").toLocaleDateString('de-DE')}</td>
-                                <td className="cell-center">{req.type === 'edit' ? 'Änderung' : 'Löschung'}</td>
+                                <td className="cell-center">{req.type === 'edit' ? 'Änderung' : req.type === 'delete' ? 'Löschung' : 'Neuer Eintrag'}</td>
                                 <td className="text-left">
                                     {req.type === 'edit' && req.newData && (
                                         <>
@@ -50,6 +50,14 @@ export const ApprovalView: React.FC<{
                                      {req.type === 'delete' && (
                                         <p>Eintrag vom {req.entry.startTime} bis {req.entry.stopTime}</p>
                                     )}
+                                     {req.type === 'create' && req.newData && (
+                                         <>
+                                            <p><strong>Datum:</strong> {req.entry.date}</p>
+                                            <p><strong>Neu:</strong> {req.newData.startTime} - {req.newData.stopTime}</p>
+                                            <p><strong>Standort:</strong> {req.newData.location || req.entry.location}</p>
+                                            <p><strong>Grund:</strong> {req.reasonData?.reason} {req.reasonData?.reason === 'Sonstige' ? `(${req.reasonData.details})` : ''}</p>
+                                         </>
+                                     )}
                                 </td>
                                 <td className="action-cell">
                                     <button className="action-button start-button" onClick={() => onApprove(req.id)}>Genehmigen</button>
