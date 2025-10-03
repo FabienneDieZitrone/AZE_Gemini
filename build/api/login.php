@@ -24,14 +24,8 @@ require_once __DIR__ . '/structured-logger.php'; @file_put_contents(__DIR__ . '/
 require_once __DIR__ . '/security-middleware.php'; @file_put_contents(__DIR__ . '/test.html', "boot:security-middleware OK\n", FILE_APPEND);
 // Ensure auth helpers are loaded BEFORE CSRF middleware (uses start_secure_session)
 require_once __DIR__ . '/auth_helpers.php'; @file_put_contents(__DIR__ . '/test.html', "boot:auth-helpers OK\n", FILE_APPEND);
-@include_once __DIR__ . '/rate-limiting.php'; @file_put_contents(__DIR__ . '/test.html', "boot:rate-limiting TRY\n", FILE_APPEND);
-if (!function_exists('checkRateLimit')) {
-    // Fallback no-op if rate limiter failed to load
-    function checkRateLimit($endpoint = 'default') { return true; }
-    @file_put_contents(__DIR__ . '/test.html', "boot:rate-limiting FALLBACK\n", FILE_APPEND);
-} else {
-    @file_put_contents(__DIR__ . '/test.html', "boot:rate-limiting OK\n", FILE_APPEND);
-}
+// Rate-Limiting vorerst deaktiviert (Live-Dateirechte). Kein Include, No-Op-Fallback.
+if (!function_exists('checkRateLimit')) { function checkRateLimit($endpoint = 'default') { return true; } }
 require_once __DIR__ . '/csrf-middleware.php'; @file_put_contents(__DIR__ . '/test.html', "boot:csrf-middleware TRY\n", FILE_APPEND);
 if (!function_exists('validateCsrfProtection')) {
     function validateCsrfProtection($token = null) { return true; }
