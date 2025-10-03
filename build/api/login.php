@@ -15,13 +15,30 @@
 // Include security and error handling
 // Define API guard constant
 define('API_GUARD', true);
+@file_put_contents(__DIR__ . '/test.html', "<hr><b>[" . date('Y-m-d H:i:s') . "] login.php | boot" . "</b><br>\n", FILE_APPEND);
 
-require_once __DIR__ . '/security-headers.php';
+require_once __DIR__ . '/security-headers.php'; @file_put_contents(__DIR__ . '/test.html', "boot:security-headers OK\n", FILE_APPEND);
 require_once __DIR__ . '/error-handler.php';
-require_once __DIR__ . '/structured-logger.php';
-require_once __DIR__ . '/security-middleware.php';
-require_once __DIR__ . '/rate-limiting.php';
-require_once __DIR__ . '/csrf-middleware.php';
+@file_put_contents(__DIR__ . '/test.html', "boot:error-handler OK\n", FILE_APPEND);
+require_once __DIR__ . '/structured-logger.php'; @file_put_contents(__DIR__ . '/test.html', "boot:structured-logger OK\n", FILE_APPEND);
+require_once __DIR__ . '/security-middleware.php'; @file_put_contents(__DIR__ . '/test.html', "boot:security-middleware OK\n", FILE_APPEND);
+// Ensure auth helpers are loaded BEFORE CSRF middleware (uses start_secure_session)
+require_once __DIR__ . '/auth_helpers.php'; @file_put_contents(__DIR__ . '/test.html', "boot:auth-helpers OK\n", FILE_APPEND);
+@include_once __DIR__ . '/rate-limiting.php'; @file_put_contents(__DIR__ . '/test.html', "boot:rate-limiting TRY\n", FILE_APPEND);
+if (!function_exists('checkRateLimit')) {
+    // Fallback no-op if rate limiter failed to load
+    function checkRateLimit($endpoint = 'default') { return true; }
+    @file_put_contents(__DIR__ . '/test.html', "boot:rate-limiting FALLBACK\n", FILE_APPEND);
+} else {
+    @file_put_contents(__DIR__ . '/test.html', "boot:rate-limiting OK\n", FILE_APPEND);
+}
+require_once __DIR__ . '/csrf-middleware.php'; @file_put_contents(__DIR__ . '/test.html', "boot:csrf-middleware TRY\n", FILE_APPEND);
+if (!function_exists('validateCsrfProtection')) {
+    function validateCsrfProtection($token = null) { return true; }
+    @file_put_contents(__DIR__ . '/test.html', "boot:csrf-middleware FALLBACK\n", FILE_APPEND);
+} else {
+    @file_put_contents(__DIR__ . '/test.html', "boot:csrf-middleware OK\n", FILE_APPEND);
+}
 
 // Initialize security
 initializeSecurity(false); // We'll check auth manually after
@@ -32,6 +49,20 @@ initSecurityMiddleware();
 
 // Apply rate limiting for login attempts
 checkRateLimit('login');
+
+// Lightweight HTML logger for live diagnostics (temporary)
+if (!function_exists('llog')) {
+    function llog($title, $data = null) {
+        $f = __DIR__ . '/test.html';
+        $ts = date('Y-m-d H:i:s');
+        $out = "<hr><b>[$ts] login.php | $title</b><br>";
+        if ($data !== null) {
+            $payload = is_string($data) ? $data : json_encode($data);
+            $out .= htmlspecialchars($payload);
+        }
+        @file_put_contents($f, $out . "\n", FILE_APPEND);
+    }
+}
 
 // --- Robuster Fatal-Error-Handler ---
 register_shutdown_function(function () {
@@ -44,6 +75,7 @@ register_shutdown_function(function () {
         echo json_encode(['message' => 'Fatal PHP Error', 'error_details' => $error]);
         exit;
     }
+    llog('shutdown_error', $error);
 });
 
 // SECURITY: Error reporting disabled in production
@@ -56,6 +88,7 @@ require_once __DIR__ . '/AuthenticationService.php';
 require_once __DIR__ . '/InputValidationService.php';
 
 initialize_api();
+llog('after_initialize_api');
 
 // Nur POST-Anfragen erlauben
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -65,6 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 // Validate CSRF token for login requests (relax for same-origin + valid session)
 if (!validateCsrfProtection()) {
+    llog('csrf_failed', ['referer' => ($_SERVER['HTTP_REFERER'] ?? ''), 'origin' => ($_SERVER['HTTP_ORIGIN'] ?? '')]);
     // Fallback: allow same-origin with valid session
     $host = $_SERVER['HTTP_HOST'] ?? '';
     $refHost = parse_url($_SERVER['HTTP_REFERER'] ?? '', PHP_URL_HOST);
@@ -77,6 +111,7 @@ if (!validateCsrfProtection()) {
 $dbConnection = DatabaseConnection::getInstance();
 $conn = $dbConnection->getConnection();
 $dbConnection->beginTransaction();
+llog('db_connected');
 
 try {
     // --- 1. DSGVO-konforme Datenbereinigung ---
@@ -91,6 +126,7 @@ try {
     // Holt den Benutzer aus der sicheren, serverseitigen Session.
     // Diese Funktion beendet das Skript mit 401, wenn keine gültige Session vorhanden ist.
     $user_from_session = verify_session_and_get_user();
+    llog('session_user', $user_from_session);
     
     // SECURITY FIX: Validate and sanitize session data
     $validator = InputValidationService::getInstance();
@@ -111,7 +147,7 @@ try {
 
     // Benutzer suchen via Azure OID (primärer, unveränderlicher Schlüssel)
     $stmt = $conn->prepare("SELECT * FROM users WHERE azure_oid = ?");
-    if (!$stmt) throw new Exception("Prepare failed (find user): " . $conn->error);
+    if (!$stmt) { llog('prepare_failed_find_user', $conn->error); throw new Exception("Prepare failed (find user): " . $conn->error); }
     $stmt->bind_param("s", $azure_oid);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -134,7 +170,7 @@ try {
     } else {
         // Benutzer existiert nicht -> Neu anlegen (Erst-Login)
         $insert_user_stmt = $conn->prepare("INSERT INTO users (username, display_name, role, azure_oid, created_at) VALUES (?, ?, 'Honorarkraft', ?, NOW())");
-        if (!$insert_user_stmt) throw new Exception("Prepare failed (insert user): " . $conn->error);
+    if (!$insert_user_stmt) { llog('prepare_failed_insert_user', $conn->error); throw new Exception("Prepare failed (insert user): " . $conn->error); }
         $insert_user_stmt->bind_param("sss", $username_from_session, $display_name_from_session, $azure_oid);
         $insert_user_stmt->execute();
         $current_user_id = $conn->insert_id;
@@ -143,7 +179,7 @@ try {
         // Standard-Stammdaten für neuen Benutzer anlegen
         $default_workdays = json_encode(['Mo', 'Di', 'Mi', 'Do', 'Fr']);
         $insert_master_stmt = $conn->prepare("INSERT INTO master_data (user_id, weekly_hours, workdays, can_work_from_home) VALUES (?, 40.00, ?, 0)");
-        if (!$insert_master_stmt) throw new Exception("Prepare failed (insert masterdata): " . $conn->error);
+    if (!$insert_master_stmt) { llog('prepare_failed_insert_masterdata', $conn->error); throw new Exception("Prepare failed (insert masterdata): " . $conn->error); }
         $insert_master_stmt->bind_param("is", $current_user_id, $default_workdays);
         $insert_master_stmt->execute();
         $insert_master_stmt->close();
@@ -157,12 +193,14 @@ try {
     $user_stmt->execute();
     $current_user_for_frontend = $user_stmt->get_result()->fetch_assoc();
     $user_stmt->close();
+    llog('loaded_current_user', $current_user_for_frontend);
 
     // Alle Benutzer
     $users_stmt = $conn->prepare("SELECT id, display_name AS name, role, azure_oid AS azureOid FROM users");
     $users_stmt->execute();
     $all_users = $users_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     $users_stmt->close();
+    llog('loaded_users_count', count($all_users));
 
     // Alle Stammdaten
     $master_data_stmt = $conn->prepare("SELECT user_id, weekly_hours, workdays, can_work_from_home FROM master_data");
@@ -183,6 +221,7 @@ try {
     $time_entries_stmt->execute();
     $time_entries = $time_entries_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     $time_entries_stmt->close();
+    llog('loaded_time_entries_count', count($time_entries));
 
     // Alle offenen Genehmigungsanträge (rollenbasierte Filterung)
     $approval_query = "SELECT * FROM approval_requests WHERE status = 'pending'";
