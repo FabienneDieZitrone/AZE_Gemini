@@ -289,15 +289,18 @@ class RateLimiter {
      */
     private function ensureCacheDirectory() {
         if (!is_dir($this->cacheDir)) {
-            if (!mkdir($this->cacheDir, 0755, true)) {
+            // Unter strengem Error-Handler kann mkdir-Warning als Exception geworfen werden
+            // Daher Fehlerausgaben unterdrücken und nur logging nutzen
+            if (!@mkdir($this->cacheDir, 0755, true)) {
                 error_log("Failed to create rate limit cache directory: " . $this->cacheDir);
+                return; // Verhindert Folgeschritte (z. B. .htaccess), falls Ordner nicht existiert
             }
         }
         
         // Create .htaccess to deny web access
         $htaccessPath = $this->cacheDir . '.htaccess';
         if (!file_exists($htaccessPath)) {
-            file_put_contents($htaccessPath, "Order deny,allow\nDeny from all\n");
+            @file_put_contents($htaccessPath, "Order deny,allow\nDeny from all\n");
         }
     }
     
