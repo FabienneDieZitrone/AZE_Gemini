@@ -76,6 +76,13 @@ remote_inventory*.csv
 remote_inventory*.txt
 build/.npm-cache/
 *.tar.gz
+# Lokale Hilfs-/Analyseartefakte
+assets_to_delete*.txt
+remote_assets.txt
+index_live.html
+login-candidate.php
+login-next-live.php
+clean-test.html
 # Python virtualenv
 venv/
 

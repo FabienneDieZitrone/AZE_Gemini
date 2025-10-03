@@ -53,6 +53,22 @@ try {
   $out['resolved_user_id'] = $uid;
 
   $today = date('Y-m-d');
+  // Optionally include today's total count for privileged roles
+  if ($uid) {
+    $role = null;
+    if ($stmt = $conn->prepare("SELECT role FROM users WHERE id = ? LIMIT 1")) {
+      $stmt->bind_param('i', $uid);
+      if ($stmt->execute()) { $stmt->bind_result($rrole); if ($stmt->fetch()) { $role = $rrole; } }
+      $stmt->close();
+    }
+    if (in_array($role, ['Admin','Bereichsleiter','Standortleiter'], true)) {
+      if ($res = $conn->query("SELECT COUNT(*) AS cnt FROM time_entries WHERE date = CURDATE()")) {
+        $row = $res->fetch_assoc();
+        $out['today_count_all'] = (int)$row['cnt'];
+        $res->close();
+      }
+    }
+  }
   // Resolve dynamic columns
   $has = function($name) use ($cols) { return array_key_exists(strtolower($name), $cols); };
   $startCol = $has('start_time') ? 'start_time' : ($has('start') ? 'start' : null);
@@ -124,4 +140,3 @@ try {
   echo json_encode(['error'=>'diagnose_exception','message'=>$e->getMessage()], JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES);
 }
 ?>
-
