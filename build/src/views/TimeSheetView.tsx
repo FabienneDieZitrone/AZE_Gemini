@@ -116,7 +116,15 @@ export const TimeSheetView: React.FC<{
           entries = entries.filter(e => e.location === filters.standort);
       }
       if (filters.benutzer !== 'Alle Benutzer') {
-          entries = entries.filter(e => e.userId === Number(filters.benutzer));
+          const selectedUser = allUsers.find(u => String(u.id) === filters.benutzer);
+          const selectedUserId = Number(filters.benutzer);
+          entries = entries.filter(e => {
+            // Primär per userId filtern
+            if (e.userId === selectedUserId) return true;
+            // Fallback: manche Legacy-Einträge haben nur username (Anzeigename) statt korrekter userId
+            if (selectedUser && e.username === selectedUser.name) return true;
+            return false;
+          });
       }
       
       const pendingDeletionIds = new Set(approvalRequests.filter(r => r.type === 'delete').map(r => r.entry.id));
