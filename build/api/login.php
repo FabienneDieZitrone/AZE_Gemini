@@ -108,13 +108,20 @@ $dbConnection->beginTransaction();
 llog('db_connected');
 
 try {
-    // --- 1. DSGVO-konforme Datenbereinigung ---
+    // --- 1. DSGVO-Datenbereinigung (nur falls Spalte vorhanden) ---
     $six_months_ago = date('Y-m-d H:i:s', strtotime('-6 months'));
-    $delete_stmt = $conn->prepare("DELETE FROM users WHERE created_at < ?");
-    if (!$delete_stmt) throw new Exception("Prepare failed (delete users): " . $conn->error);
-    $delete_stmt->bind_param("s", $six_months_ago);
-    $delete_stmt->execute();
-    $delete_stmt->close();
+    $hasCreatedAt = false;
+    if ($res = $conn->query("SHOW COLUMNS FROM users LIKE 'created_at'")) {
+        $hasCreatedAt = ($res->num_rows > 0);
+        $res->close();
+    }
+    if ($hasCreatedAt) {
+        $delete_stmt = $conn->prepare("DELETE FROM users WHERE created_at < ?");
+        if (!$delete_stmt) throw new Exception("Prepare failed (delete users): " . $conn->error);
+        $delete_stmt->bind_param("s", $six_months_ago);
+        $delete_stmt->execute();
+        $delete_stmt->close();
+    }
 
     // --- 2. Benutzer-Synchronisierung ---
     // Holt den Benutzer aus der sicheren, serverseitigen Session.
