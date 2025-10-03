@@ -75,6 +75,7 @@ try {
   $display_name = $sessionUser['name'] ?? $sessionUser['display_name'] ?? 'Unbekannt';
   $email = $sessionUser['email'] ?? $sessionUser['preferred_username'] ?? $sessionUser['username'] ?? '';
 
+  // 1) Auflösen über Azure OID
   $stmt = $conn->prepare('SELECT id, username, display_name, role FROM users WHERE azure_oid = ?');
   if (!$stmt) throw new Exception('Prepare failed: '.$conn->error);
   $stmt->bind_param('s', $azure_oid);
@@ -82,6 +83,25 @@ try {
   $res = $stmt->get_result();
   $user = $res->fetch_assoc();
   $stmt->close();
+
+  // 2) Fallback: Auflösen über E-Mail/Username, dann azure_oid nachtragen
+  if (!$user && !empty($email)) {
+    $s2 = $conn->prepare('SELECT id, username, display_name, role FROM users WHERE username = ?');
+    if (!$s2) throw new Exception('Prepare failed: '.$conn->error);
+    $s2->bind_param('s', $email);
+    $s2->execute();
+    $r2 = $s2->get_result();
+    $user = $r2->fetch_assoc();
+    $s2->close();
+    if ($user) {
+      // azure_oid nachtragen, damit künftige Logins stabil auflösen
+      $u2 = $conn->prepare('UPDATE users SET azure_oid = ? WHERE id = ?');
+      $uidTmp = (int)$user['id'];
+      $u2->bind_param('si', $azure_oid, $uidTmp);
+      $u2->execute();
+      $u2->close();
+    }
+  }
 
   if ($user) {
     $user_id = (int)$user['id'];
@@ -178,4 +198,3 @@ try {
 }
 
 ?>
-
