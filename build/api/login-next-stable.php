@@ -126,6 +126,15 @@ try {
     $m->close();
   }
 
+  // Zeit-Einträge auf den korrekten Nutzer verlinken (falls abweichend)
+  if (!empty($email) && !empty($user_id)) {
+    if ($fix = $conn->prepare('UPDATE time_entries SET user_id = ? WHERE username = ? AND (user_id IS NULL OR user_id <> ?)')) {
+      $fix->bind_param('isi', $user_id, $email, $user_id);
+      $fix->execute();
+      $fix->close();
+    }
+  }
+
   // Antwort vorbereiten
   $response = [
     'currentUser' => [ 'id'=>$user_id, 'name'=>$display_name, 'role'=>($user['role'] ?? 'Mitarbeiter'), 'azureOid'=>$azure_oid ],
