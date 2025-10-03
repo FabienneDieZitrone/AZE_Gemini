@@ -35,14 +35,22 @@ if (!function_exists('validateCsrfProtection')) {
 }
 
 // Initialize security
+llog('before_initSecurity');
 initializeSecurity(false); // We'll check auth manually after
+llog('after_initSecurity');
+llog('before_validateMethod');
 validateRequestMethod('POST');
+llog('after_validateMethod');
 
 // Apply security headers
+llog('before_initSecMiddleware');
 initSecurityMiddleware();
+llog('after_initSecMiddleware');
 
 // Apply rate limiting for login attempts
+llog('before_checkRateLimit');
 checkRateLimit('login');
+llog('after_checkRateLimit');
 
 // Lightweight HTML logger for live diagnostics (temporary)
 if (!function_exists('llog')) {
