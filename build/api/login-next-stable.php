@@ -127,11 +127,22 @@ try {
   }
 
   // Zeit-Einträge auf den korrekten Nutzer verlinken (falls abweichend)
-  if (!empty($email) && !empty($user_id)) {
-    if ($fix = $conn->prepare('UPDATE time_entries SET user_id = ? WHERE username = ? AND (user_id IS NULL OR user_id <> ?)')) {
-      $fix->bind_param('isi', $user_id, $email, $user_id);
-      $fix->execute();
-      $fix->close();
+  if (!empty($user_id)) {
+    // 1) Fälle mit username = E-Mail
+    if (!empty($email)) {
+      if ($fix1 = $conn->prepare('UPDATE time_entries SET user_id = ?, username = ? WHERE username = ? AND (user_id IS NULL OR user_id <> ?)')) {
+        $fix1->bind_param('issi', $user_id, $display_name, $email, $user_id);
+        $fix1->execute();
+        $fix1->close();
+      }
+    }
+    // 2) Fälle mit username = Anzeigename
+    if (!empty($display_name)) {
+      if ($fix2 = $conn->prepare('UPDATE time_entries SET user_id = ? WHERE username = ? AND (user_id IS NULL OR user_id <> ?)')) {
+        $fix2->bind_param('isi', $user_id, $display_name, $user_id);
+        $fix2->execute();
+        $fix2->close();
+      }
     }
   }
 
