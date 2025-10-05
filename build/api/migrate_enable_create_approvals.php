@@ -27,10 +27,28 @@ try {
   $result['details']['hasCreate'] = $hasCreate;
 
   if (!$hasCreate) {
-    // Apply minimal migration (no FK/NULL changes)
+    // Apply minimal migration (add 'create' to enum)
     $sql = "ALTER TABLE approval_requests MODIFY COLUMN type ENUM('edit','delete','create') NOT NULL";
     if (!$conn->query($sql)) {
-      throw new Exception('Migration failed: ' . $conn->error);
+      throw new Exception('Migration failed (enum): ' . $conn->error);
+    }
+    $result['changed'] = true;
+  }
+
+  // Ensure entry_id is nullable (needed for create requests)
+  $entryIdNullable = false;
+  if ($res = $conn->query("SHOW COLUMNS FROM approval_requests LIKE 'entry_id'")) {
+    if ($row = $res->fetch_assoc()) {
+      $entryIdNullable = (strtolower($row['Null'] ?? '') === 'yes');
+    }
+    $res->close();
+  }
+  $result['details']['entryIdNullable'] = $entryIdNullable;
+
+  if (!$entryIdNullable) {
+    $sql = "ALTER TABLE approval_requests MODIFY COLUMN entry_id INT NULL";
+    if (!$conn->query($sql)) {
+      throw new Exception('Migration failed (entry_id nullable): ' . $conn->error);
     }
     $result['changed'] = true;
   }
@@ -44,9 +62,18 @@ try {
     }
     $res->close();
   }
-  $result['details']['verified'] = $verify;
-  $result['ok'] = $verify;
-  http_response_code($verify ? 200 : 500);
+  // Re-verify entry_id nullability
+  $entryIdNullable2 = false;
+  if ($res = $conn->query("SHOW COLUMNS FROM approval_requests LIKE 'entry_id'")) {
+    if ($row = $res->fetch_assoc()) {
+      $entryIdNullable2 = (strtolower($row['Null'] ?? '') === 'yes');
+    }
+    $res->close();
+  }
+  $verifyAll = $verify && $entryIdNullable2;
+  $result['details']['verified'] = $verifyAll;
+  $result['ok'] = $verifyAll;
+  http_response_code($verifyAll ? 200 : 500);
   echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 } catch (Throwable $e) {
   http_response_code(500);
@@ -55,4 +82,3 @@ try {
 }
 
 ?>
-
