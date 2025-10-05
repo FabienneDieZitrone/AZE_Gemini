@@ -256,11 +256,16 @@ try {
         $approvals_stmt = $conn->prepare($approval_query);
     }
     
-    $approvals_stmt->execute();
-    $approval_requests_raw = $approvals_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $approval_requests_raw = [];
+    if ($approvals_stmt && $approvals_stmt->execute()) {
+        $approval_requests_raw = $approvals_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $approvals_stmt->close();
+    } else {
+        if (function_exists('llog')) { llog('approvals_query_failed', $approvals_stmt ? $approvals_stmt->error : $conn->error); }
+        if ($approvals_stmt) { $approvals_stmt->close(); }
+    }
     // Debug: Anzahl offener Genehmigungen (rollenbasiert)
     if (function_exists('llog')) { llog('approvals_count', count($approval_requests_raw)); }
-    $approvals_stmt->close();
     $approval_requests = array_map(function($req) {
         $entry_data_json = json_decode($req['original_entry_data'], true);
         return [
@@ -295,9 +300,14 @@ try {
         $history_stmt = $conn->prepare($history_query . " ORDER BY resolved_at DESC");
     }
     
-    $history_stmt->execute();
-    $history_raw = $history_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-    $history_stmt->close();
+    $history_raw = [];
+    if ($history_stmt && $history_stmt->execute()) {
+        $history_raw = $history_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $history_stmt->close();
+    } else {
+        if (function_exists('llog')) { llog('history_query_failed', $history_stmt ? $history_stmt->error : $conn->error); }
+        if ($history_stmt) { $history_stmt->close(); }
+    }
     $history = array_map(function($row) {
         $original_entry = json_decode($row['original_entry_data'], true);
         return [
