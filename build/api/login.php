@@ -239,21 +239,20 @@ try {
     if (function_exists('llog')) { llog('approvals_filter_ctx', ['role' => $current_user_for_frontend['role'] ?? null, 'email' => $username_from_session, 'display' => $display_name_from_session ?? '']); }
     $approval_query = "SELECT * FROM approval_requests WHERE status = 'pending'";
     
-    // FIXED: Rollenbasierte Filterung - verwende $current_user_for_frontend statt $current_user_data
+    // Rollenbasierte Filterung (minimaler Fix)
     if ($current_user_for_frontend['role'] === 'Honorarkraft' || $current_user_for_frontend['role'] === 'Mitarbeiter') {
-        // Honorarkraft und Mitarbeiter sehen nur ihre eigenen Anfragen (robust: E-Mail ODER Anzeigename)
-        $approval_query .= " AND (requested_by = ? OR requested_by = ?)";
+        // nur eigene Anträge (Session-E-Mail = requested_by)
+        $approval_query .= " AND requested_by = ?";
         $approvals_stmt = $conn->prepare($approval_query);
-        $display_name_from_session = $display_name_from_session ?? ($user_from_session['name'] ?? '');
-        $approvals_stmt->bind_param("ss", $username_from_session, $display_name_from_session);
+        $email = trim($username_from_session);
+        $approvals_stmt->bind_param("s", $email);
     } else if ($current_user_for_frontend['role'] === 'Standortleiter') {
-        // Standortleiter sehen Anfragen ihrer Location
-        // HINWEIS: Location-Feld fehlt in current_user_for_frontend - muss aus user_data geholt werden
-        $approval_query .= " AND JSON_EXTRACT(original_entry_data, '$.location') = ?";
+        // Standortleiter: Location aus new_data bevorzugen, sonst original_entry_data
+        $approval_query .= " AND COALESCE(JSON_UNQUOTE(JSON_EXTRACT(new_data, '$.location')), JSON_UNQUOTE(JSON_EXTRACT(original_entry_data, '$.location'))) = ?";
         $approvals_stmt = $conn->prepare($approval_query);
         $approvals_stmt->bind_param("s", $user_data['location'] ?? '');
     } else {
-        // Bereichsleiter und Admin sehen alles
+        // Leitung/Admin sehen alles
         $approvals_stmt = $conn->prepare($approval_query);
     }
     
@@ -283,19 +282,16 @@ try {
     // Komplette Änderungshistorie (rollenbasierte Filterung)
     $history_query = "SELECT * FROM approval_requests WHERE status != 'pending'";
     
-    // FIXED: Rollenbasierte Filterung - verwende $current_user_for_frontend statt $current_user_data
     if ($current_user_for_frontend['role'] === 'Honorarkraft' || $current_user_for_frontend['role'] === 'Mitarbeiter') {
-        // Honorarkraft und Mitarbeiter sehen nur ihre eigene Historie
         $history_query .= " AND requested_by = ?";
         $history_stmt = $conn->prepare($history_query . " ORDER BY resolved_at DESC");
-        $history_stmt->bind_param("s", $username_from_session);
+        $email = trim($username_from_session);
+        $history_stmt->bind_param("s", $email);
     } else if ($current_user_for_frontend['role'] === 'Standortleiter') {
-        // Standortleiter sehen Historie ihrer Location
-        $history_query .= " AND JSON_EXTRACT(original_entry_data, '$.location') = ?";
+        $history_query .= " AND COALESCE(JSON_UNQUOTE(JSON_EXTRACT(new_data, '$.location')), JSON_UNQUOTE(JSON_EXTRACT(original_entry_data, '$.location'))) = ?";
         $history_stmt = $conn->prepare($history_query . " ORDER BY resolved_at DESC");
         $history_stmt->bind_param("s", $user_data['location'] ?? '');
     } else {
-        // Bereichsleiter und Admin sehen alles
         $history_stmt = $conn->prepare($history_query . " ORDER BY resolved_at DESC");
     }
     
