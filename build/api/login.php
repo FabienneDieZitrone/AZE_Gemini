@@ -258,6 +258,8 @@ try {
     
     $approvals_stmt->execute();
     $approval_requests_raw = $approvals_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    // Debug: Anzahl offener Genehmigungen (rollenbasiert)
+    if (function_exists('llog')) { llog('approvals_count', count($approval_requests_raw)); }
     $approvals_stmt->close();
     $approval_requests = array_map(function($req) {
         $entry_data_json = json_decode($req['original_entry_data'], true);
