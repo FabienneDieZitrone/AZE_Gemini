@@ -34,10 +34,18 @@ export const ApprovalView: React.FC<{
                         {requests.length === 0 && (
                             <tr><td colSpan={5} className="cell-center">Keine ausstehenden Anträge.</td></tr>
                         )}
-                        {requests.map(req => (
+                        {requests.map(req => {
+                            const dateStr = (req.type === 'create' ? (req.newData as any)?.date : (req as any).entry?.date) || '';
+                            let dateCell: string = '';
+                            try {
+                                dateCell = dateStr ? new Date(dateStr + 'T00:00:00').toLocaleDateString('de-DE') : '';
+                            } catch {
+                                dateCell = '';
+                            }
+                            return (
                             <tr key={req.id}>
                                 <td className="text-left">{req.requestedBy}</td>
-                                <td className="cell-center">{new Date(req.entry.date + "T00:00:00").toLocaleDateString('de-DE')}</td>
+                                <td className="cell-center">{dateCell || '—'}</td>
                                 <td className="cell-center">{req.type === 'edit' ? 'Änderung' : req.type === 'delete' ? 'Löschung' : 'Neuer Eintrag'}</td>
                                 <td className="text-left">
                                     {req.type === 'edit' && req.newData && (
@@ -52,7 +60,7 @@ export const ApprovalView: React.FC<{
                                     )}
                                      {req.type === 'create' && req.newData && (
                                          <>
-                                            <p><strong>Datum:</strong> {req.entry.date}</p>
+                                            <p><strong>Datum:</strong> {dateStr || '—'}</p>
                                             <p><strong>Neu:</strong> {req.newData.startTime} - {req.newData.stopTime}</p>
                                             <p><strong>Standort:</strong> {req.newData.location || req.entry.location}</p>
                                             <p><strong>Grund:</strong> {req.reasonData?.reason} {req.reasonData?.reason === 'Sonstige' ? `(${req.reasonData.details})` : ''}</p>
@@ -64,7 +72,7 @@ export const ApprovalView: React.FC<{
                                     <button className="action-button stop-button" onClick={() => onReject(req.id)}>Ablehnen</button>
                                 </td>
                             </tr>
-                        ))}
+                        )})}
                     </tbody>
                 </table>
             </div>

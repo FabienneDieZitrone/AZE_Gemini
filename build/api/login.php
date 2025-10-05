@@ -240,10 +240,11 @@ try {
     
     // FIXED: Rollenbasierte Filterung - verwende $current_user_for_frontend statt $current_user_data
     if ($current_user_for_frontend['role'] === 'Honorarkraft' || $current_user_for_frontend['role'] === 'Mitarbeiter') {
-        // Honorarkraft und Mitarbeiter sehen nur ihre eigenen Anfragen
-        $approval_query .= " AND requested_by = ?";
+        // Honorarkraft und Mitarbeiter sehen nur ihre eigenen Anfragen (robust: E-Mail ODER Anzeigename)
+        $approval_query .= " AND (requested_by = ? OR requested_by = ?)";
         $approvals_stmt = $conn->prepare($approval_query);
-        $approvals_stmt->bind_param("s", $username_from_session);
+        $display_name_from_session = $display_name_from_session ?? ($user_from_session['name'] ?? '');
+        $approvals_stmt->bind_param("ss", $username_from_session, $display_name_from_session);
     } else if ($current_user_for_frontend['role'] === 'Standortleiter') {
         // Standortleiter sehen Anfragen ihrer Location
         // HINWEIS: Location-Feld fehlt in current_user_for_frontend - muss aus user_data geholt werden
