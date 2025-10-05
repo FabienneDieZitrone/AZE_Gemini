@@ -39,6 +39,20 @@ initialize_api();
 $db = DatabaseConnection::getInstance();
 $conn = $db->getConnection();
 
+// Debug-Logger (leichtgewichtig)
+if (!function_exists('alog')) {
+    function alog($title, $data = null) {
+        $f = __DIR__ . '/approvals-debug.log';
+        $ts = date('Y-m-d H:i:s');
+        $out = "[$ts] approvals.php | $title";
+        if ($data !== null) {
+            $payload = is_string($data) ? $data : json_encode($data);
+            $out .= ' | ' . $payload;
+        }
+        @file_put_contents($f, $out . "\n", FILE_APPEND);
+    }
+}
+
 // UUID v4 Generator (rein PHP, ausreichend für IDs in approval_requests)
 function generate_uuid_v4(): string {
     $data = random_bytes(16);
@@ -117,6 +131,7 @@ try {
     $data = json_decode($raw, true) ?: [];
 
     if ($method === 'GET') {
+        alog('GET_begin', ['user' => ($sessionUser['username'] ?? ($sessionUser['name'] ?? 'unknown')), 'role' => $userRole]);
         // Pending-Anträge lesen (rollenbasiert wie in login.php)
         $approval_query = "SELECT id, type, original_entry_data, new_data, reason_data, requested_by, status FROM approval_requests WHERE status = 'pending'";
         $role = $userRole;
@@ -135,10 +150,11 @@ try {
         } else {
             $stmt = $conn->prepare($approval_query . " ORDER BY requested_at DESC");
         }
-        if (!$stmt) { send_response(500, ['message' => 'Database error (prepare)']); }
-        if (!$stmt->execute()) { $e = $stmt->error; $stmt->close(); send_response(500, ['message' => 'Database error (execute)', 'error' => $e]); }
+        if (!$stmt) { alog('GET_prepare_error'); send_response(500, ['message' => 'Database error (prepare)']); }
+        if (!$stmt->execute()) { $e = $stmt->error; $stmt->close(); alog('GET_execute_error', $e); send_response(500, ['message' => 'Database error (execute)', 'error' => $e]); }
         $raw = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         $stmt->close();
+        alog('GET_count', ['count' => count($raw)]);
         $items = array_map(function($req) {
             $entry_data_json = json_decode($req['original_entry_data'] ?? '[]', true) ?: [];
             return [
@@ -167,6 +183,7 @@ try {
     }
 
     if ($method === 'POST') {
+        alog('POST_begin', ['type' => ($data['type'] ?? ''), 'entryId' => ($data['entryId'] ?? null), 'requestedBy' => $requestedBy]);
         // Antrag erfassen
         $type = $data['type'] ?? '';
         $allowedTypes = ['edit','delete'];
@@ -209,6 +226,7 @@ try {
         if ($type === 'create') {
             // Erlaubt nur, wenn Schema es zulässt und entry_id NULL ist
             if (!approvals_entry_id_nullable($conn)) {
+                alog('POST_error', 'entry_id_not_nullable_for_create');
                 send_response(422, ['message' => 'Schema erlaubt keinen create-Antrag (entry_id ist NOT NULL). Bitte Schema aktualisieren.']);
             }
             if ($useVarcharId) {
@@ -267,11 +285,13 @@ try {
         if (!$stmt->execute()) {
             $err = $stmt->error;
             $stmt->close();
+            alog('POST_execute_error', $err);
             send_response(500, ['message' => 'Database error (execute)', 'error' => $err]);
         }
         $stmt->close();
         // requestId: entweder UUID oder AUTO_INCREMENT letzte ID
         $requestId = $useVarcharId ? $id : (string)$conn->insert_id;
+        alog('POST_success', ['requestId' => $requestId]);
         send_response(200, ['requestId' => $requestId, 'status' => 'pending']);
     }
 
