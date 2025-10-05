@@ -7,6 +7,10 @@
  */
 define('API_GUARD', true);
 
+// Output-Buffer starten, um versehentliche Whitespaces aus Includes zu neutralisieren
+// So bleiben Header setzbar und send_response funktioniert zuverlässig
+if (function_exists('ob_start')) { ob_start(); }
+
 require_once __DIR__ . '/security-headers.php';
 require_once __DIR__ . '/error-handler.php';
 require_once __DIR__ . '/security-middleware.php';
@@ -134,21 +138,22 @@ try {
         alog('GET_begin', ['user' => ($sessionUser['username'] ?? ($sessionUser['name'] ?? 'unknown')), 'role' => $userRole]);
         // Pending-Anträge lesen (rollenbasiert wie in login.php)
         $approval_query = "SELECT id, type, original_entry_data, new_data, reason_data, requested_by, status FROM approval_requests WHERE status = 'pending'";
+        $orderCol = approval_requests_has_requested_at($conn) ? 'requested_at' : 'created_at';
         $role = $userRole;
         if (in_array($role, ['Honorarkraft','Mitarbeiter'], true)) {
-            $q = $approval_query . " AND (requested_by = ? OR requested_by = ?) ORDER BY requested_at DESC";
+            $q = $approval_query . " AND (requested_by = ? OR requested_by = ?) ORDER BY $orderCol DESC";
             $stmt = $conn->prepare($q);
             $displayName = $sessionUser['name'] ?? '';
             $email = $requestedBy;
             $stmt->bind_param('ss', $email, $displayName);
         } else if ($role === 'Standortleiter') {
             // Standortleiter: Filter per Location
-            $q = $approval_query . " AND JSON_EXTRACT(original_entry_data, '$.location') = ? ORDER BY requested_at DESC";
+            $q = $approval_query . " AND JSON_EXTRACT(original_entry_data, '$.location') = ? ORDER BY $orderCol DESC";
             $stmt = $conn->prepare($q);
             $loc = $sessionUser['location'] ?? '';
             $stmt->bind_param('s', $loc);
         } else {
-            $stmt = $conn->prepare($approval_query . " ORDER BY requested_at DESC");
+            $stmt = $conn->prepare($approval_query . " ORDER BY $orderCol DESC");
         }
         if (!$stmt) { alog('GET_prepare_error'); send_response(500, ['message' => 'Database error (prepare)']); }
         if (!$stmt->execute()) { $e = $stmt->error; $stmt->close(); alog('GET_execute_error', $e); send_response(500, ['message' => 'Database error (execute)', 'error' => $e]); }
