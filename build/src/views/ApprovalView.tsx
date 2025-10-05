@@ -13,11 +13,17 @@ export const ApprovalView: React.FC<{
     requests: ApprovalRequest[];
     onApprove: (requestId: string) => void;
     onReject: (requestId: string) => void;
-}> = ({ onBack, requests, onApprove, onReject }) => {
+    onLoadAll?: () => void;
+    onLoadPending?: () => void;
+}> = ({ onBack, requests, onApprove, onReject, onLoadAll, onLoadPending }) => {
     return (
         <div className="view-container">
             <header className="view-header">
                 <h2>Ausstehende Genehmigungen</h2>
+                <div style={{ display: 'flex', gap: 8 }}>
+                    {onLoadPending && (<button className="nav-button" onClick={onLoadPending}>Ausstehend</button>)}
+                    {onLoadAll && (<button className="nav-button" onClick={onLoadAll}>Alle</button>)}
+                </div>
             </header>
             <div className="table-wrapper">
                 <table className="data-table approval-table">
@@ -26,6 +32,7 @@ export const ApprovalView: React.FC<{
                             <th>Antragsteller</th>
                             <th>Datum</th>
                             <th>Typ</th>
+                            <th>Status</th>
                             <th>Details</th>
                             <th>Aktion</th>
                         </tr>
@@ -47,6 +54,7 @@ export const ApprovalView: React.FC<{
                                 <td className="text-left">{req.requestedBy}</td>
                                 <td className="cell-center">{dateCell || '—'}</td>
                                 <td className="cell-center">{req.type === 'edit' ? 'Änderung' : req.type === 'delete' ? 'Löschung' : 'Neuer Eintrag'}</td>
+                                <td className="cell-center">{(req as any).status || 'pending'}</td>
                                 <td className="text-left">
                                     {req.type === 'edit' && req.newData && (
                                         <>

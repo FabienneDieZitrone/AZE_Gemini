@@ -131,6 +131,20 @@ export const api = {
         });
     },
 
+    // Neu: Pending-Genehmigungen separat laden (rollenbasiert, GET)
+  getPendingApprovals: async () => {
+    const res = await fetchApi('/approvals.php', { method: 'GET' });
+    // Erwartetes Format: { items: ApprovalRequest[], count: number }
+    if (res && Array.isArray(res.items)) return res.items;
+    return [];
+  },
+
+  getAllApprovals: async () => {
+    const res = await fetchApi('/approvals.php?status=all', { method: 'GET' });
+    if (res && Array.isArray(res.items)) return res.items;
+    return [];
+  },
+
     updateGlobalSettings: async (settings: GlobalSettings) => {
         return fetchApi('/settings.php', {
             method: 'PUT',

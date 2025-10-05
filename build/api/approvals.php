@@ -135,9 +135,32 @@ try {
     $sessionUser = verify_session_and_get_user();
     // requested_by IMMER auf Session-E-Mail setzen (passt zur Filterung in login.php)
     $requestedBy = $sessionUser['username'] ?? ($sessionUser['name'] ?? 'unknown');
-    // Optionales Normalisieren (Trim/Lowercase Email)
     if (!empty($requestedBy)) { $requestedBy = trim($requestedBy); }
-    $userRole = $sessionUser['role'] ?? 'Mitarbeiter';
+    $sessionRole = $sessionUser['role'] ?? null;
+    $userRole = $sessionRole ?: 'Mitarbeiter';
+    // Rolle aus DB nur dann auflösen, wenn die Session keine erhöhte Rolle trägt
+    try {
+        $dbRole = null;
+        if (!in_array($sessionRole, ['Admin','Bereichsleiter','Standortleiter'], true)) {
+            $oid = $sessionUser['oid'] ?? ($sessionUser['azure_oid'] ?? null);
+            if ($oid) {
+                if ($st = $conn->prepare("SELECT role FROM users WHERE azure_oid = ? LIMIT 1")) {
+                    $st->bind_param('s', $oid);
+                    if ($st->execute()) { $st->bind_result($r); if ($st->fetch()) { $dbRole = $r; } }
+                    $st->close();
+                }
+            }
+            if (!$dbRole && !empty($requestedBy)) {
+                if ($st = $conn->prepare("SELECT role FROM users WHERE username = ? LIMIT 1")) {
+                    $st->bind_param('s', $requestedBy);
+                    if ($st->execute()) { $st->bind_result($r); if ($st->fetch()) { $dbRole = $r; } }
+                    $st->close();
+                }
+            }
+            if (!empty($dbRole)) { $userRole = $dbRole; }
+        }
+        if (function_exists('alog')) { alog('role_resolved', ['sessionRole' => $sessionRole, 'dbRole' => ($dbRole ?? null), 'final' => $userRole, 'user' => $requestedBy]); }
+    } catch (Throwable $e) { if (function_exists('alog')) { alog('role_resolve_error', $e->getMessage()); } }
 
     $method = $_SERVER['REQUEST_METHOD'] ?? 'POST';
     $raw = file_get_contents('php://input');
@@ -145,19 +168,36 @@ try {
 
     if ($method === 'GET') {
         alog('GET_begin', ['user' => ($sessionUser['username'] ?? ($sessionUser['name'] ?? 'unknown')), 'role' => $userRole]);
-        // Pending-Anträge lesen (rollenbasiert wie in login.php)
-        $approval_query = "SELECT id, type, original_entry_data, new_data, reason_data, requested_by, status FROM approval_requests WHERE status = 'pending'";
-        $orderCol = approval_requests_has_requested_at($conn) ? 'requested_at' : 'created_at';
+        $showAll = false;
+        $statusParam = strtolower((string)($_GET['status'] ?? ''));
+        if ($statusParam === 'all' || isset($_GET['all'])) { $showAll = true; }
+
+        // Basisklausel
+        if ($showAll) {
+            $approval_query = "SELECT id, type, original_entry_data, new_data, reason_data, requested_by, status FROM approval_requests WHERE 1=1";
+        } else {
+            // Ausstehend = alles nicht-final
+            $approval_query = "SELECT id, type, original_entry_data, new_data, reason_data, requested_by, status
+                               FROM approval_requests
+                               WHERE (
+                                 status IS NULL OR status='' OR TRIM(LOWER(status)) IN ('pending','submitted','open','in_review','requested') OR
+                                 TRIM(LOWER(status)) NOT IN ('genehmigt','abgelehnt','approved','rejected','completed','done')
+                               )";
+        }
+
+        // Robust: Sortierkriterium ermitteln
+        $orderCol = 'id';
+        if (approval_requests_has_requested_at($conn)) { $orderCol = 'requested_at'; }
+        else if ($res = $conn->query("SHOW COLUMNS FROM approval_requests LIKE 'created_at'")) { if ($res->num_rows > 0) { $orderCol = 'created_at'; } $res->close(); }
+
         $role = $userRole;
         if (in_array($role, ['Honorarkraft','Mitarbeiter'], true)) {
-            $q = $approval_query . " AND (requested_by = ? OR requested_by = ?) ORDER BY $orderCol DESC";
+            $q = $approval_query . " AND requested_by = ? ORDER BY $orderCol DESC";
             $stmt = $conn->prepare($q);
-            $displayName = $sessionUser['name'] ?? '';
             $email = $requestedBy;
-            $stmt->bind_param('ss', $email, $displayName);
+            $stmt->bind_param('s', $email);
         } else if ($role === 'Standortleiter') {
-            // Standortleiter: Filter per Location
-            $q = $approval_query . " AND JSON_EXTRACT(original_entry_data, '$.location') = ? ORDER BY $orderCol DESC";
+            $q = $approval_query . " AND COALESCE(JSON_UNQUOTE(JSON_EXTRACT(new_data, '$.location')), JSON_UNQUOTE(JSON_EXTRACT(original_entry_data, '$.location'))) = ? ORDER BY $orderCol DESC";
             $stmt = $conn->prepare($q);
             $loc = $sessionUser['location'] ?? '';
             $stmt->bind_param('s', $loc);
@@ -169,7 +209,7 @@ try {
         $raw = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         $stmt->close();
         alog('GET_count', ['count' => count($raw)]);
-        $items = array_map(function($req) {
+        $items = array_map(function($req) use ($showAll) {
             $entry_data_json = json_decode($req['original_entry_data'] ?? '[]', true) ?: [];
             return [
                 'id' => (string)$req['id'],
@@ -190,10 +230,53 @@ try {
                 'newData' => json_decode($req['new_data'] ?? 'null', true),
                 'reasonData' => json_decode($req['reason_data'] ?? 'null', true),
                 'requestedBy' => $req['requested_by'],
-                'status' => 'pending'
+                'status' => ($showAll ? ($req['status'] ?: 'pending') : 'pending')
             ];
         }, $raw);
-        send_response(200, ['items' => $items, 'count' => count($items)]);
+        // Fallback: Wenn Admin/Leitung und keine ausstehenden Einträge gefunden wurden,
+        // zeige die letzten 20 Anträge (damit die UI nicht leer bleibt)
+        if (!$showAll && count($items) === 0 && in_array($role, ['Admin','Bereichsleiter','Standortleiter'], true)) {
+            $fbSql = "SELECT id, type, original_entry_data, new_data, reason_data, requested_by, status FROM approval_requests ORDER BY $orderCol DESC LIMIT 20";
+            if ($fb = $conn->prepare($fbSql)) {
+                if ($fb->execute()) {
+                    $raw2 = $fb->get_result()->fetch_all(MYSQLI_ASSOC);
+                    $items = array_map(function($req){
+                        $entry_data_json = json_decode($req['original_entry_data'] ?? '[]', true) ?: [];
+                        return [
+                            'id' => (string)$req['id'],
+                            'type' => $req['type'],
+                            'entry' => [
+                                'id' => (int)($entry_data_json['id'] ?? 0),
+                                'userId' => (int)($entry_data_json['user_id'] ?? 0),
+                                'username' => $entry_data_json['username'] ?? '',
+                                'date' => $entry_data_json['date'] ?? '',
+                                'startTime' => $entry_data_json['start_time'] ?? '',
+                                'stopTime' => $entry_data_json['stop_time'] ?? '',
+                                'location' => $entry_data_json['location'] ?? '',
+                                'role' => $entry_data_json['role'] ?? 'Mitarbeiter',
+                                'createdAt' => $entry_data_json['created_at'] ?? '',
+                                'updatedBy' => $entry_data_json['updated_by'] ?? '',
+                                'updatedAt' => $entry_data_json['updated_at'] ?? '',
+                            ],
+                            'newData' => json_decode($req['new_data'] ?? 'null', true),
+                            'reasonData' => json_decode($req['reason_data'] ?? 'null', true),
+                            'requestedBy' => $req['requested_by'],
+                            'status' => ($req['status'] ?: 'pending'),
+                        ];
+                    }, $raw2);
+                }
+                $fb->close();
+            }
+        }
+        // Für Admin/Leitung hilfreiche Meta-Infos zurückgeben
+        $meta = [];
+        if (in_array($role, ['Admin','Bereichsleiter','Standortleiter'], true)) {
+            $total = 0; $pend = 0;
+            if ($rs = $conn->query("SELECT COUNT(*) AS c FROM approval_requests")) { $r = $rs->fetch_assoc(); $total = (int)($r['c'] ?? 0); $rs->close(); }
+            if ($rs = $conn->query("SELECT COUNT(*) AS c FROM approval_requests WHERE (status IS NULL OR TRIM(LOWER(status))='pending' OR status='')")) { $r = $rs->fetch_assoc(); $pend = (int)($r['c'] ?? 0); $rs->close(); }
+            $meta = ['total' => $total, 'pending' => $pend];
+        }
+        send_response(200, ['items' => $items, 'count' => count($items), 'meta' => $meta]);
     }
 
     if ($method === 'POST') {
