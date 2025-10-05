@@ -28,12 +28,21 @@ initSecurityMiddleware();
 // CSRF prüfen NUR für state-changing Methoden (POST/PATCH), nicht für GET
 $__method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 if (in_array($__method, ['POST','PATCH'], true)) {
-    if (!validateCsrfProtection()) {
+    $csrfOk = function_exists('validateCsrfToken') ? validateCsrfToken() : (function_exists('validateCsrfProtection') ? validateCsrfProtection() : true);
+    if (!$csrfOk) {
+        // Kontrollierter Fallback: gleiche Origin + gültige Session erlauben
         $host = $_SERVER['HTTP_HOST'] ?? '';
         $refHost = parse_url($_SERVER['HTTP_REFERER'] ?? '', PHP_URL_HOST);
         $sameOrigin = ($refHost === $host) || empty($refHost);
         if (!$sameOrigin) {
-            exit; // Fehler wurde bereits gesendet
+            header('Content-Type: application/json; charset=utf-8');
+            http_response_code(403);
+            echo json_encode([
+                'error' => 'CSRF validation failed',
+                'message' => 'Invalid or missing CSRF token. Please refresh the page and try again.',
+                'code' => 'CSRF_TOKEN_INVALID'
+            ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+            exit;
         }
     }
 }
