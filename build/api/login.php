@@ -236,6 +236,7 @@ try {
     llog('loaded_time_entries_count', count($time_entries));
 
     // Alle offenen Genehmigungsanträge (rollenbasierte Filterung)
+    if (function_exists('llog')) { llog('approvals_filter_ctx', ['role' => $current_user_for_frontend['role'] ?? null, 'email' => $username_from_session, 'display' => $display_name_from_session ?? '']); }
     $approval_query = "SELECT * FROM approval_requests WHERE status = 'pending'";
     
     // FIXED: Rollenbasierte Filterung - verwende $current_user_for_frontend statt $current_user_data
