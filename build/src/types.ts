@@ -64,15 +64,15 @@ export type ReasonData = {
 };
 
 export type EntryChangeRequestPayload = {
-    type: 'edit' | 'delete';
-    entryId: number;
-    newData?: { startTime: string; stopTime: string; };
+    type: 'edit' | 'delete' | 'create';
+    entryId?: number; // bei 'create' optional
+    newData?: Partial<TimeEntry> & { date?: string; startTime?: string; stopTime?: string };
     reasonData?: ReasonData;
 };
 
 export type ApprovalRequest = {
     id: string; // UUID
-    type: 'edit' | 'delete';
+    type: 'edit' | 'delete' | 'create';
     entry: TimeEntry;
     newData?: Partial<TimeEntry>;
     reasonData?: ReasonData;

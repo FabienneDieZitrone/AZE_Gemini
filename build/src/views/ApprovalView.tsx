@@ -76,8 +76,8 @@ export const ApprovalView: React.FC<{
                                      )}
                                 </td>
                                 <td className="action-cell">
-                                    <button className="action-button start-button" onClick={() => onApprove(req.id)}>Genehmigen</button>
-                                    <button className="action-button stop-button" onClick={() => onReject(req.id)}>Ablehnen</button>
+                                    <button className="action-button start-button" disabled={((req as any).status || 'pending').toString().toLowerCase() !== 'pending'} title={((req as any).status || 'pending').toString().toLowerCase() !== 'pending' ? 'Nur ausstehende Anträge können bearbeitet werden' : ''} onClick={() => onApprove(req.id)}>Genehmigen</button>
+                                    <button className="action-button stop-button" disabled={((req as any).status || 'pending').toString().toLowerCase() !== 'pending'} title={((req as any).status || 'pending').toString().toLowerCase() !== 'pending' ? 'Nur ausstehende Anträge können bearbeitet werden' : ''} onClick={() => onReject(req.id)}>Ablehnen</button>
                                 </td>
                             </tr>
                         )})}

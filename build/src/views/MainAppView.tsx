@@ -101,6 +101,8 @@ export const MainAppView: React.FC = () => {
     const loadApprovals = async () => {
       if (viewState.current !== 'approvals') return;
       try {
+        // Liste sofort leeren, um alte Login-Payload-Einträge zu entfernen
+        setApprovalRequests([]);
         const pending = await api.getPendingApprovals();
         setApprovalRequests(pending || []);
       } catch (err) {
@@ -164,7 +166,10 @@ export const MainAppView: React.FC = () => {
         setUsers(initialData.users);
         setMasterData(initialData.masterData);
         setTimeEntries(initialData.timeEntries);
-        setApprovalRequests(initialData.approvalRequests);
+        // Wichtig: approvals werden separat über dedizierte Endpunkte geladen
+        // und hier nicht überschrieben, damit Umschalter Ausstehend/Alle
+        // und frische Pending-Einträge nicht durch den Login-Payload
+        // wieder auf alte Werte zurückgesetzt werden.
         setHistory(initialData.history);
         setGlobalSettings(initialData.globalSettings);
     } catch(err) {
