@@ -1,0 +1,1 @@
+Fix approvals: commit POST transactions, correct GET pending/all, remove fallback; UI refresh; webroot .htaccess
