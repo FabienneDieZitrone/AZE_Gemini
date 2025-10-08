@@ -187,22 +187,31 @@ try {
 
         // Robust: Sortierkriterium ermitteln
         $orderCol = 'id';
-        if (approval_requests_has_requested_at($conn)) { $orderCol = 'requested_at'; }
-        else if ($res = $conn->query("SHOW COLUMNS FROM approval_requests LIKE 'created_at'")) { if ($res->num_rows > 0) { $orderCol = 'created_at'; } $res->close(); }
+        $orderExpr = $orderCol . ' DESC';
+        if (approval_requests_has_requested_at($conn)) {
+            $orderCol = 'requested_at';
+            $orderExpr = $orderCol . ' DESC';
+        } else if ($res = $conn->query("SHOW COLUMNS FROM approval_requests LIKE 'created_at'")) {
+            if ($res->num_rows > 0) { $orderCol = 'created_at'; $orderExpr = $orderCol . ' DESC'; }
+            $res->close();
+        } else {
+            // Versuche nach Datum aus JSON zu sortieren (new_data.date oder original.date)
+            $orderExpr = "COALESCE(JSON_UNQUOTE(JSON_EXTRACT(new_data, '$.date')), JSON_UNQUOTE(JSON_EXTRACT(original_entry_data, '$.date')), id) DESC";
+        }
 
         $role = $userRole;
         if (in_array($role, ['Honorarkraft','Mitarbeiter'], true)) {
-            $q = $approval_query . " AND requested_by = ? ORDER BY $orderCol DESC";
+            $q = $approval_query . " AND requested_by = ? ORDER BY $orderExpr";
             $stmt = $conn->prepare($q);
             $email = $requestedBy;
             $stmt->bind_param('s', $email);
         } else if ($role === 'Standortleiter') {
-            $q = $approval_query . " AND COALESCE(JSON_UNQUOTE(JSON_EXTRACT(new_data, '$.location')), JSON_UNQUOTE(JSON_EXTRACT(original_entry_data, '$.location'))) = ? ORDER BY $orderCol DESC";
+            $q = $approval_query . " AND COALESCE(JSON_UNQUOTE(JSON_EXTRACT(new_data, '$.location')), JSON_UNQUOTE(JSON_EXTRACT(original_entry_data, '$.location'))) = ? ORDER BY $orderExpr";
             $stmt = $conn->prepare($q);
             $loc = $sessionUser['location'] ?? '';
             $stmt->bind_param('s', $loc);
         } else {
-            $stmt = $conn->prepare($approval_query . " ORDER BY $orderCol DESC");
+            $stmt = $conn->prepare($approval_query . " ORDER BY $orderExpr");
         }
         if (!$stmt) { alog('GET_prepare_error'); send_response(500, ['message' => 'Database error (prepare)']); }
         if (!$stmt->execute()) { $e = $stmt->error; $stmt->close(); alog('GET_execute_error', $e); send_response(500, ['message' => 'Database error (execute)', 'error' => $e]); }
@@ -230,44 +239,10 @@ try {
                 'newData' => json_decode($req['new_data'] ?? 'null', true),
                 'reasonData' => json_decode($req['reason_data'] ?? 'null', true),
                 'requestedBy' => $req['requested_by'],
-                'status' => ($showAll ? ($req['status'] ?: 'pending') : 'pending')
+                // Zeige immer den echten Status; UI deaktiviert finale Einträge korrekt
+                'status' => ($req['status'] ?: 'pending')
             ];
         }, $raw);
-        // Fallback: Wenn Admin/Leitung und keine ausstehenden Einträge gefunden wurden,
-        // zeige die letzten 20 Anträge (damit die UI nicht leer bleibt)
-        if (!$showAll && count($items) === 0 && in_array($role, ['Admin','Bereichsleiter','Standortleiter'], true)) {
-            $fbSql = "SELECT id, type, original_entry_data, new_data, reason_data, requested_by, status FROM approval_requests ORDER BY $orderCol DESC LIMIT 20";
-            if ($fb = $conn->prepare($fbSql)) {
-                if ($fb->execute()) {
-                    $raw2 = $fb->get_result()->fetch_all(MYSQLI_ASSOC);
-                    $items = array_map(function($req){
-                        $entry_data_json = json_decode($req['original_entry_data'] ?? '[]', true) ?: [];
-                        return [
-                            'id' => (string)$req['id'],
-                            'type' => $req['type'],
-                            'entry' => [
-                                'id' => (int)($entry_data_json['id'] ?? 0),
-                                'userId' => (int)($entry_data_json['user_id'] ?? 0),
-                                'username' => $entry_data_json['username'] ?? '',
-                                'date' => $entry_data_json['date'] ?? '',
-                                'startTime' => $entry_data_json['start_time'] ?? '',
-                                'stopTime' => $entry_data_json['stop_time'] ?? '',
-                                'location' => $entry_data_json['location'] ?? '',
-                                'role' => $entry_data_json['role'] ?? 'Mitarbeiter',
-                                'createdAt' => $entry_data_json['created_at'] ?? '',
-                                'updatedBy' => $entry_data_json['updated_by'] ?? '',
-                                'updatedAt' => $entry_data_json['updated_at'] ?? '',
-                            ],
-                            'newData' => json_decode($req['new_data'] ?? 'null', true),
-                            'reasonData' => json_decode($req['reason_data'] ?? 'null', true),
-                            'requestedBy' => $req['requested_by'],
-                            'status' => ($req['status'] ?: 'pending'),
-                        ];
-                    }, $raw2);
-                }
-                $fb->close();
-            }
-        }
         // Für Admin/Leitung hilfreiche Meta-Infos zurückgeben
         $meta = [];
         if (in_array($role, ['Admin','Bereichsleiter','Standortleiter'], true)) {
@@ -281,7 +256,8 @@ try {
 
     if ($method === 'POST') {
         alog('POST_begin', ['type' => ($data['type'] ?? ''), 'entryId' => ($data['entryId'] ?? null), 'requestedBy' => $requestedBy]);
-        // Antrag erfassen
+        // Antrag erfassen (Transaktion, da Autocommit deaktiviert ist)
+        $conn->begin_transaction();
         $type = $data['type'] ?? '';
         $allowedTypes = ['edit','delete'];
         $supportsCreate = approvals_supports_create($conn);
@@ -383,12 +359,14 @@ try {
             $err = $stmt->error;
             $stmt->close();
             alog('POST_execute_error', $err);
+            $conn->rollback();
             send_response(500, ['message' => 'Database error (execute)', 'error' => $err]);
         }
         $stmt->close();
         // requestId: entweder UUID oder AUTO_INCREMENT letzte ID
         $requestId = $useVarcharId ? $id : (string)$conn->insert_id;
         alog('POST_success', ['requestId' => $requestId]);
+        $conn->commit();
         send_response(200, ['requestId' => $requestId, 'status' => 'pending']);
     }
 
