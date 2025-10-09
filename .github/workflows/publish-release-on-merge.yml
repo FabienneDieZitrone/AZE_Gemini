@@ -1,0 +1,66 @@
+name: Publish Draft Release on Merge
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  publish:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - name: Extract release tag from PR labels
+        id: extract
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const labels = context.payload.pull_request.labels || [];
+            const tagLabel = labels.find(l => l.name && l.name.startsWith('release:'));
+            if (!tagLabel) {
+              core.info('No release:* label found. Skipping.');
+              core.setOutput('skip', 'true');
+              return;
+            }
+            const tag = tagLabel.name.replace(/^release:/,'').trim();
+            core.setOutput('tag', tag);
+            core.setOutput('skip', 'false');
+      - name: Publish draft release
+        if: steps.extract.outputs.skip == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const tag = core.getInput('tag', {required:false}) || core.getInput('tag', {required:false});
+            const tagFromStep = process.env.TAG || "";
+            const resolvedTag = tagFromStep || '${{ steps.extract.outputs.tag }}';
+            if (!resolvedTag) {
+              core.info('No tag resolved. Skipping.');
+              return;
+            }
+            // Find release by tag
+            const rel = await github.request('GET /repos/{owner}/{repo}/releases/tags/{tag}', {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: resolvedTag,
+            }).catch(err => {
+              core.warning(`Release with tag ${resolvedTag} not found: ${err}`);
+              return null;
+            });
+            if (!rel || !rel.data || !rel.data.id) {
+              core.info('No matching draft release found. Skipping.');
+              return;
+            }
+            const id = rel.data.id;
+            if (rel.data.draft !== true) {
+              core.info('Release is already published.');
+              return;
+            }
+            await github.request('PATCH /repos/{owner}/{repo}/releases/{release_id}', {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: id,
+              draft: false
+            });
+            core.info(`Published release for tag ${resolvedTag}`);
