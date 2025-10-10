@@ -64,7 +64,17 @@ export const DayDetailView: React.FC<{
             </div>
 
             <div className="table-wrapper">
-                <table className="data-table">
+                <table className="data-table" style={{ tableLayout: 'auto' }}>
+                    <colgroup>
+                        <col /> {/* Bearbeiten */}
+                        <col /> {/* Löschen */}
+                        <col /> {/* Username */}
+                        <col /> {/* Startzeit */}
+                        <col /> {/* Stoppzeit */}
+                        <col /> {/* Arbeitszeit */}
+                        <col style={{ width: '240px' }} /> {/* Standort */}
+                        {userRole !== 'Mitarbeiter' && (<col />)} {/* Rolle (optional) */}
+                    </colgroup>
                     <thead>
                         <tr>
                             <th>Bearbeiten</th>

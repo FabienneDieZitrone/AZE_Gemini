@@ -1,14 +1,41 @@
-# Security settings for AZE directories
-Options -Indexes
-Options -FollowSymLinks
+# Base options (allow symlinks owned by same user; no directory listing)
+Options -Indexes +SymLinksIfOwnerMatch
 
-# Protect sensitive directories
+# Protect sensitive files
 <FilesMatch "\.(env|log|sql|ini|conf|cfg)$">
     Require all denied
+    <IfModule mod_headers.c>
+      Header always set Cache-Control "no-store"
+    </IfModule>
+    ExpiresActive Off
+    FileETag None
+    Header unset ETag
 </FilesMatch>
 
 # Protect directories
 <IfModule mod_rewrite.c>
     RewriteEngine On
+    # Deny direct access to internal storage folders
     RewriteRule ^(logs|data|cache)/ - [F,L]
 </IfModule>
+
+# Caching: ensure index.html is never cached; hashed assets can be cached long
+<IfModule mod_headers.c>
+  <Files "index.html">
+    Header always set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+    Header always set Pragma "no-cache"
+    Header always set Expires "0"
+  </Files>
+
+  <FilesMatch "\.(js|css|svg|png|jpg|jpeg|gif|webp|woff|woff2)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+</IfModule>
+
+# Disable ETag to avoid weak caching conflicts (safe if module allows)
+<IfModule mod_headers.c>
+  FileETag None
+</IfModule>
+
+# Ensure default index files
+DirectoryIndex index.html index.php

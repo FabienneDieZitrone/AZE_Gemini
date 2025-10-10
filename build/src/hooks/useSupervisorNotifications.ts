@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { User, MasterDataEntry, TimeEntry, GlobalSettings, SupervisorNotification } from '../types';
 import { getStartOfWeek, calculateDurationInSeconds } from '../utils/time';
 import { TIME } from '../constants';
@@ -20,6 +20,7 @@ export const useSupervisorNotifications = ({
 }: UseSupervisorNotificationsProps) => {
   const [supervisorNotifications, setSupervisorNotifications] = useState<SupervisorNotification[]>([]);
   const [showSupervisorModal, setShowSupervisorModal] = useState(false);
+  const shownOnceRef = useRef(false);
 
   useEffect(() => {
     if (!currentUser || !globalSettings || !masterData || timeEntries.length === 0) return;
@@ -70,10 +71,11 @@ export const useSupervisorNotifications = ({
       }
     });
 
-    // Show modal if there are notifications
-    if (notifications.length > 0) {
+    // Show modal only once per session (after login), not on every view/interaction
+    if (notifications.length > 0 && !shownOnceRef.current) {
       setSupervisorNotifications(notifications);
       setShowSupervisorModal(true);
+      shownOnceRef.current = true;
     }
   }, [currentUser, users, masterData, timeEntries, globalSettings]);
 

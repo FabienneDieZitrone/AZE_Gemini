@@ -395,6 +395,9 @@ function handleStart(mysqli $conn, array $sessionUser, InputValidationService $v
             while ($r = $res->fetch_assoc()) { $cols[strtolower($r['Field'])] = true; }
             $res->close();
         }
+        tlog('start_cols', array_keys($cols));
+        $sessionLoc = $sessionUser['location'] ?? 'Home Office';
+        tlog('start_location_session', $sessionLoc);
         // Build insert columns/params based on available columns
         $fields = ['`user_id`', '`date`', '`start_time`'];
         $placeholders = ['?', '?', '?'];
@@ -403,6 +406,14 @@ function handleStart(mysqli $conn, array $sessionUser, InputValidationService $v
         if (!empty($cols['username'])) { $fields[] = '`username`'; $placeholders[] = '?'; $types .= 's'; $values[] = $username; }
         if (!empty($cols['updated_by'])) { $fields[] = '`updated_by`'; $placeholders[] = '?'; $types .= 's'; $values[] = $payload['createdBy']; }
         if (!empty($cols['status'])) { $fields[] = '`status`'; $placeholders[] = '?'; $types .= 's'; $values[] = 'running'; }
+        // Set location if column exists (use session-detected location or Home Office)
+        if (!empty($cols['location'])) {
+            $loc = $sessionUser['location'] ?? 'Home Office';
+            $fields[] = '`location`';
+            $placeholders[] = '?';
+            $types .= 's';
+            $values[] = $loc;
+        }
         if (!empty($cols['created_at'])) { $fields[] = '`created_at`'; $placeholders[] = 'NOW()'; }
         if (!empty($cols['updated_at'])) { $fields[] = '`updated_at`'; $placeholders[] = 'NOW()'; }
 
@@ -424,11 +435,12 @@ function handleStart(mysqli $conn, array $sessionUser, InputValidationService $v
         // We only bind for '?' placeholders, in the order they appeared
         $bindValues = [];
         $bindTypes = '';
-        // Map of expected value sequence: userId, date, startTime, [username], [updated_by], [status]
+        // Build sequence values in the same order as dynamic additions above
         $sequenceValues = [$userId, $payload['date'], $payload['startTime']];
         if (!empty($cols['username'])) { $sequenceValues[] = $username; }
         if (!empty($cols['updated_by'])) { $sequenceValues[] = $payload['createdBy']; }
         if (!empty($cols['status'])) { $sequenceValues[] = 'running'; }
+        if (!empty($cols['location'])) { $sequenceValues[] = $sessionUser['location'] ?? 'Home Office'; }
         // Types accordingly
         $bindTypes = '';
         foreach ($sequenceValues as $idx => $val) {
@@ -440,6 +452,13 @@ function handleStart(mysqli $conn, array $sessionUser, InputValidationService $v
         if (!$stmt->execute()) { tlog('start_execute_insert_failed', $stmt->error); hlog('start_execute_insert_failed', $stmt->error); throw new RuntimeException('Execute failed: ' . $stmt->error); }
         $stmt->close();
         $newId = $conn->insert_id;
+        // Safety fix: ensure location is set (overrides defaults like 'web' if present)
+        if (!empty($cols['location'])) {
+            $loc = $sessionLoc;
+            // Erzwinge Standort (unabhängig vom DB-Default)
+            $u = $conn->prepare("UPDATE time_entries SET location = ? WHERE id = ?");
+            if ($u) { $u->bind_param('si', $loc, $newId); @$u->execute(); $u->close(); }
+        }
         tlog('start_success', $newId);
         hlog('start_success', $newId);
         $conn->commit();
@@ -503,11 +522,12 @@ function handleStop(mysqli $conn, array $sessionUser, InputValidationService $va
     $conn->begin_transaction();
     try {
         // Detect if status column exists to mark completed
-        $hasStatus = false;
+        $cols = [];
         if ($res = $conn->query("SHOW COLUMNS FROM time_entries")) {
-            while ($r = $res->fetch_assoc()) { if (strtolower($r['Field'])==='status') { $hasStatus = true; break; } }
+            while ($r = $res->fetch_assoc()) { $cols[strtolower($r['Field'])] = true; }
             $res->close();
         }
+        $hasStatus = !empty($cols['status']);
         $sql = "UPDATE time_entries SET stop_time = ?, updated_by = ?, updated_at = NOW()" . ($hasStatus? ", status='completed'" : "") . " WHERE id = ? AND stop_time IS NULL";
         $stmt = $conn->prepare($sql);
         if (!$stmt) {
@@ -521,6 +541,12 @@ function handleStop(mysqli $conn, array $sessionUser, InputValidationService $va
         }
         $affected = $stmt->affected_rows;
         $stmt->close();
+        // Erzwinge Standort auch beim Stop (sollte bereits gesetzt sein, ist hier idempotent)
+        if (!empty($cols['location'])) {
+            $loc = $sessionUser['location'] ?? 'Home Office';
+            $u = $conn->prepare("UPDATE time_entries SET location = ? WHERE id = ?");
+            if ($u) { $u->bind_param('si', $loc, $entryId); @$u->execute(); $u->close(); }
+        }
         $conn->commit();
 
         if ($affected === 0) {

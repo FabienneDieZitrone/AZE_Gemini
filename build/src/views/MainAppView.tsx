@@ -23,6 +23,7 @@ import { EditEntryModal } from '../components/modals/EditEntryModal';
 import { ConfirmDeleteModal } from '../components/modals/ConfirmDeleteModal';
 import { RoleAssignmentModal } from '../components/modals/RoleAssignmentModal';
 import { SupervisorNotificationModal } from '../components/modals/SupervisorNotificationModal';
+import { NewEntryModal } from '../components/modals/NewEntryModal';
 import { useSupervisorNotifications } from '../hooks/useSupervisorNotifications';
 
 import { TimeSheetView } from './TimeSheetView';
@@ -48,8 +49,9 @@ export const MainAppView: React.FC = () => {
   const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
   const [deletingEntry, setDeletingEntry] = useState<TimeEntry | null>(null);
   const [editingRoleForUser, setEditingRoleForUser] = useState<User | null>(null);
+  const [requestNewEntryOpen, setRequestNewEntryOpen] = useState<boolean>(false);
 
-  const [currentLocation] = useState('Zentrale Berlin');
+  const [currentLocation, setCurrentLocation] = useState<string>('Zentrale Berlin');
   const [theme, setTheme] = useState<Theme>('light');
   
   const [isLoading, setIsLoading] = useState(true);
@@ -69,6 +71,9 @@ export const MainAppView: React.FC = () => {
         setApprovalRequests(initialData.approvalRequests);
         setHistory(initialData.history);
         setGlobalSettings(initialData.globalSettings);
+        if ((initialData as any).currentLocation) {
+          setCurrentLocation((initialData as any).currentLocation);
+        }
         
     } catch (err) {
         // Die Fehlerbehandlung (inkl. 401-Redirect) wird global in api.ts erledigt.
@@ -92,6 +97,25 @@ export const MainAppView: React.FC = () => {
     if (viewState.current === 'timesheet') {
       refreshData();
     }
+  }, [viewState.current]);
+
+  // Beim Öffnen der Genehmigungsansicht: Pending-Genehmigungen separat laden
+  useEffect(() => {
+    const loadApprovals = async () => {
+      if (viewState.current !== 'approvals') return;
+      try {
+        // Liste sofort leeren, um alte Login-Payload-Einträge zu entfernen
+        setApprovalRequests([]);
+        const pending = await api.getPendingApprovals();
+        setApprovalRequests(pending || []);
+      } catch (err) {
+        // Kein harter Fehler – UI bleibt nutzbar
+        const msg = err instanceof Error ? err.message : 'Fehler beim Laden der Genehmigungen.';
+        setError(msg);
+        api.logError({ message: msg, stack: (err as Error)?.stack, context: 'loadApprovals' });
+      }
+    };
+    loadApprovals();
   }, [viewState.current]);
 
   // Timer callbacks
@@ -145,9 +169,15 @@ export const MainAppView: React.FC = () => {
         setUsers(initialData.users);
         setMasterData(initialData.masterData);
         setTimeEntries(initialData.timeEntries);
-        setApprovalRequests(initialData.approvalRequests);
+        // Wichtig: approvals werden separat über dedizierte Endpunkte geladen
+        // und hier nicht überschrieben, damit Umschalter Ausstehend/Alle
+        // und frische Pending-Einträge nicht durch den Login-Payload
+        // wieder auf alte Werte zurückgesetzt werden.
         setHistory(initialData.history);
         setGlobalSettings(initialData.globalSettings);
+        if ((initialData as any).currentLocation) {
+          setCurrentLocation((initialData as any).currentLocation);
+        }
     } catch(err) {
         const msg = err instanceof Error ? err.message : 'Fehler beim Aktualisieren der Daten.';
         setError(msg);
@@ -171,6 +201,8 @@ export const MainAppView: React.FC = () => {
       };
       try {
         await api.requestEntryChange(requestData);
+        // Lade Genehmigungen zusätzlich direkt
+        try { setApprovalRequests(await api.getPendingApprovals()); } catch {}
         await refreshData();
         notificationService.success('Ihre Änderung wurde erfasst und wird zur Genehmigung weitergeleitet.');
         setEditingEntry(null);
@@ -186,6 +218,7 @@ export const MainAppView: React.FC = () => {
       const requestData = { type: 'delete' as const, entryId: deletingEntry.id };
       try {
         await api.requestEntryChange(requestData);
+        try { setApprovalRequests(await api.getPendingApprovals()); } catch {}
         await refreshData();
         setDeletingEntry(null);
       } catch(err) {
@@ -195,6 +228,33 @@ export const MainAppView: React.FC = () => {
       }
     }
   };
+
+  const handleNewEntryRequest = async (data: { date: string; startTime: string; stopTime: string; location: string; role: Role; reasonData: { reason: string; details: string } }) => {
+    try {
+      await api.requestEntryChange({
+        type: 'create',
+        newData: {
+          date: data.date,
+          startTime: data.startTime,
+          stopTime: data.stopTime,
+          location: data.location,
+          role: data.role,
+          userId: currentUser?.id,
+          username: currentUser?.name,
+          updatedBy: currentUser?.name,
+        },
+        reasonData: data.reasonData,
+      });
+      setRequestNewEntryOpen(false);
+      try { setApprovalRequests(await api.getPendingApprovals()); } catch {}
+      await refreshData();
+      notificationService.success('Neuer Zeiteintrag wurde zur Genehmigung eingereicht.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Fehler beim Beantragen eines neuen Eintrags.';
+      setError(msg);
+      api.logError({message: msg, stack: (err as Error).stack, context: 'handleNewEntryRequest'});
+    }
+  }
 
   const handleMasterDataSave = async (userId: number, data: MasterData) => {
       try {
@@ -225,6 +285,7 @@ export const MainAppView: React.FC = () => {
   const processRequest = async (requestId: string, finalStatus: 'genehmigt' | 'abgelehnt') => {
       try {
         await api.processApprovalRequest(requestId, finalStatus);
+        try { setApprovalRequests(await api.getPendingApprovals()); } catch {}
         await refreshData();
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Fehler beim Bearbeiten des Antrags.';
@@ -314,7 +375,7 @@ export const MainAppView: React.FC = () => {
       case 'timesheet': return <TimeSheetView onBack={() => setViewState({ current: 'main'})} currentUser={currentUser} onShowDetails={(date, username) => setViewState({ current: 'daydetail', context: { date, username } })} timeEntries={timeEntries} masterData={masterData} approvalRequests={approvalRequests} allUsers={users} locations={globalSettings.locations}/>;
       case 'masterdata': return <MasterDataView onBack={() => setViewState({ current: 'main'})} masterData={masterData} users={users} currentUser={currentUser} onSave={handleMasterDataSave} onEditRole={(user) => setEditingRoleForUser(user)} locations={globalSettings.locations}/>;
       case 'daydetail': return <DayDetailView onBack={() => setViewState({ current: 'timesheet'})} onGoToMain={() => setViewState({ current: 'main' })} onShowHistory={() => setViewState({ current: 'changehistory', context: viewState.context })} date={viewState.context.date} username={viewState.context.username} userRole={currentUser.role} entries={timeEntries} approvalRequests={approvalRequests} onEdit={(entry) => setEditingEntry(entry)} onDelete={(entry) => setDeletingEntry(entry)}/>;
-      case 'approvals': return <ApprovalView onBack={() => setViewState({ current: 'main' })} requests={approvalRequests} onApprove={(id) => processRequest(id, 'genehmigt')} onReject={(id) => processRequest(id, 'abgelehnt')}/>;
+      case 'approvals': return <ApprovalView onBack={() => setViewState({ current: 'main' })} requests={approvalRequests} onApprove={(id) => processRequest(id, 'genehmigt')} onReject={(id) => processRequest(id, 'abgelehnt')} onLoadAll={async ()=>{ try { setApprovalRequests(await api.getAllApprovals()); } catch(e){} }} onLoadPending={async ()=>{ try { setApprovalRequests(await api.getPendingApprovals()); } catch(e){} }} />;
       case 'changehistory': return <ChangeHistoryView onBack={() => setViewState({ current: 'daydetail', context: viewState.context })} history={history} allUsers={users} locations={globalSettings.locations}/>;
       case 'dashboard': return <DashboardView onBack={() => setViewState({ current: 'main' })} timeEntries={timeEntries} users={users} currentUser={currentUser} locations={globalSettings.locations}/>;
       case 'globalsettings': return <GlobalSettingsView onBack={() => setViewState({ current: 'main' })} settings={globalSettings} onSave={handleGlobalSettingsSave}/>;
@@ -332,6 +393,7 @@ export const MainAppView: React.FC = () => {
             />
             <nav className="nav-buttons" aria-label="Hauptnavigation">
               <button className="nav-button" onClick={() => setViewState({ current: 'timesheet' })}>Arbeitszeiten anzeigen</button>
+              <button className="nav-button" onClick={() => setRequestNewEntryOpen(true)}>Zeit nachtragen</button>
               <button className="nav-button" onClick={() => setViewState({ current: 'dashboard' })}>Dashboard</button>
               {canSeeMasterData && (<button className="nav-button" onClick={() => setViewState({ current: 'masterdata' })}>Stammdaten</button>)}
               {canApprove && (<button className="nav-button" onClick={() => setViewState({ current: 'approvals' })}>Genehmigungen{approvalRequests.length > 0 && <span className="notification-badge">{approvalRequests.length}</span>}</button>)}
@@ -357,6 +419,9 @@ export const MainAppView: React.FC = () => {
         {renderContent()}
         {editingEntry && currentUser && globalSettings &&( <EditEntryModal entry={editingEntry} onClose={() => setEditingEntry(null)} onSave={handleEditRequest} changeReasons={globalSettings.changeReasons} currentUser={currentUser}/> )}
         {deletingEntry && ( <ConfirmDeleteModal onCancel={() => setDeletingEntry(null)} onConfirm={handleDeleteRequest}/> )}
+        {requestNewEntryOpen && currentUser && globalSettings && (
+          <NewEntryModal onClose={() => setRequestNewEntryOpen(false)} onSubmit={handleNewEntryRequest} locations={globalSettings.locations} defaultRole={currentUser.role} changeReasons={globalSettings.changeReasons} />
+        )}
         {editingRoleForUser && currentUser && ( <RoleAssignmentModal user={editingRoleForUser} currentUser={currentUser} onClose={() => setEditingRoleForUser(null)} onSave={handleRoleSave}/> )}
         {showSupervisorModal && ( <SupervisorNotificationModal notifications={supervisorNotifications} onClose={closeSupervisorModal}/> )}
       </div>

@@ -144,6 +144,9 @@ export const TimeSheetView: React.FC<{
       <header className="view-header">
         <h2>Arbeitszeitenübersicht</h2>
       </header>
+      <div className="nav-buttons" style={{ marginBottom: 8 }}>
+        <button className="nav-button" onClick={onBack}>Zurück zur Startseite</button>
+      </div>
       
       <div className="timesheet-controls">
         <div className="filters-container">
@@ -202,7 +205,21 @@ export const TimeSheetView: React.FC<{
             Keine Einträge gefunden. Passen Sie ggf. die Filter an (Zeitraum, Standort, Benutzer).
           </div>
         ) : (
-        <table className="data-table">
+        <table className="data-table" style={{ tableLayout: 'auto' }}>
+          <colgroup>
+            <col /> {/* Details */}
+            <col /> {/* Username */}
+            <col /> {/* Datum */}
+            <col /> {/* Startzeit */}
+            <col /> {/* Stoppzeit */}
+            <col /> {/* Gesamtzeit */}
+            <col /> {/* Pause */}
+            <col /> {/* Soll/Ist-Diff. */}
+            <col style={{ width: '240px' }} /> {/* Standort */}
+            {currentUser.role !== 'Mitarbeiter' && (<col />)} {/* Rolle (optional) */}
+            <col /> {/* Geändert von */}
+            <col /> {/* Geändert am */}
+          </colgroup>
           <thead>
             <tr>
               <th>Details</th>
@@ -241,10 +258,10 @@ export const TimeSheetView: React.FC<{
                     <td className="cell-center" style={{color: diffSeconds < 0 ? 'var(--red-color)' : 'var(--green-color)'}}>
                       {diffSign}{formatTime(Math.abs(diffSeconds))}
                     </td>
-                    <td className="text-left">{entry.location}</td>
-                    {currentUser.role !== 'Mitarbeiter' && <td className="text-left">{entry.role}</td>}
-                    <td className="text-left">{entry.updatedBy}</td>
-                    <td className="cell-center">{new Date(entry.updatedAt).toLocaleString('de-DE')}</td>
+                <td className="text-left">{entry.location}</td>
+                {currentUser.role !== 'Mitarbeiter' && <td className="text-left">{entry.role}</td>}
+                <td className="text-left">{entry.updatedBy}</td>
+                <td className="cell-center">{new Date(entry.updatedAt).toLocaleString('de-DE')}</td>
                   </tr>
                 );
             })}
