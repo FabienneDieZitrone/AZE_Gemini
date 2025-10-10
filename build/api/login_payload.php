@@ -65,8 +65,8 @@ if ($mysqli->connect_error) {
 }
 $mysqli->set_charset('utf8mb4');
 
-$mysqli->begin_transaction();
-try {
+  $mysqli->begin_transaction();
+  try {
   $azure_oid = $sessionUser['oid'];
   $display_name = $sessionUser['name'] ?? $sessionUser['display_name'] ?? 'Unknown User';
   $email = $sessionUser['email'] ?? $sessionUser['preferred_username'] ?? $sessionUser['username'] ?? '';
@@ -98,6 +98,81 @@ try {
     $m->close();
   }
 
+  // Client-IP ermitteln
+  $clientIp = $_SERVER['HTTP_CF_CONNECTING_IP'] ?? ($_SERVER['HTTP_X_FORWARDED_FOR'] ?? ($_SERVER['REMOTE_ADDR'] ?? ''));
+  if (strpos($clientIp, ',') !== false) { $clientIp = trim(explode(',', $clientIp)[0]); }
+  // IP→Standort Map (Prefix-Match) – Default-Hardcode
+  $ipMap = [
+    '10.63.91.' => 'PIN',
+    '10.63.98.' => 'BER FRI 5.OG',
+    '10.96.91.' => 'BER STO 7.OG',
+    '10.84.91.' => 'BER GRU 4.OG',
+    '10.155.91.' => 'BRE HER',
+    '10.49.1.' => 'BER GRU',
+    '10.49.2.' => 'HAN GEO',
+    '10.49.3.' => 'BER BOS 6.OG',
+    '10.49.4.' => 'BER COL',
+    '10.49.5.' => 'NEU FAB',
+    '10.49.6.' => 'BER LYN',
+    '10.49.7.' => 'BER BOS 3.OG',
+    '10.49.8.' => 'HAM SPA 4.OG',
+    '10.49.9.' => 'HAM NOR BRE FOE',
+    '10.49.10.' => 'ITZ',
+    '10.49.11.' => 'BRE MAR 2.OG',
+    '10.49.12.' => 'LAU',
+    '10.49.13.' => 'HAL',
+    '10.49.14.' => 'BRE HER',
+    '10.49.15.' => 'BRE TEE',
+    '10.49.16.' => 'SEN',
+    '192.168.179.' => 'SEN',
+    '10.49.17.' => 'MAG RE  MUE2 (B)',
+    '10.49.18.' => 'COT',
+    '10.49.19.' => 'HAM SPA 8.OG',
+    '10.49.20.' => 'BRE PRU',
+    '10.49.21.' => 'ELM',
+    '10.49.22.' => 'BRE KRA',
+    '10.49.23.' => 'HAM SPA 2.OG B',
+    '10.49.24.' => 'HAM SPA 4.OG B',
+    '10.49.25.' => 'HAM SPA 8.OG B',
+    '10.49.26.' => 'MUE (A)',
+    '10.49.27.' => 'BER PIC',
+    '10.49.28.' => 'BRE HOL',
+    '10.49.29.' => 'BRE LOU',
+    '192.168.0.'  => 'BRE KRA',
+    '10.49.35.' => 'BER GRU 1.OG',
+    '10.49.36.' => 'GLU',
+    '10.49.50.' => 'BER GRU 7.OG',
+    '10.49.55.' => 'HAN BOE',
+    '10.49.71.' => 'BRE DEI',
+    '10.49.91.' => 'ELM',
+    '10.49.113.' => 'BRE MAR 5.OG',
+    '10.49.115.' => 'BER BAD',
+    '10.49.163.' => 'HAM SPA 2. OG',
+  ];
+  // Optional: Overrides aus cache/ip-location-map.json (vom Admin pflegbar)
+  $overrideFile = __DIR__ . '/../cache/ip-location-map.json';
+  if (is_readable($overrideFile)) {
+    $ovr = json_decode(@file_get_contents($overrideFile), true);
+    if (isset($ovr['entries']) && is_array($ovr['entries'])) {
+      // Admin-Overrides sollen Vorrang haben: vorn einfügen
+      $ovrMap = [];
+      foreach ($ovr['entries'] as $e) {
+        $p = (string)($e['prefix'] ?? ''); $l = (string)($e['location'] ?? '');
+        if ($p !== '' && $l !== '') { $ovrMap[$p] = $l; }
+      }
+      $ipMap = array_merge($ovrMap, $ipMap);
+    }
+  }
+
+  $detectedLocation = '';
+  foreach ($ipMap as $prefix => $locName) {
+    if ($clientIp && strpos($clientIp, $prefix) === 0) { $detectedLocation = $locName; break; }
+  }
+  // Default: Home Office, wenn keine Zuordnung gefunden wurde
+  if ($detectedLocation === '') { $detectedLocation = 'Home Office'; }
+  // in Session für serverseitige Filter (z. B. Standortleiter) bereitstellen
+  $_SESSION['user']['location'] = $detectedLocation;
+
   $response = [
     'success' => true,
     'currentUser' => [
@@ -116,6 +191,8 @@ try {
       'changeReasons' => ['Vergessen','Fehler','Nachträglich'],
       'locations' => ['Zentrale Berlin']
     ],
+    // Neuer Schlüssel für die UI (optional): erkannter Standort
+    'currentLocation' => $detectedLocation,
   ];
 
   if ($res = $mysqli->query('SELECT id, display_name AS name, role, azure_oid AS azureOid FROM users')) {
@@ -134,9 +211,71 @@ try {
     $response['masterData'] = $md;
     $res->close();
   }
-  if ($res = $mysqli->query("SELECT id, user_id AS userId, username, date, start_time AS startTime, stop_time AS stopTime, location, role, created_at AS createdAt, updated_by AS updatedBy, updated_at AS updatedAt FROM time_entries ORDER BY date DESC, start_time DESC")) {
-    $response['timeEntries'] = $res->fetch_all(MYSQLI_ASSOC);
-    $res->close();
+  // Lade Zeiteinträge; für den aktuellen Benutzer wird 'Web'/leere location visuell auf den erkannten Standort gemappt
+  if ($stmt = $mysqli->prepare("SELECT id, user_id AS userId, username, date, start_time AS startTime, stop_time AS stopTime,
+    CASE WHEN (LOWER(COALESCE(location,'')) IN ('web','') AND user_id = ?) THEN ? ELSE location END AS location,
+    role, created_at AS createdAt, updated_by AS updatedBy, updated_at AS updatedAt
+    FROM time_entries ORDER BY date DESC, start_time DESC")) {
+    $stmt->bind_param('is', $user_id, $detectedLocation);
+    if ($stmt->execute()) {
+      $res = $stmt->get_result();
+      $response['timeEntries'] = $res->fetch_all(MYSQLI_ASSOC);
+    }
+    $stmt->close();
+  }
+
+  // Globale Einstellungen (aus DB), dabei sicherstellen: "Home Office" ist in der Standortliste enthalten
+  if ($s = $mysqli->query('SELECT overtime_threshold, change_reasons, locations FROM global_settings WHERE id = 1')) {
+    if ($row = $s->fetch_assoc()) {
+      $ot = isset($row['overtime_threshold']) ? (float)$row['overtime_threshold'] : $response['globalSettings']['overtimeThreshold'];
+      $cr = json_decode($row['change_reasons'], true);
+      if (!is_array($cr) || empty($cr)) { $cr = $response['globalSettings']['changeReasons']; }
+      $locs = json_decode($row['locations'], true);
+      if (!is_array($locs) || empty($locs)) { $locs = $response['globalSettings']['locations']; }
+      // "Home Office" hinzufügen, falls nicht vorhanden
+      if (!in_array('Home Office', $locs, true)) { $locs[] = 'Home Office'; }
+      $response['globalSettings'] = [
+        'overtimeThreshold' => $ot,
+        'changeReasons' => $cr,
+        'locations' => $locs,
+      ];
+    } else {
+      // Fallback: nur Home Office ergänzen
+      if (!in_array('Home Office', $response['globalSettings']['locations'], true)) {
+        $response['globalSettings']['locations'][] = 'Home Office';
+      }
+    }
+    $s->close();
+  } else {
+    // Fallback ohne DB: Home Office ergänzen
+    if (!in_array('Home Office', $response['globalSettings']['locations'], true)) {
+      $response['globalSettings']['locations'][] = 'Home Office';
+    }
+  }
+
+  // Sicherstellen: Alle Standorte aus der IP→Standort‑Zuordnung sind auch in der Stammliste vorhanden
+  if (is_array($response['globalSettings']['locations'])) {
+    $locSet = array_fill_keys($response['globalSettings']['locations'], true);
+    foreach ($ipMap as $p => $lname) {
+      $lname = trim((string)$lname);
+      if ($lname !== '' && !isset($locSet[$lname])) {
+        $response['globalSettings']['locations'][] = $lname;
+        $locSet[$lname] = true;
+      }
+    }
+    // Sortiere alphabetisch (case-insensitive)
+    $locationsSorted = $response['globalSettings']['locations'];
+    usort($locationsSorted, function($a,$b){ return strcasecmp($a,$b); });
+    $response['globalSettings']['locations'] = array_values(array_unique($locationsSorted));
+    // Persistiere in DB (global_settings.locations)
+    try {
+      if ($up = $mysqli->prepare('UPDATE global_settings SET locations = ? WHERE id = 1')) {
+        $json = json_encode($response['globalSettings']['locations'], JSON_UNESCAPED_UNICODE);
+        $up->bind_param('s', $json);
+        @$up->execute();
+        $up->close();
+      }
+    } catch (Throwable $e) { /* ignore persist errors */ }
   }
 
   // Inject approvalRequests (rollenbasiert)
