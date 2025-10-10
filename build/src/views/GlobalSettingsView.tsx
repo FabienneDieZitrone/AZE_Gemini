@@ -37,6 +37,20 @@ export const GlobalSettingsView: React.FC<{
     
     const handleRemoveLocation = (locationToRemove: string) => {
         setFormData(prev => ({...prev, locations: prev.locations.filter(loc => loc !== locationToRemove)}));
+        // Entferne auch eventuelle Mapping-Zeilen mit diesem Standort
+        setIpMap(prev => prev.map(r => (r.location === locationToRemove ? { ...r, location: '' } : r)));
+    };
+
+    const handleRenameLocation = (oldName: string, newName: string) => {
+        const n = newName.trim();
+        if (!n) return; // keine leeren Namen
+        setFormData(prev => {
+            // Verhindere Duplikate
+            if (prev.locations.includes(n) && oldName !== n) return prev;
+            return { ...prev, locations: prev.locations.map(loc => loc === oldName ? n : loc) };
+        });
+        // Mapping-Einträge auf neuen Namen anpassen
+        setIpMap(prev => prev.map(r => (r.location === oldName ? { ...r, location: newName } : r)));
     };
 
     // IP→Standort Map laden
@@ -113,9 +127,24 @@ export const GlobalSettingsView: React.FC<{
                     <div className="form-group location-manager">
                         <label>Standorte (Stammliste)</label>
                         <ul className="location-list">
-                            {[...formData.locations].sort((a,b)=>a.localeCompare(b,'de',{sensitivity:'base'})).map(loc => (
-                                <li key={loc}>
-                                    <span>{loc}</span>
+                            {formData.locations.map(loc => (
+                                <li key={loc} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                    <input
+                                        type="text"
+                                        defaultValue={loc}
+                                        onBlur={(e) => {
+                                            const v = e.currentTarget.value;
+                                            if (v !== loc) handleRenameLocation(loc, v);
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                const v = (e.target as HTMLInputElement).value;
+                                                if (v !== loc) handleRenameLocation(loc, v);
+                                            }
+                                        }}
+                                        title="Standortnamen bearbeiten und Enter drücken"
+                                        style={{ width: 240 }}
+                                    />
                                     <button type="button" onClick={() => handleRemoveLocation(loc)}>&times;</button>
                                 </li>
                             ))}
@@ -131,10 +160,11 @@ export const GlobalSettingsView: React.FC<{
                         </div>
                     </div>
 
-                    <div className="form-group location-manager">
+                    <div className="form-group location-manager" style={{ gridColumn: '1 / -1' }}>
                         <label>IP → Standort Zuordnung (nur Standorte aus Stammliste erlaubt)</label>
                         {ipLoadError && <div className="error">{ipLoadError}</div>}
-                        <table className="data-table" style={{ tableLayout: 'auto' }}>
+                        <div style={{ overflowX: 'auto' }}>
+                        <table className="data-table" style={{ tableLayout: 'auto', width: '100%' }}>
                             <colgroup>
                                 <col style={{ width: '220px' }} /> {/* IP-Präfix */}
                                 <col style={{ width: '280px' }} /> {/* Standort */}
@@ -170,6 +200,7 @@ export const GlobalSettingsView: React.FC<{
                                 ))}
                             </tbody>
                         </table>
+                        </div>
                         <datalist id="locations-list">
                           {[...formData.locations].sort((a,b)=>a.localeCompare(b,'de',{sensitivity:'base'})).map(loc => (<option key={loc} value={loc} />))}
                         </datalist>
