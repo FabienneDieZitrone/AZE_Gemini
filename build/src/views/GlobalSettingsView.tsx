@@ -14,6 +14,9 @@ export const GlobalSettingsView: React.FC<{
     onSave: (newSettings: GlobalSettings) => void;
 }> = ({ onBack, settings, onSave }) => {
     const [formData, setFormData] = useState(settings);
+    const [ipMap, setIpMap] = useState<{prefix: string; location: string}[]>([]);
+    const [ipLoadError, setIpLoadError] = useState<string | null>(null);
+    const [ipValidation, setIpValidation] = useState<boolean[]>([]);
     const [newLocation, setNewLocation] = useState('');
 
     useEffect(() => {
@@ -36,9 +39,45 @@ export const GlobalSettingsView: React.FC<{
         setFormData(prev => ({...prev, locations: prev.locations.filter(loc => loc !== locationToRemove)}));
     };
 
+    // IP→Standort Map laden
+    useEffect(() => {
+        fetch('/api/ip-location-map.php', { credentials: 'include' })
+            .then(r => r.json())
+            .then(d => {
+                if (d && Array.isArray(d.entries)) {
+                  setIpMap(d.entries);
+                }
+            })
+            .catch(() => setIpLoadError('Fehler beim Laden der IP-Zuordnung.'));
+    }, []);
+
+    // Simple IP prefix validation: allow patterns like 10.49.1. or 192.168.0.
+    const isValidPrefix = (p: string) => /^\d{1,3}(?:\.\d{1,3}){1,3}\.?$/.test(p.trim());
+    useEffect(() => {
+        setIpValidation(ipMap.map(r => !!r.prefix && !!r.location && isValidPrefix(r.prefix)));
+    }, [ipMap]);
+
+    const handleAddIpRow = () => setIpMap(prev => [...prev, { prefix: '', location: '' }]);
+    const handleUpdateIpRow = (idx: number, key: 'prefix'|'location', val: string) => {
+        setIpMap(prev => prev.map((e,i)=> i===idx ? ({...e, [key]: val}) : e));
+    };
+    const handleRemoveIpRow = (idx: number) => setIpMap(prev => prev.filter((_,i)=>i!==idx));
+    const handleSaveIpMap = async () => {
+        try {
+            const res = await fetch('/api/ip-location-map.php', {
+                method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ entries: ipMap })
+            });
+            if (!res.ok) throw new Error(await res.text());
+            alert('IP-Standort-Zuordnung gespeichert.');
+        } catch {
+            alert('Speichern der IP-Standort-Zuordnung fehlgeschlagen.');
+        }
+    };
+
     return (
         <div className="view-container">
-             <header className="view-header">
+            <header className="view-header">
                 <h2>Globale Einstellungen</h2>
             </header>
             <form className="master-data-form" onSubmit={handleSave}>
@@ -64,9 +103,9 @@ export const GlobalSettingsView: React.FC<{
                          />
                     </div>
                     <div className="form-group location-manager">
-                        <label>Standorte verwalten</label>
+                        <label>Standorte (Stammliste)</label>
                         <ul className="location-list">
-                            {formData.locations.map(loc => (
+                            {[...formData.locations].sort((a,b)=>a.localeCompare(b,'de',{sensitivity:'base'})).map(loc => (
                                 <li key={loc}>
                                     <span>{loc}</span>
                                     <button type="button" onClick={() => handleRemoveLocation(loc)}>&times;</button>
@@ -82,6 +121,66 @@ export const GlobalSettingsView: React.FC<{
                             />
                             <button type="button" className="action-button" onClick={handleAddLocation}>Hinzufügen</button>
                         </div>
+                    </div>
+
+                    <div className="form-group location-manager">
+                        <label>IP → Standort Zuordnung (nur Standorte aus Stammliste erlaubt)</label>
+                        {ipLoadError && <div className="error">{ipLoadError}</div>}
+                        <table className="data-table" style={{ tableLayout: 'auto' }}>
+                            <colgroup>
+                                <col style={{ width: '220px' }} /> {/* IP-Präfix */}
+                                <col style={{ width: '280px' }} /> {/* Standort */}
+                                <col /> {/* Aktionen */}
+                            </colgroup>
+                            <thead><tr><th>IP-Präfix (z. B. 10.49.1.)</th><th>Standort</th><th></th></tr></thead>
+                            <tbody>
+                                {[...ipMap].sort((a,b)=> (a.location||'').localeCompare(b.location||'', 'de', {sensitivity:'base'})).map((row, idx) => (
+                                    <tr key={idx}>
+                                        <td>
+                                          <input 
+                                            value={row.prefix}
+                                            onChange={e=>handleUpdateIpRow(idx,'prefix',e.target.value)} 
+                                            placeholder="10.49.1."
+                                            aria-invalid={!ipValidation[idx] && !!row.prefix}
+                                            title={isValidPrefix(row.prefix) ? '' : 'Format: z. B. 10.49.1.'}
+                                            style={{ width: '210px' }}
+                                          />
+                                        </td>
+                                        <td>
+                                          <input 
+                                            value={row.location} 
+                                            onChange={e=>handleUpdateIpRow(idx,'location',e.target.value)} 
+                                            placeholder="BER GRU"
+                                            list="locations-list"
+                                            aria-invalid={!!row.location && !formData.locations.includes(row.location)}
+                                            title={formData.locations.includes(row.location) ? '' : 'Bitte einen vorhandenen Standort aus der Stammliste wählen'}
+                                            style={{ width: '260px' }}
+                                          />
+                                        </td>
+                                        <td><button type="button" onClick={()=>handleRemoveIpRow(idx)}>&times;</button></td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        <datalist id="locations-list">
+                          {[...formData.locations].sort((a,b)=>a.localeCompare(b,'de',{sensitivity:'base'})).map(loc => (<option key={loc} value={loc} />))}
+                        </datalist>
+                        <div style={{display:'flex', gap:8, marginTop:8}}>
+                            <button type="button" className="action-button" onClick={handleAddIpRow}>Zeile hinzufügen</button>
+                            <button 
+                              type="button" 
+                              className="action-button" 
+                              onClick={handleSaveIpMap} 
+                              disabled={ipMap.length>0 && (ipValidation.some(v=>!v) || ipMap.some(r => r.location && !formData.locations.includes(r.location)))}
+                            >
+                              Zuordnung speichern
+                            </button>
+                        </div>
+                        {ipMap.length>0 && (ipValidation.some(v=>!v) || ipMap.some(r => r.location && !formData.locations.includes(r.location))) && (
+                          <div className="error" role="alert" style={{ marginTop: 8 }}>
+                            Bitte korrigiere ungültige IP‑Präfixe (Format: z. B. 10.49.1.) und wähle nur Standorte aus der Stammliste.
+                          </div>
+                        )}
                     </div>
                 </div>
                  <div className="master-data-actions">
