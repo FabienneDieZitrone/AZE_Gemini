@@ -175,6 +175,7 @@ export const GlobalSettingsView: React.FC<{
                                 placeholder="Neuer Standort"
                             />
                             <button type="button" className="action-button" onClick={handleAddLocation}>Hinzufügen</button>
+                            <button type="submit" className="action-button" style={{ marginLeft: 8 }}>Einstellungen speichern</button>
                         </div>
                     </div>
 

@@ -255,27 +255,11 @@ $mysqli->set_charset('utf8mb4');
 
   // Sicherstellen: Alle Standorte aus der IP→Standort‑Zuordnung sind auch in der Stammliste vorhanden
   if (is_array($response['globalSettings']['locations'])) {
-    $locSet = array_fill_keys($response['globalSettings']['locations'], true);
-    foreach ($ipMap as $p => $lname) {
-      $lname = trim((string)$lname);
-      if ($lname !== '' && !isset($locSet[$lname])) {
-        $response['globalSettings']['locations'][] = $lname;
-        $locSet[$lname] = true;
-      }
-    }
-    // Sortiere alphabetisch (case-insensitive)
-    $locationsSorted = $response['globalSettings']['locations'];
+    // Keine automatische Ergänzung aus dem Mapping mehr; Stammliste bleibt autoritativ.
+    // Nur deduplizieren + optional sortieren für Anzeige:
+    $locationsSorted = array_values(array_unique($response['globalSettings']['locations']));
     usort($locationsSorted, function($a,$b){ return strcasecmp($a,$b); });
-    $response['globalSettings']['locations'] = array_values(array_unique($locationsSorted));
-    // Persistiere in DB (global_settings.locations)
-    try {
-      if ($up = $mysqli->prepare('UPDATE global_settings SET locations = ? WHERE id = 1')) {
-        $json = json_encode($response['globalSettings']['locations'], JSON_UNESCAPED_UNICODE);
-        $up->bind_param('s', $json);
-        @$up->execute();
-        $up->close();
-      }
-    } catch (Throwable $e) { /* ignore persist errors */ }
+    $response['globalSettings']['locations'] = $locationsSorted;
   }
 
   // Inject approvalRequests (rollenbasiert)
