@@ -16,7 +16,7 @@ export const GlobalSettingsView: React.FC<{
     const [formData, setFormData] = useState(settings);
     const [ipMap, setIpMap] = useState<{prefix: string; location: string}[]>([]);
     const [ipLoadError, setIpLoadError] = useState<string | null>(null);
-    const [ipValidation, setIpValidation] = useState<boolean[]>([]);
+    const [ipValidation, setIpValidation] = useState<{prefixOk: boolean; locationOk: boolean}[]>([]);
     const [newLocation, setNewLocation] = useState('');
 
     useEffect(() => {
@@ -68,9 +68,23 @@ export const GlobalSettingsView: React.FC<{
 
     // Simple IP prefix validation: allow patterns like 10.49.1. or 192.168.0.
     const isValidPrefix = (p: string) => /^\d{1,3}(?:\.\d{1,3}){1,3}\.?$/.test(p.trim());
+    const canonicalizeLocation = (name: string) => {
+        const n = name.trim();
+        if (!n) return '';
+        const found = formData.locations.find(l => l.localeCompare(n, 'de', {sensitivity:'base'}) === 0);
+        return found || '';
+    };
     useEffect(() => {
-        setIpValidation(ipMap.map(r => !!r.prefix && !!r.location && isValidPrefix(r.prefix)));
-    }, [ipMap]);
+        setIpValidation(ipMap.map(r => {
+            const p = (r.prefix||'').trim();
+            const loc = (r.location||'').trim();
+            // Leere Zeile ist okay (wird beim Speichern ignoriert)
+            if (!p && !loc) return { prefixOk: true, locationOk: true };
+            const prefixOk = !!p && isValidPrefix(p);
+            const locationOk = !!loc && !!canonicalizeLocation(loc);
+            return { prefixOk, locationOk };
+        }));
+    }, [ipMap, formData.locations]);
 
     const handleAddIpRow = () => setIpMap(prev => [...prev, { prefix: '', location: '' }]);
     const handleUpdateIpRow = (idx: number, key: 'prefix'|'location', val: string) => {
@@ -79,9 +93,13 @@ export const GlobalSettingsView: React.FC<{
     const handleRemoveIpRow = (idx: number) => setIpMap(prev => prev.filter((_,i)=>i!==idx));
     const handleSaveIpMap = async () => {
         try {
+            // Nur valide und vollständig ausgefüllte Zeilen übertragen
+            const entries = ipMap
+                .map(r => ({ prefix: (r.prefix||'').trim(), location: canonicalizeLocation(r.location||'') }))
+                .filter(r => r.prefix && r.location && isValidPrefix(r.prefix));
             const res = await fetch('/api/ip-location-map.php', {
                 method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ entries: ipMap })
+                body: JSON.stringify({ entries })
             });
             if (!res.ok) throw new Error(await res.text());
             // Nach dem Speichern frisch laden und alphabetisch sortieren
@@ -179,8 +197,8 @@ export const GlobalSettingsView: React.FC<{
                                             value={row.prefix}
                                             onChange={e=>handleUpdateIpRow(idx,'prefix',e.target.value)} 
                                             placeholder="10.49.1."
-                                            aria-invalid={!ipValidation[idx] && !!row.prefix}
-                                            title={isValidPrefix(row.prefix) ? '' : 'Format: z. B. 10.49.1.'}
+                                            aria-invalid={!ipValidation[idx]?.prefixOk}
+                                            title={ipValidation[idx]?.prefixOk ? '' : 'Format: z. B. 10.49.1.'}
                                             style={{ width: '210px' }}
                                           />
                                         </td>
@@ -190,8 +208,8 @@ export const GlobalSettingsView: React.FC<{
                                             onChange={e=>handleUpdateIpRow(idx,'location',e.target.value)} 
                                             placeholder="BER GRU"
                                             list="locations-list"
-                                            aria-invalid={!!row.location && !formData.locations.includes(row.location)}
-                                            title={formData.locations.includes(row.location) ? '' : 'Bitte einen vorhandenen Standort aus der Stammliste wählen'}
+                                            aria-invalid={!ipValidation[idx]?.locationOk}
+                                            title={ipValidation[idx]?.locationOk ? '' : 'Bitte einen vorhandenen Standort aus der Stammliste wählen'}
                                             style={{ width: '260px' }}
                                           />
                                         </td>
@@ -210,12 +228,25 @@ export const GlobalSettingsView: React.FC<{
                               type="button" 
                               className="action-button" 
                               onClick={handleSaveIpMap} 
-                              disabled={ipMap.length>0 && (ipValidation.some(v=>!v) || ipMap.some(r => r.location && !formData.locations.includes(r.location)))}
+                              disabled={ipMap.some((r, i) => {
+                                  const p = (r.prefix||'').trim();
+                                  const l = (r.location||'').trim();
+                                  // Komplette Leerzeilen ignorieren (dürfen bleiben)
+                                  if (!p && !l) return false;
+                                  const v = ipValidation[i] || {prefixOk:true, locationOk:true};
+                                  // Unvollständige oder ungültige Zeilen blockieren
+                                  return !(v.prefixOk && v.locationOk);
+                              })}
                             >
                               Zuordnung speichern
                             </button>
                         </div>
-                        {ipMap.length>0 && (ipValidation.some(v=>!v) || ipMap.some(r => r.location && !formData.locations.includes(r.location))) && (
+                        {ipMap.some((r,i)=>{
+                            const p=(r.prefix||'').trim(); const l=(r.location||'').trim();
+                            if (!p && !l) return false;
+                            const v=ipValidation[i]||{prefixOk:true,locationOk:true};
+                            return !(v.prefixOk && v.locationOk);
+                        }) && (
                           <div className="error" role="alert" style={{ marginTop: 8 }}>
                             Bitte korrigiere ungültige IP‑Präfixe (Format: z. B. 10.49.1.) und wähle nur Standorte aus der Stammliste.
                           </div>
