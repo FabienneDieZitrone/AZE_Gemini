@@ -51,7 +51,7 @@ export const MainAppView: React.FC = () => {
   const [editingRoleForUser, setEditingRoleForUser] = useState<User | null>(null);
   const [requestNewEntryOpen, setRequestNewEntryOpen] = useState<boolean>(false);
 
-  const [currentLocation] = useState('Zentrale Berlin');
+  const [currentLocation, setCurrentLocation] = useState<string>('Zentrale Berlin');
   const [theme, setTheme] = useState<Theme>('light');
   
   const [isLoading, setIsLoading] = useState(true);
@@ -71,6 +71,9 @@ export const MainAppView: React.FC = () => {
         setApprovalRequests(initialData.approvalRequests);
         setHistory(initialData.history);
         setGlobalSettings(initialData.globalSettings);
+        if ((initialData as any).currentLocation) {
+          setCurrentLocation((initialData as any).currentLocation);
+        }
         
     } catch (err) {
         // Die Fehlerbehandlung (inkl. 401-Redirect) wird global in api.ts erledigt.
@@ -172,6 +175,9 @@ export const MainAppView: React.FC = () => {
         // wieder auf alte Werte zurückgesetzt werden.
         setHistory(initialData.history);
         setGlobalSettings(initialData.globalSettings);
+        if ((initialData as any).currentLocation) {
+          setCurrentLocation((initialData as any).currentLocation);
+        }
     } catch(err) {
         const msg = err instanceof Error ? err.message : 'Fehler beim Aktualisieren der Daten.';
         setError(msg);
