@@ -45,7 +45,8 @@ export const GlobalSettingsView: React.FC<{
             .then(r => r.json())
             .then(d => {
                 if (d && Array.isArray(d.entries)) {
-                  setIpMap(d.entries);
+                  const sorted = [...d.entries].sort((a,b)=> (a.location||'').localeCompare(b.location||'', 'de', {sensitivity:'base'}));
+                  setIpMap(sorted);
                 }
             })
             .catch(() => setIpLoadError('Fehler beim Laden der IP-Zuordnung.'));
@@ -69,6 +70,13 @@ export const GlobalSettingsView: React.FC<{
                 body: JSON.stringify({ entries: ipMap })
             });
             if (!res.ok) throw new Error(await res.text());
+            // Nach dem Speichern frisch laden und alphabetisch sortieren
+            const re = await fetch('/api/ip-location-map.php', { credentials: 'include' });
+            const d = await re.json().catch(()=>null);
+            if (d && Array.isArray(d.entries)) {
+              const sorted = [...d.entries].sort((a,b)=> (a.location||'').localeCompare(b.location||'', 'de', {sensitivity:'base'}));
+              setIpMap(sorted);
+            }
             alert('IP-Standort-Zuordnung gespeichert.');
         } catch {
             alert('Speichern der IP-Standort-Zuordnung fehlgeschlagen.');
@@ -134,7 +142,7 @@ export const GlobalSettingsView: React.FC<{
                             </colgroup>
                             <thead><tr><th>IP-Präfix (z. B. 10.49.1.)</th><th>Standort</th><th></th></tr></thead>
                             <tbody>
-                                {[...ipMap].sort((a,b)=> (a.location||'').localeCompare(b.location||'', 'de', {sensitivity:'base'})).map((row, idx) => (
+                                {ipMap.map((row, idx) => (
                                     <tr key={idx}>
                                         <td>
                                           <input 
