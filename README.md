@@ -81,3 +81,13 @@ npm audit fix
 GitHub Repository: https://github.com/FabienneDieZitrone/AZE_Gemini.git
 
 **Für Entwickler**: Lesen Sie zuerst [`CLAUDE.local.md`](CLAUDE.local.md) für vollständige Setup-Anweisungen!
+# MP Arbeitszeiterfassung
+
+## Release v2025-10-07 – Approvals + Globale Einstellungen
+
+- Approvals: Korrekte Pending/Alle-Filterung (GET), Transaktionen bei POST (kein Datenverlust), Login‑Payload liefert nur echte Pending‑Anträge.
+- Standort: IP→Standort‑Zuordnung pflegbar; Standort wird bei Start/Stop erzwungen (keine „Web“-Defaults mehr).
+- Globale Einstellungen: Stammliste inline editierbar, zusätzlicher Speichern‑Button, IP‑Zuordnung validiert (nur Stammlisten‑Namen), Tabellen untereinander.
+- Infra: `.htaccess` Symlink‑Fix; Deploy synchronisiert index.html und Hash‑Assets; leere Seite (fehlende Assets) behoben.
+
+Weitere Details siehe `build/docs/CONTINUATION_NOTES_2025-10-09.md`.
