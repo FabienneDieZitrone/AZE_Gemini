@@ -17,6 +17,9 @@
  */
 
 require_once __DIR__ . '/constants.php';
+// Backward-compatible defaults if constants.php does not define time constants
+if (!defined('SECONDS_PER_HOUR')) { define('SECONDS_PER_HOUR', 3600); }
+if (!defined('SECONDS_PER_DAY')) { define('SECONDS_PER_DAY', 86400); }
 
 /**
  * Polyfill für die Funktion getallheaders(), falls sie nicht existiert (z.B. bei FastCGI-Setups).
@@ -85,28 +88,58 @@ function send_response($status_code, $data = null) {
  * Diese Funktion behebt das Cookie-Pfad-Problem.
  */
 function start_secure_session() {
+    // KRITISCH: session_name('AZE_SESSION') als ALLERERSTE Operation!
+    // Falls bereits eine Session mit anderem Namen aktiv ist, wird sie hierdurch NICHT geändert.
+    // Falls KEINE Session aktiv ist, wird der Name für die nächste session_start() gesetzt.
+    session_name('AZE_SESSION');
+
+    // Falls bereits eine Session aktiv ist (mit altem Namen), migrieren
+    $migrate = null;
     if (session_status() === PHP_SESSION_ACTIVE) {
-        return;
+        // Session läuft bereits - wir müssen sie schließen und neu starten
+        $migrate = $_SESSION ?? null;
+        session_write_close();
     }
-    
-    // FINALE KORREKTUR: Verwende die offizielle PHP-Methode, um die Cookie-Parameter
-    // VOR dem Starten der Session zu setzen.
+
+    // Härtung der Session-Engine
+    @ini_set('session.use_strict_mode', '1');
+    @ini_set('session.use_only_cookies', '1');
+    @ini_set('session.cookie_httponly', '1');
+    @ini_set('session.cookie_secure', '1');
+    @ini_set('session.cookie_samesite', 'Lax');
+
+    // Set cookie params BEFORE session_start
     session_set_cookie_params([
-        'lifetime' => 0, // CRITICAL FIX: Browser-Session (läuft ab beim Browser-Schließen)
-        'path' => '/',   // WICHTIG: Setzt den Pfad auf die Wurzel der Domain.
-        'domain' => $_SERVER['HTTP_HOST'],
-        'secure' => true,      // Nur über HTTPS senden.
-        'httponly' => true,    // Für JavaScript unzugänglich machen.
-        'samesite' => 'Lax' // CRITICAL FIX: Lax für OAuth-Redirects (Strict blockiert)
+        'lifetime' => 0,
+        'path' => '/',
+        'domain' => '',  // Empty = current domain automatically
+        'secure' => true,
+        'httponly' => true,
+        'samesite' => 'Lax'
     ]);
-    
+
+    // Start session mit dem neuen Namen
+    // Auch wenn session_status() noch ACTIVE ist, können wir eine neue Session starten
     session_start();
-    
-    // Initialisiere Session-Zeitstempel beim ersten Start
-    if (!isset($_SESSION['created_at'])) {
-        $_SESSION['created_at'] = time();
-        $_SESSION['last_activity'] = time();
+
+    // Browser-seitig altes PHPSESSID-Cookie löschen
+    if (isset($_COOKIE['PHPSESSID'])) {
+        setcookie('PHPSESSID', '', time() - 3600, '/', '', true, true);
     }
+
+    // Migriere relevante Daten aus vorheriger Session (falls vorhanden)
+    if (isset($migrate) && is_array($migrate)) {
+        foreach (['user','created_at','last_activity','last_regeneration'] as $k) {
+            if (isset($migrate[$k]) && !isset($_SESSION[$k])) {
+                $_SESSION[$k] = $migrate[$k];
+            }
+        }
+    }
+
+    // Initialisiere/fixe Session-Zeitstempel robust
+    $now = time();
+    if (!isset($_SESSION['created_at'])) { $_SESSION['created_at'] = $now; }
+    if (!isset($_SESSION['last_activity'])) { $_SESSION['last_activity'] = $now; }
 }
 
 /**
@@ -213,4 +246,3 @@ function destroy_session_completely() {
     
     error_log("Session completely destroyed");
 }
-?>

@@ -1,41 +1,50 @@
 <?php
 /**
- * Titel: Auth Status Check Endpunkt
- * Version: 1.0
- * Letzte Aktualisierung: 10.11.2024
- * Autor: MP-IT
- * Datei: /api/auth-status.php
- * Beschreibung: Überprüft die Session und gibt 204 bei Erfolg oder 401 bei Fehler zurück.
- *              Wird von der Frontend-App beim Start aufgerufen, um den Login-Status zu ermitteln.
+ * Auth Status Check Endpoint - Minimal version without middleware
+ * Returns:
+ *  - 204 No Content if a valid session exists
+ *  - 401 Unauthorized if no valid session exists
  */
 
-// CRITICAL FIX: Force browser session (no auto-login in private windows)
-ini_set('session.cookie_lifetime', 0);
+// CORS headers
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+if ($origin === 'https://aze.mikropartner.de' || $origin === 'http://localhost:5173') {
+    header("Access-Control-Allow-Origin: $origin");
+    header("Access-Control-Allow-Credentials: true");
+}
+
+// Handle OPTIONS preflight
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    header("Access-Control-Allow-Methods: GET, OPTIONS");
+    header("Access-Control-Allow-Headers: Content-Type");
+    http_response_code(200);
+    exit;
+}
+
+// Start session with same config as other endpoints
+session_name('AZE_SESSION');
 session_set_cookie_params([
-    'lifetime' => 0,  // Browser session only
+    'lifetime' => 0,
     'path' => '/',
-    'domain' => $_SERVER['HTTP_HOST'] ?? '',
+    'domain' => '',  // MUST be empty string for cookies to work correctly
     'secure' => true,
     'httponly' => true,
     'samesite' => 'Lax'
 ]);
 
-// Define API guard constant
-define('API_GUARD', true);
+if (session_status() !== PHP_SESSION_ACTIVE) {
+    @session_start();
+}
 
-require_once __DIR__ . '/auth_helpers.php';
-require_once __DIR__ . '/security-middleware.php';
+// Check if user exists in session
+$hasUser = isset($_SESSION['user']) && !empty($_SESSION['user']['oid']);
 
-initialize_api();
+if ($hasUser) {
+    // Valid session
+    http_response_code(204);
+    exit;
+}
 
-// Apply security headers
-initSecurityMiddleware();
-
-// Diese Funktion erledigt die gesamte Arbeit: Sie startet die Session, prüft auf einen
-// gültigen 'user'-Eintrag und sendet automatisch eine 401-Antwort, falls keiner gefunden wird.
-verify_session_and_get_user();
-
-// Wenn das Skript bis hierhin gelangt, ist die Session gültig.
-// Wir senden eine 204 No Content Antwort, da der Aufrufer nur den HTTP-Statuscode benötigt.
-send_response(204);
-?>
+// No valid session
+http_response_code(401);
+exit;

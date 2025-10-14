@@ -17,18 +17,26 @@ const fetchApi = async (endpoint: string, options: RequestInit & { isAuthCheck?:
         new Headers(options.headers).forEach((value, key) => headers.set(key, value));
     }
     
+    const controller = new AbortController();
     const fetchOptions: RequestInit = {
         ...options,
         headers,
-        credentials: 'include' 
+        credentials: 'include',
+        signal: controller.signal,
     };
-
-    const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), API.TIMEOUT_MS);
 
-    const response = await fetch(`${API.BASE_URL}${endpoint}`, fetchOptions);
-    
-    clearTimeout(timeoutId);
+    let response: Response;
+    try {
+        response = await fetch(`${API.BASE_URL}${endpoint}`, fetchOptions);
+    } catch (err: any) {
+        if (err?.name === 'AbortError') {
+            throw new Error('Die Anfrage hat zu lange gedauert und wurde abgebrochen (Timeout).');
+        }
+        throw err;
+    } finally {
+        clearTimeout(timeoutId);
+    }
     
     if (response.status === 401 && !options.isAuthCheck) {
         window.location.href = '/'; 
@@ -68,6 +76,14 @@ const fetchApi = async (endpoint: string, options: RequestInit & { isAuthCheck?:
     return response.text();
 };
 
+// Fetch CSRF token for state-changing operations
+const getCsrfToken = async (): Promise<string> => {
+    const res = await fetch(`/api/csrf-token.php`, { credentials: 'include' });
+    if (!res.ok) throw new Error('CSRF Token konnte nicht geladen werden');
+    const d = await res.json();
+    return d?.csrfToken;
+};
+
 
 // === API-Methoden ===
 export const api = {
@@ -92,42 +108,51 @@ export const api = {
     },
 
     loginAndGetInitialData: async () => {
-        // Dieser Aufruf funktioniert weiterhin, prüft aber nun die serverseitige Session.
         return fetchApi('/login.php', { method: 'POST' });
     },
 
     addTimeEntry: async (entryData: Omit<TimeEntry, 'id'>) => {
+        const csrf = await getCsrfToken();
         return fetchApi('/time-entries.php', {
             method: 'POST',
-            body: JSON.stringify(entryData),
+            headers: { 'X-CSRF-Token': csrf },
+            body: JSON.stringify({ ...entryData, csrf_token: csrf }),
         });
     },
 
     requestEntryChange: async (requestData: EntryChangeRequestPayload) => {
-         return fetchApi('/approvals.php', {
+        const csrf = await getCsrfToken();
+        return fetchApi('/approvals.php', {
             method: 'POST',
-            body: JSON.stringify(requestData)
+            headers: { 'X-CSRF-Token': csrf },
+            body: JSON.stringify({ ...requestData, csrf_token: csrf })
         });
     },
 
     updateMasterData: async (userId: number, data: MasterData) => {
+        const csrf = await getCsrfToken();
         return fetchApi('/masterdata.php', {
             method: 'PUT',
-            body: JSON.stringify({ userId, ...data })
+            headers: { 'X-CSRF-Token': csrf },
+            body: JSON.stringify({ userId, ...data, csrf_token: csrf })
         });
     },
 
     updateUserRole: async (userId: number, newRole: Role) => {
-         return fetchApi('/users.php', {
+        const csrf = await getCsrfToken();
+        return fetchApi('/users.php', {
             method: 'PATCH',
-            body: JSON.stringify({ userId, newRole })
+            headers: { 'X-CSRF-Token': csrf },
+            body: JSON.stringify({ userId, newRole, csrf_token: csrf })
         });
     },
 
     processApprovalRequest: async (requestId: string, finalStatus: 'genehmigt' | 'abgelehnt') => {
+        const csrf = await getCsrfToken();
         return fetchApi('/approvals.php', {
             method: 'PATCH',
-            body: JSON.stringify({ requestId, finalStatus })
+            headers: { 'X-CSRF-Token': csrf },
+            body: JSON.stringify({ requestId, finalStatus, csrf_token: csrf })
         });
     },
 

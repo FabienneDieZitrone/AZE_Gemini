@@ -1,357 +1,419 @@
 <?php
 /**
- * Titel: Zentraler Login- und Synchronisierungs-Endpunkt
- * Version: 2.1 (Include-Path Fix)
- * Letzte Aktualisierung: 19.07.2025
- * Autor: MP-IT
- * Status: Final
- * Datei: /api/login.php
- * Beschreibung: Dieser Endpunkt wird nun nach der erfolgreichen serverseitigen Authentifizierung aufgerufen.
- *              Er validiert die bestehende Session und synchronisiert dann den Benutzer mit der Datenbank.
- * 
- * FIXED: Variable-Referenz-Fehler - $current_user_data -> $current_user_for_frontend
+ * Login Endpoint (stabile, erweiterte Variante)
+ * - Liefert vollständige Initialdaten (Users, MasterData, TimeEntries, Approvals, History, GlobalSettings)
+ * - Robuste Fehlerbehandlung: einzelne Query-Fehler führen NICHT zu 500, sondern zu leeren Teillisten
+ * - Vereinheitlichte Security: nutzt security-middleware anstatt security-headers
  */
 
-// Include security and error handling
-// Define API guard constant
+// CRITICAL: Set session name BEFORE ANY OTHER CODE (even before require)
+session_name('AZE_SESSION');
+
 define('API_GUARD', true);
-@file_put_contents(__DIR__ . '/test.html', "<hr><b>[" . date('Y-m-d H:i:s') . "] login.php | boot" . "</b><br>\n", FILE_APPEND);
 
-require_once __DIR__ . '/security-headers.php'; @file_put_contents(__DIR__ . '/test.html', "boot:security-headers OK\n", FILE_APPEND);
-require_once __DIR__ . '/error-handler.php';
-@file_put_contents(__DIR__ . '/test.html', "boot:error-handler OK\n", FILE_APPEND);
-require_once __DIR__ . '/structured-logger.php'; @file_put_contents(__DIR__ . '/test.html', "boot:structured-logger OK\n", FILE_APPEND);
-require_once __DIR__ . '/security-middleware.php'; @file_put_contents(__DIR__ . '/test.html', "boot:security-middleware OK\n", FILE_APPEND);
-// Ensure auth helpers are loaded BEFORE CSRF middleware (uses start_secure_session)
-require_once __DIR__ . '/auth_helpers.php'; @file_put_contents(__DIR__ . '/test.html', "boot:auth-helpers OK\n", FILE_APPEND);
-// Rate-Limiting vorerst deaktiviert (Live-Dateirechte). Kein Include, No-Op-Fallback.
-if (!function_exists('checkRateLimit')) { function checkRateLimit($endpoint = 'default') { return true; } }
-require_once __DIR__ . '/csrf-middleware.php'; @file_put_contents(__DIR__ . '/test.html', "boot:csrf-middleware TRY\n", FILE_APPEND);
-if (!function_exists('validateCsrfProtection')) {
-    function validateCsrfProtection($token = null) { return true; }
-    @file_put_contents(__DIR__ . '/test.html', "boot:csrf-middleware FALLBACK\n", FILE_APPEND);
-} else {
-    @file_put_contents(__DIR__ . '/test.html', "boot:csrf-middleware OK\n", FILE_APPEND);
-}
-
-// Initialize security
-llog('before_initSecurity');
-initializeSecurity(false); // We'll check auth manually after
-llog('after_initSecurity');
-llog('before_validateMethod');
-validateRequestMethod('POST');
-llog('after_validateMethod');
-
-// Apply security headers
-llog('before_initSecMiddleware');
-initSecurityMiddleware();
-llog('after_initSecMiddleware');
-
-// Apply rate limiting for login attempts
-llog('before_checkRateLimit');
-checkRateLimit('login');
-llog('after_checkRateLimit');
-
-// Lightweight HTML logger for live diagnostics (temporary)
-if (!function_exists('llog')) {
-    function llog($title, $data = null) {
-        $f = __DIR__ . '/test.html';
-        $ts = date('Y-m-d H:i:s');
-        $out = "<hr><b>[$ts] login.php | $title</b><br>";
-        if ($data !== null) {
-            $payload = is_string($data) ? $data : json_encode($data);
-            $out .= htmlspecialchars($payload);
-        }
-        @file_put_contents($f, $out . "\n", FILE_APPEND);
-    }
-}
-
-// --- Robuster Fatal-Error-Handler ---
-register_shutdown_function(function () {
-    $error = error_get_last();
-    if ($error !== null && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR])) {
-        if (!headers_sent()) {
-            http_response_code(500);
-            header('Content-Type: application/json');
-        }
-        echo json_encode(['message' => 'Fatal PHP Error', 'error_details' => $error]);
-        exit;
-    }
-    llog('shutdown_error', $error);
-});
-
-// SECURITY: Error reporting disabled in production
-ini_set('display_errors', 0);
-ini_set('log_errors', 1);
-error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED);
-
+require_once __DIR__ . '/security-middleware.php';
+require_once __DIR__ . '/structured-logger.php';
+require_once __DIR__ . '/auth_helpers.php';
 require_once __DIR__ . '/DatabaseConnection.php';
-// Avoid initialize_api() duplication from AuthenticationService.php
-require_once __DIR__ . '/InputValidationService.php';
 
+// Einheitlicher Security-Bootstrap (CORS, Security Headers, OPTIONS)
 initialize_api();
-llog('after_initialize_api');
+initSecurityMiddleware();
 
-// Nur POST-Anfragen erlauben
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    send_response(405, ['message' => 'Method Not Allowed']);
-    exit();
-}
-
-// Validate CSRF token for login requests (relax for same-origin + valid session)
-llog('before_csrf');
-if (!validateCsrfProtection()) {
-    llog('csrf_failed', ['referer' => ($_SERVER['HTTP_REFERER'] ?? ''), 'origin' => ($_SERVER['HTTP_ORIGIN'] ?? '')]);
-    // Fallback: allow same-origin with valid session
-    $host = $_SERVER['HTTP_HOST'] ?? '';
-    $refHost = parse_url($_SERVER['HTTP_REFERER'] ?? '', PHP_URL_HOST);
-    $sameOrigin = ($refHost === $host) || empty($refHost);
-    if (!$sameOrigin) {
-        exit(); // Error already sent by validateCsrfProtection()
+// Lightweight diagnostics (GET ?diag=1): no sensitive data, helps verify live wiring
+// Accept diag via GET ?diag=1 or ?action=diag, or via POST X-Diag: 1 / JSON { diag: 1 }
+$__method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+$__is_diag = false;
+if ($__method === 'GET' && (isset($_GET['diag']) || (isset($_GET['action']) && $_GET['action'] === 'diag'))) {
+    $__is_diag = true;
+} else if ($__method === 'POST') {
+    $hdrs = function_exists('getallheaders') ? array_change_key_case(getallheaders(), CASE_LOWER) : [];
+    if (!empty($hdrs['x-diag']) && (string)$hdrs['x-diag'] === '1') { $__is_diag = true; }
+    if (!$__is_diag) {
+        $raw = file_get_contents('php://input');
+        if ($raw) {
+            $jd = json_decode($raw, true);
+            if (is_array($jd) && (!empty($jd['diag']) || (isset($jd['action']) && $jd['action'] === 'diag'))) {
+                $__is_diag = true;
+            }
+        }
     }
 }
-llog('after_csrf');
+if ($__is_diag) {
+    header('Content-Type: application/json; charset=utf-8');
+    $out = [
+        'endpoint' => 'login.php?diag=1',
+        'php' => PHP_VERSION,
+        'app_env' => getenv('APP_ENV') ?: 'unknown',
+        'session' => [
+            'active' => session_status() === PHP_SESSION_ACTIVE,
+            'has_user' => isset($_SESSION['user']),
+        ],
+        'db' => [ 'connected' => false ],
+        'counts' => [ 'users' => null, 'time_entries' => null, 'approval_requests' => null ],
+        'global_settings' => [ 'exists' => false, 'locations_count' => null ],
+    ];
+    try {
+        $db = DatabaseConnection::getInstance()->getConnection();
+        $out['db']['connected'] = @$db->ping();
+        // Counts
+        if ($st = $db->prepare('SELECT COUNT(*) FROM users')) { $st->execute(); $st->bind_result($c); if ($st->fetch()) { $out['counts']['users'] = (int)$c; } $st->close(); }
+        if ($st = $db->prepare('SELECT COUNT(*) FROM time_entries')) { $st->execute(); $st->bind_result($c); if ($st->fetch()) { $out['counts']['time_entries'] = (int)$c; } $st->close(); }
+        if ($st = $db->prepare('SELECT COUNT(*) FROM approval_requests')) { $st->execute(); $st->bind_result($c); if ($st->fetch()) { $out['counts']['approval_requests'] = (int)$c; } $st->close(); }
+        // Global settings
+        if ($st = $db->prepare('SHOW TABLES LIKE "global_settings"')) { $st->execute(); $res = $st->get_result(); $exists = $res && $res->num_rows > 0; $out['global_settings']['exists'] = $exists; $st->close();
+            if ($exists) {
+                if ($gs = $db->prepare('SELECT locations FROM global_settings WHERE id = 1')) { $gs->execute(); $gs->bind_result($locs); if ($gs->fetch()) { $arr = json_decode((string)$locs, true) ?: []; $out['global_settings']['locations_count'] = is_array($arr) ? count($arr) : 0; } $gs->close(); }
+            }
+        }
+    } catch (Throwable $e) {
+        $out['diag_error'] = $e->getMessage();
+    }
+    echo json_encode($out, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    exit;
+}
 
-$dbConnection = DatabaseConnection::getInstance();
-$conn = $dbConnection->getConnection();
-$dbConnection->beginTransaction();
-llog('db_connected');
+// Erlaube ausschließlich POST für den Login-Payload
+if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+    http_response_code(405);
+    header('Allow: POST');
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['success' => false, 'error' => 'Method not allowed']);
+    exit;
+}
+
+header('Content-Type: application/json; charset=utf-8');
+
+// Wrapper-Funktionen für frühere db-wrapper-Kompatibilität
+if (!function_exists('initDB')) {
+    function initDB() {
+        return DatabaseConnection::getInstance()->getConnection(); // returns mysqli
+    }
+}
+if (!function_exists('executeQuery')) {
+    function executeQuery($sql, $types = '', $params = []) {
+        // Liefert ein ausgeführtes mysqli_stmt zurück (kompatibel zum bisherigen Code)
+        return DatabaseConnection::getInstance()->prepareAndExecute($sql, $types, $params);
+    }
+}
 
 try {
-    // --- 1. DSGVO-Datenbereinigung (nur falls Spalte vorhanden) ---
-    $six_months_ago = date('Y-m-d H:i:s', strtotime('-6 months'));
-    $hasCreatedAt = false;
-    if ($res = $conn->query("SHOW COLUMNS FROM users LIKE 'created_at'")) {
-        $hasCreatedAt = ($res->num_rows > 0);
-        $res->close();
-    }
-    if ($hasCreatedAt) {
-        $delete_stmt = $conn->prepare("DELETE FROM users WHERE created_at < ?");
-        if (!$delete_stmt) throw new Exception("Prepare failed (delete users): " . $conn->error);
-        $delete_stmt->bind_param("s", $six_months_ago);
-        $delete_stmt->execute();
-        $delete_stmt->close();
-    }
-
-    // --- 2. Benutzer-Synchronisierung ---
-    // Holt den Benutzer aus der sicheren, serverseitigen Session.
-    // Diese Funktion beendet das Skript mit 401, wenn keine gültige Session vorhanden ist.
-    llog('before_verify_session');
-    $user_from_session = verify_session_and_get_user();
-    llog('session_user', $user_from_session);
-    
-    // SECURITY FIX: Validate and sanitize session data
-    $validator = InputValidationService::getInstance();
-    
-    $azure_oid = $validator->sanitizeString($user_from_session['oid'] ?? '');
-    $display_name_from_session = $validator->sanitizeString($user_from_session['name'] ?? '');
-    $username_from_session = $validator->sanitizeString($user_from_session['username'] ?? ''); // E-Mail
-    
-    // Validate required fields
-    if (empty($azure_oid) || empty($display_name_from_session) || empty($username_from_session)) {
-        throw new Exception('Invalid session data: missing required fields');
-    }
-    
-    // Validate email format
-    if (!$validator->validateEmail($username_from_session)) {
-        throw new Exception('Invalid email format in session');
-    }
-
-    // Benutzer suchen via Azure OID (primärer, unveränderlicher Schlüssel)
-    $stmt = $conn->prepare("SELECT * FROM users WHERE azure_oid = ?");
-    if (!$stmt) { llog('prepare_failed_find_user', $conn->error); throw new Exception("Prepare failed (find user): " . $conn->error); }
-    $stmt->bind_param("s", $azure_oid);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $user_data = $result->fetch_assoc();
-    $stmt->close();
-
-    $current_user_id = null;
-
-    if ($user_data) {
-        // Benutzer existiert
-        $current_user_id = $user_data['id'];
-        // Anzeigenamen aktualisieren, falls er sich in Azure AD geändert hat
-        if ($user_data['display_name'] !== $display_name_from_session) {
-            $update_stmt = $conn->prepare("UPDATE users SET display_name = ? WHERE id = ?");
-            if (!$update_stmt) throw new Exception("Prepare failed (update display_name): " . $conn->error);
-            $update_stmt->bind_param("si", $display_name_from_session, $current_user_id);
-            $update_stmt->execute();
-            $update_stmt->close();
-        }
-    } else {
-        // Benutzer existiert nicht -> Neu anlegen (Erst-Login)
-        $insert_user_stmt = $conn->prepare("INSERT INTO users (username, display_name, role, azure_oid, created_at) VALUES (?, ?, 'Honorarkraft', ?, NOW())");
-    if (!$insert_user_stmt) { llog('prepare_failed_insert_user', $conn->error); throw new Exception("Prepare failed (insert user): " . $conn->error); }
-        $insert_user_stmt->bind_param("sss", $username_from_session, $display_name_from_session, $azure_oid);
-        $insert_user_stmt->execute();
-        $current_user_id = $conn->insert_id;
-        $insert_user_stmt->close();
-
-        // Standard-Stammdaten für neuen Benutzer anlegen
-        $default_workdays = json_encode(['Mo', 'Di', 'Mi', 'Do', 'Fr']);
-        $insert_master_stmt = $conn->prepare("INSERT INTO master_data (user_id, weekly_hours, workdays, can_work_from_home) VALUES (?, 40.00, ?, 0)");
-    if (!$insert_master_stmt) { llog('prepare_failed_insert_masterdata', $conn->error); throw new Exception("Prepare failed (insert masterdata): " . $conn->error); }
-        $insert_master_stmt->bind_param("is", $current_user_id, $default_workdays);
-        $insert_master_stmt->execute();
-        $insert_master_stmt->close();
-    }
-    
-    // --- 3. Alle Initialdaten abrufen ---
-    
-    // Aktueller Benutzer (display_name als 'name' für Frontend-Kompatibilität)
-    $user_stmt = $conn->prepare("SELECT id, display_name AS name, role, azure_oid AS azureOid FROM users WHERE id = ?");
-    $user_stmt->bind_param("i", $current_user_id);
-    $user_stmt->execute();
-    $current_user_for_frontend = $user_stmt->get_result()->fetch_assoc();
-    $user_stmt->close();
-    llog('loaded_current_user', $current_user_for_frontend);
-
-    // Alle Benutzer
-    $users_stmt = $conn->prepare("SELECT id, display_name AS name, role, azure_oid AS azureOid FROM users");
-    $users_stmt->execute();
-    $all_users = $users_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-    $users_stmt->close();
-    llog('loaded_users_count', count($all_users));
-
-    // Alle Stammdaten
-    $master_data_stmt = $conn->prepare("SELECT user_id, weekly_hours, workdays, can_work_from_home FROM master_data");
-    $master_data_stmt->execute();
-    $master_data_result = $master_data_stmt->get_result();
-    $master_data_map = [];
-    while ($row = $master_data_result->fetch_assoc()) {
-        $master_data_map[$row['user_id']] = [
-            'weeklyHours' => (float)$row['weekly_hours'],
-            'workdays' => json_decode($row['workdays']),
-            'canWorkFromHome' => (bool)$row['can_work_from_home']
-        ];
-    }
-    $master_data_stmt->close();
-    
-    // Alle Zeiteinträge
-    $time_entries_stmt = $conn->prepare("SELECT id, user_id AS userId, username, date, start_time AS startTime, stop_time AS stopTime, location, role, created_at AS createdAt, updated_by AS updatedBy, updated_at AS updatedAt FROM time_entries ORDER BY date DESC, start_time DESC");
-    $time_entries_stmt->execute();
-    $time_entries = $time_entries_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-    $time_entries_stmt->close();
-    llog('loaded_time_entries_count', count($time_entries));
-
-    // Alle offenen Genehmigungsanträge (rollenbasierte Filterung)
-    if (function_exists('llog')) { llog('approvals_filter_ctx', ['role' => $current_user_for_frontend['role'] ?? null, 'email' => $username_from_session, 'display' => $display_name_from_session ?? '']); }
-    $approval_query = "SELECT * FROM approval_requests WHERE status = 'pending'";
-    
-    // Rollenbasierte Filterung (minimaler Fix)
-    if ($current_user_for_frontend['role'] === 'Honorarkraft' || $current_user_for_frontend['role'] === 'Mitarbeiter') {
-        // nur eigene Anträge (Session-E-Mail = requested_by)
-        $approval_query .= " AND requested_by = ?";
-        $approvals_stmt = $conn->prepare($approval_query);
-        $email = trim($username_from_session);
-        $approvals_stmt->bind_param("s", $email);
-    } else if ($current_user_for_frontend['role'] === 'Standortleiter') {
-        // Standortleiter: Location aus new_data bevorzugen, sonst original_entry_data
-        $approval_query .= " AND COALESCE(JSON_UNQUOTE(JSON_EXTRACT(new_data, '$.location')), JSON_UNQUOTE(JSON_EXTRACT(original_entry_data, '$.location'))) = ?";
-        $approvals_stmt = $conn->prepare($approval_query);
-        $approvals_stmt->bind_param("s", $user_data['location'] ?? '');
-    } else {
-        // Leitung/Admin sehen alles
-        $approvals_stmt = $conn->prepare($approval_query);
-    }
-    
-    $approval_requests_raw = [];
-    if ($approvals_stmt && $approvals_stmt->execute()) {
-        $approval_requests_raw = $approvals_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-        $approvals_stmt->close();
-    } else {
-        if (function_exists('llog')) { llog('approvals_query_failed', $approvals_stmt ? $approvals_stmt->error : $conn->error); }
-        if ($approvals_stmt) { $approvals_stmt->close(); }
-    }
-    // Debug: Anzahl offener Genehmigungen (rollenbasiert)
-    if (function_exists('llog')) { llog('approvals_count', count($approval_requests_raw)); }
-    $approval_requests = array_map(function($req) {
-        $entry_data_json = json_decode($req['original_entry_data'], true);
-        return [
-            'id' => $req['id'],
-            'type' => $req['type'],
-            'entry' => [
-                'id' => (int)$entry_data_json['id'], 'userId' => (int)$entry_data_json['user_id'], 'username' => $entry_data_json['username'],
-                'date' => $entry_data_json['date'], 'startTime' => $entry_data_json['start_time'], 'stopTime' => $entry_data_json['stop_time'],
-                'location' => $entry_data_json['location'], 'role' => $entry_data_json['role'], 'createdAt' => $entry_data_json['created_at'],
-                'updatedBy' => $entry_data_json['updated_by'], 'updatedAt' => $entry_data_json['updated_at'],
-            ],
-            'newData' => json_decode($req['new_data']),
-            'reasonData' => json_decode($req['reason_data']),
-            'requestedBy' => $req['requested_by'],
-            'status' => 'pending',
-        ];
-    }, $approval_requests_raw);
-    
-    // Komplette Änderungshistorie (rollenbasierte Filterung)
-    $history_query = "SELECT * FROM approval_requests WHERE status != 'pending'";
-    
-    if ($current_user_for_frontend['role'] === 'Honorarkraft' || $current_user_for_frontend['role'] === 'Mitarbeiter') {
-        $history_query .= " AND requested_by = ?";
-        $history_stmt = $conn->prepare($history_query . " ORDER BY resolved_at DESC");
-        $email = trim($username_from_session);
-        $history_stmt->bind_param("s", $email);
-    } else if ($current_user_for_frontend['role'] === 'Standortleiter') {
-        $history_query .= " AND COALESCE(JSON_UNQUOTE(JSON_EXTRACT(new_data, '$.location')), JSON_UNQUOTE(JSON_EXTRACT(original_entry_data, '$.location'))) = ?";
-        $history_stmt = $conn->prepare($history_query . " ORDER BY resolved_at DESC");
-        $history_stmt->bind_param("s", $user_data['location'] ?? '');
-    } else {
-        $history_stmt = $conn->prepare($history_query . " ORDER BY resolved_at DESC");
-    }
-    
-    $history_raw = [];
-    if ($history_stmt && $history_stmt->execute()) {
-        $history_raw = $history_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-        $history_stmt->close();
-    } else {
-        if (function_exists('llog')) { llog('history_query_failed', $history_stmt ? $history_stmt->error : $conn->error); }
-        if ($history_stmt) { $history_stmt->close(); }
-    }
-    $history = array_map(function($row) {
-        $original_entry = json_decode($row['original_entry_data'], true);
-        return [
-            'id' => $row['id'], 'type' => $row['type'],
-            'entry' => [
-                'id' => (int)$original_entry['id'], 'userId' => (int)$original_entry['user_id'], 'username' => $original_entry['username'],
-                'date' => $original_entry['date'], 'startTime' => $original_entry['start_time'], 'stopTime' => $original_entry['stop_time'],
-                'location' => $original_entry['location'], 'role' => $original_entry['role'], 'createdAt' => $original_entry['created_at'],
-                'updatedBy' => $original_entry['updated_by'], 'updatedAt' => $original_entry['updated_at'],
-            ],
-            'newData' => json_decode($row['new_data']), 'reasonData' => json_decode($row['reason_data']),
-            'requestedBy' => $row['requested_by'], 'finalStatus' => $row['status'],
-            'resolvedAt' => $row['resolved_at'], 'resolvedBy' => $row['resolved_by'],
-        ];
-    }, $history_raw);
-
-    // Globale Einstellungen
-    $settings_stmt = $conn->prepare("SELECT overtime_threshold, change_reasons, locations FROM global_settings WHERE id = 1");
-    $settings_stmt->execute();
-    $settings_raw = $settings_stmt->get_result()->fetch_assoc();
-    $settings_stmt->close();
-    $global_settings = [
-        'overtimeThreshold' => (float)$settings_raw['overtime_threshold'],
-        'changeReasons' => json_decode($settings_raw['change_reasons']),
-        'locations' => json_decode($settings_raw['locations'])
-    ];
-
-    $dbConnection->commit();
-
-    send_response(200, [
-        'currentUser' => $current_user_for_frontend,
-        'users' => $all_users,
-        'masterData' => $master_data_map,
-        'timeEntries' => $time_entries,
-        'approvalRequests' => $approval_requests,
-        'history' => $history,
-        'globalSettings' => $global_settings
+    // CRITICAL: Start session INLINE to ensure AZE_SESSION name
+    session_name('AZE_SESSION');
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path' => '/',
+        'domain' => '',
+        'secure' => true,
+        'httponly' => true,
+        'samesite' => 'Lax'
     ]);
 
-} catch (Exception $e) {
-    $dbConnection->rollback();
-    error_log("Login transaction failed: " . $e->getMessage());
-    send_response(500, ['message' => 'Ein interner Fehler ist während des Anmeldevorgangs aufgetreten.', 'error' => $e->getMessage()]);
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        @session_start();
+    }
+
+    if (!isset($_SESSION['user']) || !isset($_SESSION['user']['oid'])) {
+        http_response_code(401);
+        echo json_encode(['message' => 'Unauthorized: No valid session found.']);
+        exit();
+    }
+
+    $user_session = $_SESSION['user'];
+    $azure_oid = $user_session['oid'];
+    $username = trim($user_session['username'] ?? '');
+    $display_name = $user_session['name'] ?? '';
+
+    // DB initialisieren (robust)
+    try {
+        $db = initDB(); // mysqli
+    } catch (Throwable $e) {
+        // Fallback: direkte Verbindung aus .env/Config (extreme Edge-Case)
+        if (!class_exists('Config')) { @include_once __DIR__ . '/../config.php'; }
+        $host = (class_exists('Config') ? Config::get('db.host') : ($_ENV['DB_HOST'] ?? ''));
+        $user = (class_exists('Config') ? (Config::get('db.username') ?: Config::get('db.user')) : ($_ENV['DB_USERNAME'] ?? $_ENV['DB_USER'] ?? ''));
+        $pass = (class_exists('Config') ? (Config::get('db.password') ?: Config::get('db.pass')) : ($_ENV['DB_PASSWORD'] ?? $_ENV['DB_PASS'] ?? ''));
+        $name = (class_exists('Config') ? Config::get('db.name') : ($_ENV['DB_NAME'] ?? ''));
+        $db = @new mysqli($host, $user, $pass, $name);
+        if ($db && !$db->connect_error) {
+            $db->set_charset('utf8mb4');
+        } else {
+            logError('db_init_failed', ['msg' => $e->getMessage(), 'host' => $host]);
+            http_response_code(500);
+            echo json_encode(['message' => 'Login failed']);
+            exit();
+        }
+    }
+
+    // Benutzer laden oder anlegen (robust, mit Fallback ohne 500)
+    $current_user_id = null;
+    $user_role = 'Mitarbeiter';
+    $user_display_name = $display_name;
+    try {
+        $stmt = executeQuery("SELECT id, username, display_name, role FROM users WHERE azure_oid = ?", 's', [$azure_oid]);
+        $res = $stmt->get_result();
+        if ($res && ($row = $res->fetch_assoc())) {
+            $current_user_id = (int)$row['id'];
+            $user_role = $row['role'] ?: 'Mitarbeiter';
+            $user_display_name = $row['display_name'] ?: $display_name;
+        } else {
+            $ins = executeQuery("INSERT INTO users (username, display_name, role, azure_oid, created_at) VALUES (?, ?, 'Mitarbeiter', ?, NOW())", 'sss', [$username, $display_name, $azure_oid]);
+            $current_user_id = $db->insert_id;
+            if (method_exists($ins, 'close')) { $ins->close(); }
+        }
+        if (method_exists($stmt, 'close')) { $stmt->close(); }
+    } catch (Throwable $e) {
+        logError('user_sync_failed_executeQuery', ['msg' => $e->getMessage()]);
+        try {
+            $sel = $db->prepare("SELECT id, username, display_name, role FROM users WHERE azure_oid = ?");
+            if (!$sel) { throw new Exception('mysqli_prepare(select) failed: ' . $db->error); }
+            $sel->bind_param('s', $azure_oid);
+            $sel->execute();
+            $res = $sel->get_result();
+            if ($res && ($row = $res->fetch_assoc())) {
+                $current_user_id = (int)$row['id'];
+                $user_role = $row['role'] ?: 'Mitarbeiter';
+                $user_display_name = $row['display_name'] ?: $display_name;
+            } else {
+                $ins = $db->prepare("INSERT INTO users (username, display_name, role, azure_oid, created_at) VALUES (?, ?, 'Mitarbeiter', ?, NOW())");
+                if (!$ins) { throw new Exception('mysqli_prepare(insert) failed: ' . $db->error); }
+                $ins->bind_param('sss', $username, $display_name, $azure_oid);
+                $ins->execute();
+                $current_user_id = (int)$db->insert_id;
+                $ins->close();
+            }
+            $sel->close();
+        } catch (Throwable $e2) {
+            // Minimaler Fallback statt 500
+            logError('user_sync_hard_failed', ['msg' => $e2->getMessage()]);
+            $current_user_id = 0;
+            $user_role = 'Mitarbeiter';
+            $user_display_name = $display_name;
+        }
+    }
+
+    $response = [
+        'currentUser' => [
+            'id' => $current_user_id,
+            'name' => $user_display_name,
+            'role' => $user_role,
+            'azureOid' => $azure_oid
+        ],
+        'users' => [],
+        'masterData' => new stdClass(),
+        'timeEntries' => [],
+        'approvalRequests' => [],
+        'history' => [],
+        // Default-Werte; werden unten aus DB überschrieben, falls vorhanden
+        'globalSettings' => [
+            'overtimeThreshold' => 8.0,
+            'changeReasons' => ['Vergessen einzustempeln','Vergessen auszustempeln','Dienstgang','Arzttermin','Technische Störung','Sonstige'],
+            'locations' => ['Zentrale Berlin','Standort Hamburg','Standort Köln']
+        ]
+    ];
+
+    // Benutzerliste (direkte mysqli-Nutzung, stabil)
+    try {
+        $sql = "SELECT id, display_name AS name, role, azure_oid AS azureOid FROM users";
+        $s = $db->prepare($sql);
+        if ($s && $s->execute()) {
+            $r = $s->get_result();
+            $response['users'] = $r ? $r->fetch_all(MYSQLI_ASSOC) : [];
+            $s->close();
+        } else {
+            throw new Exception($db->error ?: ($s ? $s->error : 'prepare failed'));
+        }
+    } catch (Throwable $e) { logError('load_users_failed', ['msg' => $e->getMessage()]); }
+
+    // Masterdaten
+    try {
+        $sql = "SELECT user_id, weekly_hours, workdays, can_work_from_home FROM master_data";
+        $s = $db->prepare($sql);
+        if ($s && $s->execute()) {
+            $r = $s->get_result();
+            $md = [];
+            while ($row = $r->fetch_assoc()) {
+                $md[(int)$row['user_id']] = [
+                    'weeklyHours' => (float)$row['weekly_hours'],
+                    'workdays' => json_decode($row['workdays'], true) ?: [],
+                    'canWorkFromHome' => (bool)$row['can_work_from_home'],
+                ];
+            }
+            $response['masterData'] = $md;
+            $s->close();
+        } else {
+            throw new Exception($db->error ?: ($s ? $s->error : 'prepare failed'));
+        }
+    } catch (Throwable $e) { logError('load_masterdata_failed', ['msg' => $e->getMessage()]); }
+
+    // Globale Einstellungen (falls in DB vorhanden)
+    try {
+        $sql = "SELECT overtime_threshold, change_reasons, locations FROM global_settings WHERE id = 1";
+        $s = $db->prepare($sql);
+        if ($s && $s->execute()) {
+            $s->bind_result($thr, $reasons, $locations);
+            if ($s->fetch()) {
+                $response['globalSettings'] = [
+                    'overtimeThreshold' => (float)$thr,
+                    'changeReasons' => json_decode((string)$reasons, true) ?: $response['globalSettings']['changeReasons'],
+                    'locations' => json_decode((string)$locations, true) ?: $response['globalSettings']['locations']
+                ];
+            }
+            $s->close();
+        } else {
+            throw new Exception($db->error ?: ($s ? $s->error : 'prepare failed'));
+        }
+    } catch (Throwable $e) { logError('load_global_settings_failed', ['msg' => $e->getMessage()]); }
+
+    // Zeiteinträge
+    try {
+        $sql = "SELECT id, user_id AS userId, username, date, start_time AS startTime, stop_time AS stopTime, location, role, created_at AS createdAt, updated_by AS updatedBy, updated_at AS updatedAt FROM time_entries ORDER BY date DESC, start_time DESC";
+        $s = $db->prepare($sql);
+        if ($s && $s->execute()) {
+            $r = $s->get_result();
+            $response['timeEntries'] = $r ? $r->fetch_all(MYSQLI_ASSOC) : [];
+            $s->close();
+        } else {
+            throw new Exception($db->error ?: ($s ? $s->error : 'prepare failed'));
+        }
+    } catch (Throwable $e) { logError('load_time_entries_failed', ['msg' => $e->getMessage()]); }
+
+    // Pending Genehmigungen (rollenbasiert), robustes ORDER BY ohne created_at
+    try {
+        // Spalten in approval_requests ermitteln
+        $cols = [];
+        if ($res = $db->query("SHOW COLUMNS FROM approval_requests")) {
+            while ($rr = $res->fetch_assoc()) { $cols[strtolower($rr['Field'])] = true; }
+            $res->close();
+        }
+        $hasRequestedAt = !empty($cols['requested_at']);
+        $orderBy = $hasRequestedAt ? 'ORDER BY requested_at DESC' : 'ORDER BY id DESC';
+
+        $role = $user_role;
+        if ($role === 'Honorarkraft' || $role === 'Mitarbeiter') {
+            $sql = "SELECT id, type, original_entry_data, new_data, reason_data, requested_by, status FROM approval_requests WHERE (status IS NULL OR LOWER(status)='pending') AND requested_by = ? $orderBy";
+            $s = $db->prepare($sql);
+            $s->bind_param('s', $username);
+            $s->execute();
+        } else if ($role === 'Standortleiter') {
+            $loc = $response['currentUser']['location'] ?? '';
+            // Versuche COALESCE(new_data.location, original.location), sonst Fallback nur original
+            $sql1 = "SELECT id, type, original_entry_data, new_data, reason_data, requested_by, status FROM approval_requests WHERE (status IS NULL OR LOWER(status)='pending') AND COALESCE(JSON_UNQUOTE(JSON_EXTRACT(new_data, '$.location')), JSON_UNQUOTE(JSON_EXTRACT(original_entry_data, '$.location'))) = ? $orderBy";
+            $s = $db->prepare($sql1);
+            if (!$s) {
+                logError('load_approvals_role_fallback', ['msg' => $db->error]);
+                $sql2 = "SELECT id, type, original_entry_data, new_data, reason_data, requested_by, status FROM approval_requests WHERE (status IS NULL OR LOWER(status)='pending') AND JSON_EXTRACT(original_entry_data, '$.location') = ? $orderBy";
+                $s = $db->prepare($sql2);
+            }
+            $s->bind_param('s', $loc);
+            $s->execute();
+        } else {
+            $sql = "SELECT id, type, original_entry_data, new_data, reason_data, requested_by, status FROM approval_requests WHERE (status IS NULL OR LOWER(status)='pending') $orderBy";
+            $s = $db->prepare($sql);
+            $s->execute();
+        }
+        $r = $s->get_result();
+        $rows = $r ? $r->fetch_all(MYSQLI_ASSOC) : [];
+        $s->close();
+        $response['approvalRequests'] = array_map(function($req){
+            $orig = json_decode($req['original_entry_data'] ?? '[]', true) ?: [];
+            return [
+                'id' => $req['id'],
+                'type' => $req['type'],
+                'entry' => [
+                    'id' => (int)($orig['id'] ?? 0),
+                    'userId' => (int)($orig['user_id'] ?? 0),
+                    'username' => $orig['username'] ?? '',
+                    'date' => $orig['date'] ?? '',
+                    'startTime' => $orig['start_time'] ?? '',
+                    'stopTime' => $orig['stop_time'] ?? '',
+                    'location' => $orig['location'] ?? '',
+                    'role' => $orig['role'] ?? 'Mitarbeiter',
+                    'createdAt' => $orig['created_at'] ?? '',
+                    'updatedBy' => $orig['updated_by'] ?? '',
+                    'updatedAt' => $orig['updated_at'] ?? '',
+                ],
+                'newData' => json_decode($req['new_data'] ?? 'null', true),
+                'reasonData' => json_decode($req['reason_data'] ?? 'null', true),
+                'requestedBy' => $req['requested_by'],
+                'status' => 'pending',
+            ];
+        }, $rows);
+    } catch (Throwable $e) { logError('load_approvals_failed', ['msg' => $e->getMessage()]); }
+
+    // Historie – robustes ORDER BY ohne created_at
+    try {
+        $cols2 = [];
+        if ($res2 = $db->query("SHOW COLUMNS FROM approval_requests")) {
+            while ($rr2 = $res2->fetch_assoc()) { $cols2[strtolower($rr2['Field'])] = true; }
+            $res2->close();
+        }
+        $hasResolvedAt = !empty($cols2['resolved_at']);
+        $orderByHist = $hasResolvedAt ? 'ORDER BY resolved_at DESC' : 'ORDER BY id DESC';
+
+        if ($user_role === 'Honorarkraft' || $user_role === 'Mitarbeiter') {
+            $sql = "SELECT * FROM approval_requests WHERE status IS NOT NULL AND LOWER(status) != 'pending' AND requested_by = ? $orderByHist";
+            $s = $db->prepare($sql);
+            $s->bind_param('s', $username);
+            $s->execute();
+        } else if ($user_role === 'Standortleiter') {
+            $loc = $response['currentUser']['location'] ?? '';
+            $sql1 = "SELECT * FROM approval_requests WHERE status IS NOT NULL AND LOWER(status) != 'pending' AND COALESCE(JSON_UNQUOTE(JSON_EXTRACT(new_data, '$.location')), JSON_UNQUOTE(JSON_EXTRACT(original_entry_data, '$.location'))) = ? $orderByHist";
+            $s = $db->prepare($sql1);
+            if (!$s) {
+                logError('load_history_role_fallback', ['msg' => $db->error]);
+                $sql2 = "SELECT * FROM approval_requests WHERE status IS NOT NULL AND LOWER(status) != 'pending' AND JSON_EXTRACT(original_entry_data, '$.location') = ? $orderByHist";
+                $s = $db->prepare($sql2);
+            }
+            $s->bind_param('s', $loc);
+            $s->execute();
+        } else {
+            $sql = "SELECT * FROM approval_requests WHERE status IS NOT NULL AND LOWER(status) != 'pending' $orderByHist";
+            $s = $db->prepare($sql);
+            $s->execute();
+        }
+        $r = $s->get_result();
+        $hist = $r ? $r->fetch_all(MYSQLI_ASSOC) : [];
+        $s->close();
+        $response['history'] = array_map(function($row){
+            $orig = json_decode($row['original_entry_data'] ?? '[]', true) ?: [];
+            return [
+                'id' => $row['id'],
+                'type' => $row['type'],
+                'entry' => [
+                    'id' => (int)($orig['id'] ?? 0),
+                    'userId' => (int)($orig['user_id'] ?? 0),
+                    'username' => $orig['username'] ?? '',
+                    'date' => $orig['date'] ?? '',
+                    'startTime' => $orig['start_time'] ?? '',
+                    'stopTime' => $orig['stop_time'] ?? '',
+                    'location' => $orig['location'] ?? '',
+                    'role' => $orig['role'] ?? 'Mitarbeiter',
+                    'createdAt' => $orig['created_at'] ?? '',
+                    'updatedBy' => $orig['updated_by'] ?? '',
+                    'updatedAt' => $orig['updated_at'] ?? '',
+                ],
+                'newData' => json_decode($row['new_data'] ?? 'null', true),
+                'reasonData' => json_decode($row['reason_data'] ?? 'null', true),
+                'requestedBy' => $row['requested_by'],
+                'finalStatus' => $row['status'],
+                'resolvedAt' => $row['resolved_at'],
+                'resolvedBy' => $row['resolved_by'],
+            ];
+        }, $hist);
+    } catch (Throwable $e) { logError('load_history_failed', ['msg' => $e->getMessage()]); }
+
+    echo json_encode($response);
+    exit();
+
+} catch (Throwable $e) {
+    logError('Login error', [
+        'error' => $e->getMessage(),
+        'file' => $e->getFile(),
+        'line' => $e->getLine()
+    ]);
+    http_response_code(500);
+    echo json_encode(['message' => 'Login failed']);
 }
 
-$dbConnection->close();
 ?>
