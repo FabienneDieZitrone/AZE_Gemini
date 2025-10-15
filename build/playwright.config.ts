@@ -4,6 +4,9 @@
  */
 import { defineConfig, devices } from '@playwright/test'
 
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5173'
+const USE_SERVER = !process.env.PLAYWRIGHT_NO_SERVER
+
 export default defineConfig({
   testDir: './e2e',
   timeout: 30000,
@@ -20,7 +23,7 @@ export default defineConfig({
     ['json', { outputFile: 'e2e-results.json' }],
   ],
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL: BASE_URL,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
@@ -48,10 +51,10 @@ export default defineConfig({
       use: { ...devices['iPhone 12'] },
     },
   ],
-  webServer: {
+  webServer: USE_SERVER ? {
     command: 'npm run dev',
-    url: 'http://localhost:3000',
+    url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
-  },
+  } : undefined,
 })

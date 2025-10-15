@@ -20,7 +20,8 @@ export const ApprovalView: React.FC<{
         <div className="view-container">
             <header className="view-header">
                 <h2>Ausstehende Genehmigungen</h2>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <button className="nav-button" onClick={onBack}>Zurück zur Startseite</button>
                     {onLoadPending && (<button className="nav-button" onClick={onLoadPending}>Ausstehend</button>)}
                     {onLoadAll && (<button className="nav-button" onClick={onLoadAll}>Alle</button>)}
                 </div>

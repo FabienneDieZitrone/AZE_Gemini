@@ -13,6 +13,13 @@ cd build/
 npm install
 npm run dev    # → http://localhost:5173
 ```
+### Produktion (Build + Assets)
+```bash
+cd build
+npm run build           # erzeugt dist/ mit /assets/index-*.js|css
+# Hinweis: build/index.php lädt automatisch dist/index.html und passt Asset-Pfade an.
+# Wenn Deploy auf Root-/assets/ synchronisiert, bleibt das Verhalten kompatibel.
+```
 
 ### Technologie-Stack:
 - **Frontend**: React 18 + TypeScript + Vite
@@ -56,6 +63,20 @@ npm run dev    # → http://localhost:5173
 
 **Hauptdokumentation**: [`CLAUDE.local.md`](CLAUDE.local.md)  
 **API-Dokumentation**: [`build/API_DOCUMENTATION.md`](build/API_DOCUMENTATION.md)
+
+### Datenbank-Migrationen
+- SQL-Migrationen liegen unter `build/api/migrations/*.sql` und werden in CI angewendet.
+- Lokal/Server ausführen:
+  - Schema laden (falls nötig): `mysql -h <HOST> -u <USER> -p <DB> < build/schema.sql`
+  - Migrationen anwenden: `for f in build/api/migrations/*.sql; do mysql -h <HOST> -u <USER> -p <DB> < "$f"; done`
+- Alternativ: Migration-Runner
+  - Env in `build/.env` setzen: `MIGRATION_KEY=<geheimer_schlüssel>`
+  - Runner aufrufen: `php build/run_migrations.php?key=<geheimer_schlüssel>`
+  - Dry-Run: `php build/run_migrations.php?dry=1`
+
+### Änderungen (Integration sichtbar machen)
+- Nach Frontend-Änderungen: `npm run build` in `build/` ausführen; `build/index.php` lädt automatisch `dist/index.html` und referenziert die aktuellen Hash-Assets.
+- Bei “Integration nicht sichtbar” / “Blank Page”: Prüfe, ob die referenzierten Hash-Assets existieren und index + assets zusammen deployed wurden.
 
 ### Commands:
 ```bash

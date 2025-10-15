@@ -17,10 +17,21 @@ Protocol: FTP über SSL/TLS (FTPS)
 Port:     21 (Standard)
 ```
 
+### 🚨 **KRITISCH: Pfad-Mapping verstehen!**
+
+```
+FTP User Root:        /              (beim Login)
+Absoluter Server-Pfad: /www/it/aze/   (tatsächlicher Pfad)
+HTTP Root (Subdomain): aze.mikropartner.de → /www/it/aze/
+
+WICHTIG: FTP_PATH muss "/" sein, NICHT "/www/aze/" oder ähnliches!
+Der FTP-User ftp10454681-aze landet DIREKT in /www/it/aze/!
+```
+
 ### Verzeichnisstruktur auf dem Server
 
 ```
-/www/aze/                          ← Basis-Pfad (FTP_PATH)
+/                                  ← FTP Root = /www/it/aze/ (HTTP Root)
 ├── index.php                      ← Haupt-Entry-Point (leitet zu /dist/ weiter)
 ├── dist/
 │   ├── index.html                 ← React App Entry Point
@@ -69,7 +80,16 @@ Port:     21 (Standard)
 FTP_HOST=wp10454681.server-he.de
 FTP_USER=ftp10454681-aze
 FTP_PASS=321MPStart321
-FTP_PATH=/www/aze/
+FTP_PATH=/                         # KRITISCH: "/" nicht "/www/aze/"!
+```
+
+**⚠️ HÄUFIGER FEHLER:**
+```bash
+# FALSCH ❌
+FTP_PATH=/www/aze/     # Führt zu /www/it/aze/www/aze/ (doppelt verschachtelt!)
+
+# RICHTIG ✅
+FTP_PATH=/             # FTP root = HTTP root
 ```
 
 **Script-Features**:

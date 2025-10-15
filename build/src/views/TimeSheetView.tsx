@@ -238,9 +238,25 @@ export const TimeSheetView: React.FC<{
           </thead>
           <tbody>
             {filteredEntries.map(entry => {
-                const userMasterData = masterData[entry.userId];
-                const dailySollTime = userMasterData && userMasterData.workdays.length > 0 ? (userMasterData.weeklyHours / userMasterData.workdays.length) * TIME.SECONDS_PER_HOUR : 0;
-                const diffSeconds = entry.totalSeconds - dailySollTime;
+                const userMasterData = masterData[entry.userId] as any;
+                const dateObj = new Date(entry.date + 'T00:00:00');
+                const dayIndex = dateObj.getDay();
+                const dayNameByIndex: Record<number, string> = { 0: 'So', 1: 'Mo', 2: 'Di', 3: 'Mi', 4: 'Do', 5: 'Fr', 6: 'Sa' };
+                const dayName = dayNameByIndex[dayIndex];
+                let dailySollTime = 0;
+                if (userMasterData) {
+                  const flexible = !!userMasterData.flexibleWorkdays;
+                  const workdays: string[] = Array.isArray(userMasterData.workdays) ? userMasterData.workdays : [];
+                  const dailyHours: Record<string, number> = userMasterData.dailyHours || {};
+                  if (!flexible) {
+                    if (dailyHours && dailyHours[dayName] != null) {
+                      dailySollTime = Number(dailyHours[dayName]) * TIME.SECONDS_PER_HOUR;
+                    } else if (workdays.length > 0) {
+                      dailySollTime = (userMasterData.weeklyHours / workdays.length) * TIME.SECONDS_PER_HOUR;
+                    }
+                  }
+                }
+                const diffSeconds = entry.totalSeconds - (dailySollTime || 0);
                 const diffSign = diffSeconds >= 0 ? '+' : '-';
                 const request = approvalRequests.find(r => r.entry.id === entry.id);
                 let rowClass = request ? (request.type === 'edit' ? 'pending-change' : 'pending-deletion') : '';

@@ -6,7 +6,7 @@
  */
 
 import React, { useState } from 'react';
-import { errorMessageService, ErrorContext } from '../../services/ErrorMessageService';
+import { errorMessageService } from '../../services/ErrorMessageService';
 import { notificationService } from '../../services/NotificationService';
 
 interface ErrorDisplayProps {

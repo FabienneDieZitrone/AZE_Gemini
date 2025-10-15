@@ -114,6 +114,17 @@ jobs:
         mysql -h127.0.0.1 -P3306 -uroot -proot -e "CREATE DATABASE IF NOT EXISTS aze_gemini_test;"
         mysql -h127.0.0.1 -P3306 -uroot -proot -e "GRANT ALL PRIVILEGES ON aze_gemini_test.* TO 'test_user'@'%';"
 
+    - name: Load base schema
+      run: |
+        mysql -h127.0.0.1 -P3306 -uroot -proot aze_gemini_test < build/schema.sql
+
+    - name: Run DB migrations
+      run: |
+        for f in build/api/migrations/*.sql; do \
+          echo "Applying $f"; \
+          mysql -h127.0.0.1 -P3306 -uroot -proot aze_gemini_test < "$f"; \
+        done
+
     - name: Run backend tests with coverage
       working-directory: ./build
       run: vendor/bin/phpunit --coverage-clover=coverage-php.xml --log-junit=phpunit-results.xml

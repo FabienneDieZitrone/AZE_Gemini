@@ -10,14 +10,45 @@
 
 // Bindet die zentralen Hilfsfunktionen, inkl. der sicheren Session-Konfiguration, ein.
 require_once __DIR__ . '/auth_helpers.php';
-require_once __DIR__ . '/../config.php';
+
+// Load config.php and ensure .env is loaded
+$configLoaded = false;
+if (file_exists(__DIR__ . '/../config.php')) {
+    require_once __DIR__ . '/../config.php';
+    $configLoaded = class_exists('Config');
+}
+
+// If Config class failed to load or .env wasn't loaded, load .env directly
+if (!$configLoaded || empty($_ENV['OAUTH_CLIENT_ID'])) {
+    $envFile = __DIR__ . '/../.env';
+    if (file_exists($envFile)) {
+        $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        foreach ($lines as $line) {
+            if (strpos(trim($line), '#') === 0 || strpos($line, '=') === false) continue;
+            list($key, $value) = explode('=', $line, 2);
+            $key = trim($key);
+            $value = trim($value);
+            // Remove quotes if present
+            if (preg_match('/^"(.*)"$/', $value, $matches) || preg_match("/^'(.*)'$/", $value, $matches)) {
+                $value = $matches[1];
+            }
+            if (!isset($_ENV[$key])) {
+                $_ENV[$key] = $value;
+            }
+        }
+    }
+}
 
 // --- SICHERE KONFIGURATION ---
 // Lade Client Secret aus sicherer Konfiguration
-$config = Config::load();
-$clientSecret = Config::get('oauth.client_secret');
+if ($configLoaded) {
+    $config = Config::load();
+    $clientSecret = Config::get('oauth.client_secret');
+} else {
+    $clientSecret = $_ENV['OAUTH_CLIENT_SECRET'] ?? null;
+}
 
-// Fallback für direkte .env Parsing falls Config nicht funktioniert
+// Additional fallback for direct .env parsing
 if (empty($clientSecret)) {
     $clientSecret = $_ENV['OAUTH_CLIENT_SECRET'] ?? null;
 }
@@ -29,14 +60,24 @@ if (empty($clientSecret) || $clientSecret === 'your_azure_client_secret_here') {
     die('OAuth configuration error. Please configure OAUTH_CLIENT_SECRET in environment variables.');
 }
 
-// SECURITY FIX: Load OAuth configuration from environment variables
-$oauthClientId = Config::get('oauth.client_id') ?: $_ENV['OAUTH_CLIENT_ID'] ?? null;
-$oauthTenantId = Config::get('oauth.tenant_id') ?: $_ENV['OAUTH_TENANT_ID'] ?? null;
-$oauthRedirectUri = Config::get('oauth.redirect_uri') ?: $_ENV['OAUTH_REDIRECT_URI'] ?? 'https://aze.mikropartner.de/api/auth-callback.php';
+// SECURITY FIX: Load OAuth configuration from environment variables with proper fallbacks
+if ($configLoaded) {
+    $oauthClientId = Config::get('oauth.client_id') ?: ($_ENV['OAUTH_CLIENT_ID'] ?? null);
+    $oauthTenantId = Config::get('oauth.tenant_id') ?: ($_ENV['OAUTH_TENANT_ID'] ?? null);
+    $oauthRedirectUri = Config::get('oauth.redirect_uri') ?: ($_ENV['OAUTH_REDIRECT_URI'] ?? 'https://aze.mikropartner.de/api/auth-callback.php');
+} else {
+    $oauthClientId = $_ENV['OAUTH_CLIENT_ID'] ?? null;
+    $oauthTenantId = $_ENV['OAUTH_TENANT_ID'] ?? null;
+    $oauthRedirectUri = $_ENV['OAUTH_REDIRECT_URI'] ?? 'https://aze.mikropartner.de/api/auth-callback.php';
+}
 
 // Validate OAuth configuration
 if (empty($oauthClientId) || empty($oauthTenantId)) {
     error_log('CRITICAL: OAuth Client ID or Tenant ID not configured');
+    error_log('DEBUG: OAUTH_CLIENT_ID = ' . var_export($oauthClientId, true));
+    error_log('DEBUG: OAUTH_TENANT_ID = ' . var_export($oauthTenantId, true));
+    error_log('DEBUG: Config loaded = ' . var_export($configLoaded, true));
+    error_log('DEBUG: ENV keys = ' . implode(', ', array_keys($_ENV)));
     http_response_code(500);
     die('OAuth configuration error. Please configure OAUTH_CLIENT_ID and OAUTH_TENANT_ID in environment variables.');
 }
@@ -51,7 +92,16 @@ define('OAUTH_AUTHORIZE_ENDPOINT', OAUTH_AUTHORITY . '/oauth2/v2.0/authorize');
 define('OAUTH_TOKEN_ENDPOINT', OAUTH_AUTHORITY . '/oauth2/v2.0/token');
 
 // Scopes, die von der Anwendung angefordert werden. 'offline_access' ist für Refresh-Tokens.
-define('OAUTH_SCOPES', 'openid profile email User.Read offline_access api://REMOVED_FOR_SECURITY/access_as_user');
+// API-Scope dynamisch bestimmen: bevorzugt aus Konfiguration/ENV, ansonsten Fallback auf api://{client-id}
+if ($configLoaded) {
+    $apiAppIdUri = Config::get('oauth.api_app_id_uri') ?: ($_ENV['OAUTH_API_APP_ID_URI'] ?? null);
+} else {
+    $apiAppIdUri = $_ENV['OAUTH_API_APP_ID_URI'] ?? null;
+}
+if (!$apiAppIdUri) {
+    $apiAppIdUri = 'api://' . OAUTH_CLIENT_ID;
+}
+define('OAUTH_SCOPES', 'openid profile email User.Read offline_access ' . $apiAppIdUri . '/access_as_user');
 
 /**
  * Erstellt die Authorisierungs-URL und speichert den state in der Session.
@@ -118,4 +168,3 @@ function getTokensFromCode($authCode) {
     
     return $tokens;
 }
-?>

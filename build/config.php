@@ -40,12 +40,16 @@ class Config {
         self::$config = [
             'db' => [
                 'host' => $_ENV['DB_HOST'] ?? 'localhost',
-                'username' => $_ENV['DB_USERNAME'] ?? '',
-                'password' => $_ENV['DB_PASSWORD'] ?? '',
+                'username' => $_ENV['DB_USERNAME'] ?? $_ENV['DB_USER'] ?? '',
+                'password' => $_ENV['DB_PASSWORD'] ?? $_ENV['DB_PASS'] ?? '',
                 'name' => $_ENV['DB_NAME'] ?? '',
             ],
             'oauth' => [
+                'client_id' => $_ENV['OAUTH_CLIENT_ID'] ?? '',
                 'client_secret' => $_ENV['OAUTH_CLIENT_SECRET'] ?? '',
+                'tenant_id' => $_ENV['OAUTH_TENANT_ID'] ?? '',
+                'redirect_uri' => $_ENV['OAUTH_REDIRECT_URI'] ?? '',
+                'api_app_id_uri' => $_ENV['OAUTH_API_APP_ID_URI'] ?? '',
             ],
             'app' => [
                 'env' => $_ENV['APP_ENV'] ?? 'production',

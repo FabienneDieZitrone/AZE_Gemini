@@ -119,6 +119,7 @@ export const GlobalSettingsView: React.FC<{
         <div className="view-container">
             <header className="view-header">
                 <h2>Globale Einstellungen</h2>
+                <button className="nav-button" onClick={onBack}>Zurück zur Startseite</button>
             </header>
             <form className="master-data-form" onSubmit={handleSave}>
                 <div className="form-grid">

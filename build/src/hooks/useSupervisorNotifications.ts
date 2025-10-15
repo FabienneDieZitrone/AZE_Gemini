@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import { User, MasterDataEntry, TimeEntry, GlobalSettings, SupervisorNotification } from '../types';
+import { User, MasterData, TimeEntry, GlobalSettings, SupervisorNotification } from '../types';
 import { getStartOfWeek, calculateDurationInSeconds } from '../utils/time';
 import { TIME } from '../constants';
 
 interface UseSupervisorNotificationsProps {
   currentUser: User | null;
   users: User[];
-  masterData: Record<string, MasterDataEntry>;
+  masterData: Record<number, MasterData>;
   timeEntries: TimeEntry[];
   globalSettings: GlobalSettings | null;
 }

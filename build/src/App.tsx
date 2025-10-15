@@ -21,8 +21,11 @@ const App: React.FC = () => {
     const checkSession = async () => {
       try {
         // Prüft die serverseitige Session mit einem leichten API-Aufruf.
-        // `fetchApi` wird bei einem 401-Fehler (keine Session) einen Fehler auslösen.
-        await api.checkAuthStatus();
+        // Fallback-Timeout, falls die Anfrage hängen bleibt (Netz/CORS/Proxy)
+        await Promise.race([
+          api.checkAuthStatus(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Auth check timeout')), 8000)),
+        ]);
         setIsAuthenticated(true);
       } catch {
         // Der Benutzer ist nicht authentifiziert.

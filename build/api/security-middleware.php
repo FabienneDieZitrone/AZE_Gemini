@@ -29,8 +29,21 @@ function applySecurityHeaders() {
     // Strict Transport Security (HSTS)
     header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
     
-    // Content Security Policy
-    header("Content-Security-Policy: default-src 'none'; script-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
+    // Content Security Policy (API-friendly, an die App angepasst)
+    // APIs liefern JSON; keine Skriptausführung erforderlich.
+    // connect-src erlaubt Same-Origin API Requests; Azure Endpunkte optional freigegeben.
+    $cspParts = [
+        "default-src 'none'",
+        "script-src 'none'",
+        "connect-src 'self' https://login.microsoftonline.com https://graph.microsoft.com",
+        "img-src 'self' data:",
+        "style-src 'self' 'unsafe-inline'",
+        "font-src 'self'",
+        "frame-ancestors 'none'",
+        "base-uri 'self'",
+        "form-action 'self'"
+    ];
+    header('Content-Security-Policy: ' . implode('; ', $cspParts));
     
     // Referrer Policy
     header('Referrer-Policy: strict-origin-when-cross-origin');

@@ -56,6 +56,10 @@ export type MasterData = {
   weeklyHours: number;
   workdays: string[];
   canWorkFromHome: boolean;
+  // Neu: Benutzerbezogene Einstellungen
+  locations?: string[]; // zugeordnete Standorte
+  flexibleWorkdays?: boolean; // "Flexibel"-Option
+  dailyHours?: Record<string, number>; // z. B. { Mo: 8, Di: 8, ... }
 };
 
 export type ReasonData = {

@@ -7,7 +7,7 @@
  *              following SOLID principles and security best practices
  */
 
-declare(strict_types=1);
+// Hinweis: Verzicht auf strikte Typisierungen für maximale Serverkompatibilität
 
 // Try to include configuration from multiple known locations
 @include_once __DIR__ . '/../config.php'; // repo-level config
@@ -17,20 +17,22 @@ require_once __DIR__ . '/config-compat.php';
 require_once __DIR__ . '/structured-logger.php';
 
 interface DatabaseConnectionInterface {
-    public function getConnection(): mysqli;
-    public function beginTransaction(): void;
-    public function commit(): void;
-    public function rollback(): void;
-    public function close(): void;
-    public function isConnected(): bool;
+    /** @return mysqli */
+    public function getConnection();
+    public function beginTransaction();
+    public function commit();
+    public function rollback();
+    public function close();
+    /** @return bool */
+    public function isConnected();
 }
 
 class DatabaseConnection implements DatabaseConnectionInterface {
-    private static ?self $instance = null;
-    private ?mysqli $connection = null;
-    private StructuredLogger $logger;
-    private array $config;
-    private bool $inTransaction = false;
+    private static $instance = null; // self|null
+    private $connection = null;      // mysqli|null
+    private $logger;                 // StructuredLogger
+    private $config = [];
+    private $inTransaction = false;
     
     private function __construct() {
         $this->logger = new StructuredLogger();
@@ -38,7 +40,7 @@ class DatabaseConnection implements DatabaseConnectionInterface {
         $this->validateConfiguration();
     }
     
-    public static function getInstance(): self {
+    public static function getInstance() {
         if (self::$instance === null) {
             self::$instance = new self();
         }
@@ -48,7 +50,7 @@ class DatabaseConnection implements DatabaseConnectionInterface {
     /**
      * Load secure configuration with fallback strategies
      */
-    private function loadSecureConfig(): array {
+    private function loadSecureConfig() {
         try {
             $config = Config::load();
             
@@ -71,7 +73,7 @@ class DatabaseConnection implements DatabaseConnectionInterface {
     /**
      * Validate database configuration
      */
-    private function validateConfiguration(): void {
+    private function validateConfiguration() {
         $required = ['host', 'username', 'database'];
         $missing = [];
         
@@ -99,7 +101,7 @@ class DatabaseConnection implements DatabaseConnectionInterface {
     /**
      * Get secure database connection with connection pooling
      */
-    public function getConnection(): mysqli {
+    public function getConnection() {
         if ($this->connection === null || !$this->connection->ping()) {
             $this->establishConnection();
         }
@@ -110,7 +112,7 @@ class DatabaseConnection implements DatabaseConnectionInterface {
     /**
      * Establish secure database connection
      */
-    private function establishConnection(): void {
+    private function establishConnection() {
         try {
             // Check if MySQLi extension is available
             if (!extension_loaded('mysqli')) {
@@ -150,7 +152,7 @@ class DatabaseConnection implements DatabaseConnectionInterface {
     /**
      * Configure connection for security and performance
      */
-    private function configureConnection(): void {
+    private function configureConnection() {
         // Set charset for security (prevent charset confusion attacks)
         if (!$this->connection->set_charset($this->config['charset'])) {
             $this->logger->warning('Failed to set database charset', [
@@ -172,7 +174,7 @@ class DatabaseConnection implements DatabaseConnectionInterface {
     /**
      * Begin database transaction
      */
-    public function beginTransaction(): void {
+    public function beginTransaction() {
         $connection = $this->getConnection();
         
         if ($this->inTransaction) {
@@ -191,7 +193,7 @@ class DatabaseConnection implements DatabaseConnectionInterface {
     /**
      * Commit database transaction
      */
-    public function commit(): void {
+    public function commit() {
         if (!$this->inTransaction) {
             $this->logger->warning('Attempting to commit without active transaction');
             return;
@@ -210,7 +212,7 @@ class DatabaseConnection implements DatabaseConnectionInterface {
     /**
      * Rollback database transaction
      */
-    public function rollback(): void {
+    public function rollback() {
         if (!$this->inTransaction) {
             $this->logger->warning('Attempting to rollback without active transaction');
             return;
@@ -229,7 +231,7 @@ class DatabaseConnection implements DatabaseConnectionInterface {
     /**
      * Close database connection
      */
-    public function close(): void {
+    public function close() {
         if ($this->connection !== null) {
             if ($this->inTransaction) {
                 $this->rollback();
@@ -244,14 +246,14 @@ class DatabaseConnection implements DatabaseConnectionInterface {
     /**
      * Check if database is connected
      */
-    public function isConnected(): bool {
+    public function isConnected() {
         return $this->connection !== null && $this->connection->ping();
     }
     
     /**
      * Prepare and execute secure statement
      */
-    public function prepareAndExecute(string $query, string $types = '', array $params = []): mysqli_stmt {
+    public function prepareAndExecute($query, $types = '', $params = []) {
         $connection = $this->getConnection();
         
         $stmt = $connection->prepare($query);
@@ -279,7 +281,7 @@ class DatabaseConnection implements DatabaseConnectionInterface {
     /**
      * Execute query and return results safely
      */
-    public function executeQuery(string $query, string $types = '', array $params = []): array {
+    public function executeQuery($query, $types = '', $params = []) {
         $stmt = $this->prepareAndExecute($query, $types, $params);
         $result = $stmt->get_result();
         
@@ -297,7 +299,7 @@ class DatabaseConnection implements DatabaseConnectionInterface {
     /**
      * Execute non-select query (INSERT, UPDATE, DELETE)
      */
-    public function executeNonQuery(string $query, string $types = '', array $params = []): int {
+    public function executeNonQuery($query, $types = '', $params = []) {
         $stmt = $this->prepareAndExecute($query, $types, $params);
         $affectedRows = $stmt->affected_rows;
         $stmt->close();
@@ -308,7 +310,7 @@ class DatabaseConnection implements DatabaseConnectionInterface {
     /**
      * Get last inserted ID
      */
-    public function getLastInsertId(): int {
+    public function getLastInsertId() {
         $connection = $this->getConnection();
         return (int)$connection->insert_id;
     }
@@ -316,7 +318,7 @@ class DatabaseConnection implements DatabaseConnectionInterface {
     /**
      * Health check for monitoring
      */
-    public function healthCheck(): array {
+    public function healthCheck() {
         try {
             $connection = $this->getConnection();
             $result = $connection->query("SELECT 1 as health_check");
@@ -362,7 +364,7 @@ class DatabaseConnection implements DatabaseConnectionInterface {
 }
 
 // Global helper function for backward compatibility
-function getDatabaseConnection(): mysqli {
+function getDatabaseConnection() {
     return DatabaseConnection::getInstance()->getConnection();
 }
 

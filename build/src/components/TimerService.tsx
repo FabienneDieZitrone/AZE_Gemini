@@ -60,19 +60,20 @@ export const TimerService: React.FC<TimerServiceProps> = ({
   onError 
 }) => {
   const timer = useTimer();
-  const csrfTokenRef = useRef<string | null>(null);
+  const csrfTokenRef = useRef<string>('');
 
   const fetchCsrfToken = useCallback(async (): Promise<string> => {
     if (csrfTokenRef.current) return csrfTokenRef.current;
     const resp = await fetch('/api/csrf-token.php', { credentials: 'include' });
     if (!resp.ok) throw new Error('CSRF Token konnte nicht geladen werden');
     const data = await resp.json();
-    csrfTokenRef.current = data.csrfToken;
+    const token = String(data?.csrfToken || '');
+    csrfTokenRef.current = token;
     // kurze Info für den Nutzer, dass die Sicherheit initialisiert wurde
     try {
       notificationService.info('Sicherheit aktualisiert: CSRF-Token geladen', { position: 'top-center', duration: 2000, icon: '🔒' });
     } catch {}
-    return csrfTokenRef.current;
+    return token;
   }, []);
 
   /**

@@ -1,4 +1,1 @@
 RewriteEngine On
-# Temporary rewrite to bypass OPCache on original endpoint
-RewriteRule ^time-entries\.php$ time-entries.stub.php [L]
-

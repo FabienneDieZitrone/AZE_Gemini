@@ -41,6 +41,7 @@ export const ChangeHistoryView: React.FC<{
         <div className="view-container">
             <header className="view-header">
                 <h2>Anzeige der Änderungen (Historie)</h2>
+                <button className="nav-button" onClick={onBack}>Zurück zur Startseite</button>
             </header>
             
             <div className="history-filters-container">
@@ -118,7 +119,7 @@ export const ChangeHistoryView: React.FC<{
             </div>
 
             <footer className="view-footer">
-                <button className="nav-button" onClick={onBack}>Zurück</button>
+                <button className="nav-button" onClick={onBack}>Zurück zur Startseite</button>
             </footer>
         </div>
     );

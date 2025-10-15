@@ -8,7 +8,6 @@ declare(strict_types=1);
 
 define('API_GUARD', true);
 
-require_once __DIR__ . '/security-headers.php';
 require_once __DIR__ . '/security-middleware.php';
 require_once __DIR__ . '/error-handler.php';
 require_once __DIR__ . '/auth_helpers.php';
@@ -16,11 +15,49 @@ require_once __DIR__ . '/csrf-middleware.php';
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/InputValidationService.php';
 
+// Frühdiagnose: Schreibe Fatals dieses Endpunkts immer in test.html
+if (!function_exists('te_register_shutdown')) {
+    function te_register_shutdown() {
+        register_shutdown_function(function () {
+            $err = error_get_last();
+            if ($err) {
+                $f = __DIR__ . '/test.html';
+                $ts = date('Y-m-d H:i:s');
+                $out = "<hr><b>[$ts] time-entries.php | fatal</b><br>" . htmlspecialchars(json_encode($err));
+                @file_put_contents($f, $out . "\n", FILE_APPEND);
+            }
+        });
+    }
+    te_register_shutdown();
+}
+
+// Bootstrap-Log
+$__te_boot = function($label){
+    $f = __DIR__ . '/test.html';
+    $ts = date('Y-m-d H:i:s');
+    @file_put_contents($f, "<hr><b>[$ts] time-entries.php | $label</b><br>\n", FILE_APPEND);
+};
+$__te_boot('bootstrap');
+
+// Hilfsfunktion global definiert: späte Definition innerhalb anderer Funktionen kann zu Fatal führen
+if (!function_exists('resolveColumn')) {
+    function resolveColumn(mysqli $conn, array $candidates): ?string {
+        $names = [];
+        if ($res = $conn->query("SHOW COLUMNS FROM time_entries")) {
+            while ($r = $res->fetch_assoc()) { $names[strtolower($r['Field'])] = true; }
+            $res->close();
+        }
+        foreach ($candidates as $c) { if (!empty($names[strtolower($c)])) return $c; }
+        return null;
+    }
+}
+
 initialize_api();
 initSecurityMiddleware();
 
 // lightweight debug logger to /api/debug-time-entries.log
 function tlog($label, $data = null) {
+    if ((getenv('APP_ENV') === 'production') && (!filter_var(getenv('APP_DEBUG') ?: '0', FILTER_VALIDATE_BOOLEAN))) { return; }
     $line = '[' . date('Y-m-d H:i:s') . "] time-entries.php | " . $label;
     if ($data !== null) {
         $line .= ' | ' . (is_string($data) ? $data : json_encode($data));
@@ -32,6 +69,7 @@ function tlog($label, $data = null) {
 
 // TEMP: HTML log to /api/test.html so you can view via browser
 function hlog($title, $data = null) {
+    if ((getenv('APP_ENV') === 'production') && (!filter_var(getenv('APP_DEBUG') ?: '0', FILTER_VALIDATE_BOOLEAN))) { return; }
     $f = __DIR__ . '/test.html';
     $ts = date('Y-m-d H:i:s');
     $out = "<hr><b>[$ts] $title</b><br>";
@@ -282,18 +320,9 @@ function handleCheckRunning(mysqli $conn, array $sessionUser, InputValidationSer
 
     $today = date('Y-m-d');
     // Dynamically resolve columns (stop_time vs end_time, start_time vs start, status)
-    if (!function_exists('resolveColumn')) {
-        function resolveColumn(mysqli $conn, array $candidates): ?string {
-            $names = [];
-            if ($res = $conn->query("SHOW COLUMNS FROM time_entries")) {
-                while ($r = $res->fetch_assoc()) { $names[strtolower($r['Field'])] = true; }
-                $res->close();
-            }
-            foreach ($candidates as $c) { if (!empty($names[strtolower($c)])) return $c; }
-            return null;
-        }
-    }
+    // resolveColumn ist nun global definiert
     $stopCol = resolveColumn($conn, ['stop_time','end_time']);
+    $statusCol = resolveColumn($conn, ['status']);
     $startCol = resolveColumn($conn, ['start_time','start']);
     $statusCol = resolveColumn($conn, ['status']);
     if (!$startCol) { $startCol = 'start_time'; }
@@ -359,7 +388,8 @@ function handleStart(mysqli $conn, array $sessionUser, InputValidationService $v
         // csrf_token may be included but is validated by middleware
     ]);
 
-    $username = (new StringSanitizer())->sanitize($sessionUser['username'] ?? ($sessionUser['name'] ?? ''));
+    // Sanitize Username sicher über ValidationService (StringSanitizer nicht erforderlich)
+    $username = $validator->sanitizeString($sessionUser['username'] ?? ($sessionUser['name'] ?? ''));
     $userId = resolveUserId($conn, $sessionUser);
     if (!$userId) { tlog('start_user_not_found', $sessionUser); send_response(404, ['message' => 'User not found']); }
     tlog('start_user_resolved', $userId);
@@ -367,8 +397,9 @@ function handleStart(mysqli $conn, array $sessionUser, InputValidationService $v
 
     // Prevent multiple running timers
     $stopCol = resolveColumn($conn, ['stop_time','end_time']);
-    $whereStop = $stopCol ? (" AND $stopCol IS NULL") : '';
-    $sqlExist = "SELECT `id` FROM `time_entries` WHERE `user_id` = ? AND `date` = ?" . ($statusCol? " AND `status`='running'" : ($stopCol? " AND `".$conn->real_escape_string($stopCol)."` IS NULL" : "")) . " LIMIT 1";
+    $statusCol = resolveColumn($conn, ['status']);
+    $whereStop = $statusCol ? " AND `status`='running'" : ($stopCol ? (" AND `".$conn->real_escape_string($stopCol)."` IS NULL") : '');
+    $sqlExist = "SELECT `id` FROM `time_entries` WHERE `user_id` = ? AND `date` = ?" . $whereStop . " LIMIT 1";
     hlog('start_exist_sql', $sqlExist);
     $stmt = $conn->prepare($sqlExist);
     if (!$stmt) { tlog('start_prepare_exists_failed', $conn->error . ' | sql=' . $sqlExist); hlog('start_prepare_exists_failed', $conn->error); send_response(500, ['message' => 'Database error']); }

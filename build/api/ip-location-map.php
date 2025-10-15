@@ -1,13 +1,13 @@
 <?php
 define('API_GUARD', true);
-require_once __DIR__ . '/security-headers.php';
 require_once __DIR__ . '/error-handler.php';
 require_once __DIR__ . '/security-middleware.php';
 require_once __DIR__ . '/auth_helpers.php';
-require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/csrf-middleware.php';
+require_once __DIR__ . '/DatabaseConnection.php';
 
-initializeSecurity(true);
-validateRequestMethod(['GET','PUT','OPTIONS']);
+initialize_api();
+initSecurityMiddleware();
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -26,6 +26,12 @@ if (!is_array($map)) { $map = ['entries'=>[]]; }
 if (!isset($map['entries']) || !is_array($map['entries'])) { $map['entries'] = []; }
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+if (!in_array($method, ['GET','PUT','OPTIONS'], true)) {
+  http_response_code(405);
+  header('Allow: GET, PUT, OPTIONS');
+  echo json_encode(['error'=>'Method not allowed']);
+  exit;
+}
 
 if ($method === 'GET') {
   echo json_encode($map, JSON_UNESCAPED_UNICODE);
@@ -77,7 +83,8 @@ if ($method === 'PUT') {
   }
   // Persistiere: Mische alle Locations in global_settings.locations ein (alphabetisch, einzigartig)
   try {
-    if (isset($conn) && $conn instanceof mysqli && @$conn->ping()) {
+    $conn = DatabaseConnection::getInstance()->getConnection();
+    if ($conn instanceof mysqli && @$conn->ping()) {
       $locs = [];
       if ($res = $conn->query('SELECT locations FROM global_settings WHERE id = 1')) {
         if ($row = $res->fetch_assoc()) {

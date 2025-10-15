@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Login with Real Session</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
+        pre { background: #252526; padding: 15px; border-radius: 5px; overflow: auto; }
+        button { padding: 10px 20px; margin: 10px 0; cursor: pointer; font-size: 16px; }
+        .success { color: #4ec9b0; }
+        .error { color: #f48771; }
+    </style>
+</head>
+<body>
+    <h1>Test Login API</h1>
+    <button onclick="testLogin()">Test POST /api/login.php</button>
+    <button onclick="testAuthStatus()">Test GET /api/auth-status.php</button>
+    <div id="result"></div>
+
+    <script>
+        async function testLogin() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<p>Calling POST /api/login.php...</p>';
+
+            try {
+                const response = await fetch('/api/login.php', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const status = response.status;
+                const text = await response.text();
+
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch {
+                    data = text;
+                }
+
+                resultDiv.innerHTML = `
+                    <h2 class="${status === 200 ? 'success' : 'error'}">Status: ${status}</h2>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (err) {
+                resultDiv.innerHTML = `<h2 class="error">Error</h2><pre>${err.message}</pre>`;
+            }
+        }
+
+        async function testAuthStatus() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<p>Calling GET /api/auth-status.php...</p>';
+
+            try {
+                const response = await fetch('/api/auth-status.php', {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+
+                const status = response.status;
+                const text = await response.text();
+
+                resultDiv.innerHTML = `
+                    <h2 class="${status === 204 ? 'success' : 'error'}">Status: ${status}</h2>
+                    <pre>${text || '(empty response - expected for 204)'}</pre>
+                `;
+            } catch (err) {
+                resultDiv.innerHTML = `<h2 class="error">Error</h2><pre>${err.message}</pre>`;
+            }
+        }
+    </script>
+</body>
+</html>

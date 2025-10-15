@@ -11,7 +11,6 @@ define('API_GUARD', true);
 // So bleiben Header setzbar und send_response funktioniert zuverlässig
 if (function_exists('ob_start')) { ob_start(); }
 
-require_once __DIR__ . '/security-headers.php';
 require_once __DIR__ . '/error-handler.php';
 require_once __DIR__ . '/security-middleware.php';
 require_once __DIR__ . '/auth_helpers.php';
@@ -19,14 +18,20 @@ require_once __DIR__ . '/csrf-middleware.php';
 require_once __DIR__ . '/DatabaseConnection.php';
 require_once __DIR__ . '/InputValidationService.php';
 
-// Security / CORS / Methoden
-initializeSecurity(false);
-// Erlaube GET (lesen), POST (anlegen), PATCH (verarbeiten)
-validateRequestMethod(['GET','POST','PATCH']);
+// Security / CORS
+initialize_api();
 initSecurityMiddleware();
+// Methoden-Whitelist
+$__method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+if (!in_array($__method, ['GET','POST','PATCH'], true)) {
+    http_response_code(405);
+    header('Allow: GET, POST, PATCH');
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['error'=>'Method not allowed']);
+    exit;
+}
 
 // CSRF prüfen NUR für state-changing Methoden (POST/PATCH), nicht für GET
-$__method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 if (in_array($__method, ['POST','PATCH'], true)) {
     $csrfOk = function_exists('validateCsrfToken') ? validateCsrfToken() : (function_exists('validateCsrfProtection') ? validateCsrfProtection() : true);
     if (!$csrfOk) {
@@ -55,6 +60,7 @@ $conn = $db->getConnection();
 // Debug-Logger (leichtgewichtig)
 if (!function_exists('alog')) {
     function alog($title, $data = null) {
+        if ((getenv('APP_ENV') === 'production') && (!filter_var(getenv('APP_DEBUG') ?: '0', FILTER_VALIDATE_BOOLEAN))) { return; }
         $f = __DIR__ . '/approvals-debug.log';
         $ts = date('Y-m-d H:i:s');
         $out = "[$ts] approvals.php | $title";

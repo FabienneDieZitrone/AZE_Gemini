@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Login Flow Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; }
+        .success { color: green; }
+        .error { color: red; }
+        pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>OAuth Login Flow Test</h1>
+    <div id="results"></div>
+
+    <script>
+        const results = document.getElementById('results');
+
+        async function testFlow() {
+            // Test 1: Check auth status
+            results.innerHTML += '<h2>1. Checking auth status...</h2>';
+            try {
+                const authResp = await fetch('/api/auth-status.php', {
+                    credentials: 'include'
+                });
+                results.innerHTML += `<p class="${authResp.status === 204 ? 'success' : 'error'}">Auth Status: ${authResp.status}</p>`;
+
+                if (authResp.status !== 204) {
+                    results.innerHTML += '<p class="error">Not logged in! Please login first.</p>';
+                    return;
+                }
+            } catch (e) {
+                results.innerHTML += `<p class="error">Auth check failed: ${e.message}</p>`;
+                return;
+            }
+
+            // Test 2: Check session details
+            results.innerHTML += '<h2>2. Checking session details...</h2>';
+            try {
+                const sessionResp = await fetch('/api/test-session-after-oauth.php', {
+                    credentials: 'include'
+                });
+                const sessionData = await sessionResp.json();
+                results.innerHTML += `<pre>${JSON.stringify(sessionData, null, 2)}</pre>`;
+            } catch (e) {
+                results.innerHTML += `<p class="error">Session check failed: ${e.message}</p>`;
+            }
+
+            // Test 3: Test login.php
+            results.innerHTML += '<h2>3. Testing /api/login.php (POST)...</h2>';
+            try {
+                const loginResp = await fetch('/api/login.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include'
+                });
+
+                results.innerHTML += `<p class="${loginResp.ok ? 'success' : 'error'}">Status: ${loginResp.status}</p>`;
+
+                const loginData = await loginResp.text();
+                let parsedData;
+                try {
+                    parsedData = JSON.parse(loginData);
+                    results.innerHTML += `<pre>${JSON.stringify(parsedData, null, 2)}</pre>`;
+
+                    if (parsedData.currentUser) {
+                        results.innerHTML += '<p class="success">✓ Login successful! User data received.</p>';
+                    } else if (parsedData.message || parsedData.error) {
+                        results.innerHTML += `<p class="error">✗ Login failed: ${parsedData.message || parsedData.error}</p>`;
+                    }
+                } catch (e) {
+                    results.innerHTML += `<p class="error">Response is not JSON:</p><pre>${loginData.substring(0, 500)}</pre>`;
+                }
+            } catch (e) {
+                results.innerHTML += `<p class="error">Login request failed: ${e.message}</p>`;
+            }
+        }
+
+        testFlow();
+    </script>
+</body>
+</html>

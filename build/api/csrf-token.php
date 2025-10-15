@@ -2,7 +2,6 @@
 // Prevent direct access and ensure consistent headers
 define('API_GUARD', true);
 
-require_once __DIR__ . '/security-headers.php';
 require_once __DIR__ . '/security-middleware.php';
 require_once __DIR__ . '/csrf-middleware.php';
 require_once __DIR__ . '/auth_helpers.php';
@@ -21,4 +20,3 @@ send_response(200, [
     'csrfToken' => $token
 ]);
 ?>
-

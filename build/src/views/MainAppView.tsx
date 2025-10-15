@@ -8,13 +8,13 @@
  */
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { api } from '../../api';
-import { Role, Theme, User, TimeEntry, ViewState, MasterData, ApprovalRequest, HistoryEntry, SupervisorNotification, GlobalSettings, ReasonData } from '../types';
+import { Role, Theme, User, TimeEntry, ViewState, MasterData, ApprovalRequest, HistoryEntry, GlobalSettings, ReasonData } from '../types';
 import { TimerService } from '../components/TimerService';
 import { notificationService, Toaster } from '../services/NotificationService';
 import { ErrorDisplay } from '../components/common/ErrorDisplay';
 import '../components/common/ErrorDisplay.css';
 
-import { getStartOfWeek, formatTime, calculateDurationInSeconds } from '../utils/time';
+import { calculateDurationInSeconds } from '../utils/time';
 import { TIME } from '../constants';
 import { Logo } from '../components/common/Logo';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
@@ -119,12 +119,12 @@ export const MainAppView: React.FC = () => {
   }, [viewState.current]);
 
   // Timer callbacks
-  const handleTimerStart = useCallback((timerId: number) => {
+  const handleTimerStart = useCallback((_timerId: number) => {
     setHasRunningTimer(true);
     refreshData();
   }, []);
 
-  const handleTimerStop = useCallback((timerId: number) => {
+  const handleTimerStop = useCallback((_timerId: number) => {
     setHasRunningTimer(false);
     refreshData();
   }, []);
@@ -308,32 +308,42 @@ export const MainAppView: React.FC = () => {
 
   const calculatedOvertimeSeconds = useMemo(() => {
     if (!currentUser || !masterData[currentUser.id]) return 0;
-    const userMasterData = masterData[currentUser.id];
-    if (!userMasterData || userMasterData.workdays.length === 0) return 0;
+    const md = masterData[currentUser.id] as any;
+    const workdays: string[] = Array.isArray(md.workdays) ? md.workdays : [];
+    const flexible: boolean = !!md.flexibleWorkdays;
+    const dailyHours: Record<string, number> = md.dailyHours || {};
 
-    const dailySollSeconds = (userMasterData.weeklyHours / userMasterData.workdays.length) * TIME.SECONDS_PER_HOUR;
-
-    const dayMap: { [key: string]: number } = { 'Mo': 1, 'Di': 2, 'Mi': 3, 'Do': 4, 'Fr': 5, 'Sa': 6, 'So': 0 };
-    const workdaysSet = new Set(userMasterData.workdays.map(d => dayMap[d as keyof typeof dayMap]));
+    const dayNameByIndex: Record<number, string> = { 0: 'So', 1: 'Mo', 2: 'Di', 3: 'Mi', 4: 'Do', 5: 'Fr', 6: 'Sa' };
+    const workdaySet = new Set(workdays);
 
     const dailyTotals = timeEntries
-        .filter(e => e.userId === currentUser.id)
-        .reduce((acc, entry) => {
-            const duration = calculateDurationInSeconds(entry.startTime, entry.stopTime);
-            acc[entry.date] = (acc[entry.date] || 0) + duration;
-            return acc;
-        }, {} as Record<string, number>);
+      .filter(e => e.userId === currentUser.id)
+      .reduce((acc, entry) => {
+        const duration = calculateDurationInSeconds(entry.startTime, entry.stopTime);
+        acc[entry.date] = (acc[entry.date] || 0) + duration;
+        return acc;
+      }, {} as Record<string, number>);
 
     let totalDifference = 0;
     for (const date in dailyTotals) {
-        const d = new Date(date + "T00:00:00");
-        const dayOfWeek = d.getDay();
-        
-        if (workdaysSet.has(dayOfWeek)) {
-            totalDifference += (dailyTotals[date] - dailySollSeconds);
-        } else {
-            totalDifference += dailyTotals[date];
-        }
+      const d = new Date(date + 'T00:00:00');
+      const dayName = dayNameByIndex[d.getDay()];
+      const actual = dailyTotals[date];
+
+      if (flexible) {
+        // Bei flexibel gibt es keine feste Sollzeit pro Tag – alles zählt als geleistete Zeit
+        totalDifference += actual;
+        continue;
+      }
+
+      if (workdaySet.has(dayName)) {
+        const sollHours = dailyHours?.[dayName] ?? (md.weeklyHours && workdays.length ? md.weeklyHours / workdays.length : 8);
+        const soll = sollHours * TIME.SECONDS_PER_HOUR;
+        totalDifference += (actual - soll);
+      } else {
+        // Nicht regulärer Arbeitstag → alles als Pluszeit zählen
+        totalDifference += actual;
+      }
     }
     return totalDifference;
   }, [timeEntries, currentUser, masterData]);

@@ -7,7 +7,6 @@
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { ErrorDisplay } from './ErrorDisplay';
-import { errorMessageService } from '../../services/ErrorMessageService';
 import './ErrorDisplay.css';
 
 interface Props {
@@ -82,13 +81,6 @@ export class ErrorBoundary extends Component<Props, State> {
 
       const error = this.state.error || new Error('Unbekannter Fehler');
       
-      // Create error context for display
-      const errorContext = errorMessageService.getErrorMessage({
-        ...error,
-        code: 'REACT_ERROR',
-        message: error.message || 'Ein unerwarteter Fehler ist in der Anwendung aufgetreten'
-      });
-
       return (
         <div className="error-boundary">
           <div className="error-boundary__container">

@@ -6,7 +6,6 @@ import {
   Typography,
   Paper,
   Alert,
-  Chip,
   Grid,
   Divider,
   Card,
@@ -20,11 +19,9 @@ import {
   CircularProgress
 } from '@mui/material';
 import {
-  QrCode2,
   ContentCopy,
   Security,
   CheckCircle,
-  Warning,
   Visibility,
   VisibilityOff,
   Download,
@@ -36,8 +33,6 @@ interface MFASetupProps {
   userId: number;
   onComplete: (success: boolean) => void;
   onCancel: () => void;
-  userEmail?: string;
-  userName?: string;
 }
 
 interface MFASetupData {
@@ -51,9 +46,7 @@ interface MFASetupData {
 export const MFASetup: React.FC<MFASetupProps> = ({ 
   userId, 
   onComplete, 
-  onCancel,
-  userEmail = '',
-  userName = ''
+  onCancel
 }) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
@@ -66,12 +59,7 @@ export const MFASetup: React.FC<MFASetupProps> = ({
   const [verifying, setVerifying] = useState<boolean>(false);
   const [backupCodesSaved, setBackupCodesSaved] = useState<boolean>(false);
 
-  const steps = [
-    'MFA einrichten',
-    'Authenticator konfigurieren',
-    'Backup-Codes speichern',
-    'Verifizierung'
-  ];
+  // Steps are rendered inline via Step/StepLabel; no external array needed
 
   useEffect(() => {
     initializeMFA();

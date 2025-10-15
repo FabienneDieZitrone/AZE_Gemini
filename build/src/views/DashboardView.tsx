@@ -86,6 +86,7 @@ export const DashboardView: React.FC<{
         <div className="view-container">
             <header className="view-header">
                 <h2>{isSupervisor ? 'Dashboard für Vorgesetzte' : 'Mein persönliches Dashboard'}</h2>
+                <button className="nav-button" onClick={onBack}>Zurück zur Startseite</button>
             </header>
 
             <div className="dashboard-grid">

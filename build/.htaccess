@@ -37,5 +37,11 @@ Options -Indexes +SymLinksIfOwnerMatch
   FileETag None
 </IfModule>
 
-# Ensure default index files
-DirectoryIndex index.html index.php
+# Ensure default index files (prefer index.php loader for cache-busting)
+DirectoryIndex index.php index.html
+
+# Redirect veralteter Pfad "/aze" auf die Startseite, um doppelte Verzeichnisse zu vermeiden
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^aze/?$ / [R=302,L]
+</IfModule>

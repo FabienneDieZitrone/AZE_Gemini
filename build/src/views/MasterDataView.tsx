@@ -19,13 +19,31 @@ export const MasterDataView: React.FC<{
     locations: string[];
 }> = ({ onBack, masterData, users, currentUser, onSave, onEditRole, locations }) => {
     const [selectedUserId, setSelectedUserId] = useState<number>(currentUser.id);
-    const [formData, setFormData] = useState<MasterData | null>(masterData[selectedUserId]);
+    const defaultForm: MasterData = {
+        weeklyHours: 40,
+        workdays: ["Mo","Di","Mi","Do","Fr"],
+        canWorkFromHome: false,
+        locations: [],
+        flexibleWorkdays: false,
+        dailyHours: {}
+    } as any;
+    const [formData, setFormData] = useState<MasterData | null>(masterData[selectedUserId] as any || defaultForm);
 
     useEffect(() => {
         if (masterData[selectedUserId]) {
-            setFormData(masterData[selectedUserId]);
+            // Merge with defaults to ensure new fields exist
+            const md = masterData[selectedUserId] as any;
+            setFormData({
+                weeklyHours: md.weeklyHours,
+                workdays: Array.isArray(md.workdays) ? md.workdays : defaultForm.workdays,
+                canWorkFromHome: !!md.canWorkFromHome,
+                locations: Array.isArray(md.locations) ? md.locations : [],
+                flexibleWorkdays: !!md.flexibleWorkdays,
+                dailyHours: md.dailyHours || {}
+            } as any);
         } else {
-             setFormData(null); // Handle case where data might not be available yet
+            // Provide sane defaults so UI is usable instead of hanging on loader
+            setFormData(defaultForm);
         }
     }, [selectedUserId, masterData]);
 
@@ -42,10 +60,18 @@ export const MasterDataView: React.FC<{
         const { value, checked } = e.target;
         setFormData(prev => {
             if (!prev) return null;
-            const newWorkdays = checked
-                ? [...prev.workdays, value]
-                : prev.workdays.filter(day => day !== value);
-            return {...prev, workdays: newWorkdays};
+            const exists = prev.workdays.includes(value);
+            let newWorkdays = prev.workdays;
+            let newDaily = { ...(prev as any).dailyHours } as Record<string, number>;
+            if (checked && !exists) {
+                newWorkdays = [...prev.workdays, value];
+                if (newDaily[value] == null) newDaily[value] = 8; // default 8h for new day
+            }
+            if (!checked && exists) {
+                newWorkdays = prev.workdays.filter(day => day !== value);
+                delete newDaily[value];
+            }
+            return { ...(prev as any), workdays: newWorkdays, dailyHours: newDaily } as any;
         });
     };
     
@@ -71,6 +97,7 @@ export const MasterDataView: React.FC<{
         <div className="view-container">
             <header className="view-header">
                 <h2>Stammdaten verwalten</h2>
+                <button className="nav-button" onClick={onBack}>Zurück zur Startseite</button>
             </header>
             <form className="master-data-form" onSubmit={handleSave}>
                 <div className="master-data-actions">
@@ -89,7 +116,7 @@ export const MasterDataView: React.FC<{
                     </div>
                     <div className="form-group">
                         <label>Regelmäßige Wochenarbeitstage</label>
-                        <div className="checkbox-group">
+                        <div className="checkbox-group" style={{ gap: 12 }}>
                             {workdaysOptions.map(day => (
                                 <label key={day}>
                                     <input type="checkbox" value={day} checked={formData.workdays.includes(day)} onChange={handleDayChange}/>
@@ -97,11 +124,37 @@ export const MasterDataView: React.FC<{
                                 </label>
                             ))}
                         </div>
+                        <div style={{ marginTop: 8 }}>
+                            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                                <input type="checkbox" checked={(formData as any).flexibleWorkdays || false} onChange={e => setFormData(prev => prev ? ({ ...(prev as any), flexibleWorkdays: e.target.checked } as any) : prev)} />
+                                Flexibel
+                            </label>
+                        </div>
+                        {/* Daily hours per selected workday */}
+                        {formData.workdays.length > 0 && (
+                          <div style={{ marginTop: 12 }}>
+                            <div style={{ fontWeight: 600, marginBottom: 6 }}>Tägliche Stunden je ausgewähltem Tag</div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 8 }}>
+                              {formData.workdays.map(d => (
+                                <label key={d} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                  <span>{d}</span>
+                                  <input type="number" min={0} step={0.25} value={(formData as any).dailyHours?.[d] ?? 8} onChange={e => {
+                                    const v = parseFloat(e.target.value);
+                                    setFormData(prev => prev ? ({ ...(prev as any), dailyHours: { ...(prev as any).dailyHours, [d]: isNaN(v) ? 0 : v } } as any) : prev)
+                                  }} />
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                     </div>
                     <div className="form-group">
                         <label>Zugeordnete Standorte</label>
-                         <select multiple disabled size={3}>
-                            {locations.map(loc => <option key={loc}>{loc}</option>)}
+                        <select multiple size={4} value={(formData as any).locations || []} onChange={(e) => {
+                            const vals = Array.from(e.target.selectedOptions).map(o => o.value);
+                            setFormData(prev => prev ? ({ ...(prev as any), locations: vals } as any) : prev);
+                        }}>
+                            {locations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
                         </select>
                     </div>
                      <div className="form-group">

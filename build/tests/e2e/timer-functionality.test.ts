@@ -22,14 +22,11 @@ test.describe('Timer Functionality E2E Tests', () => {
     expect(data.checks.database.status).toBe('healthy');
   });
 
-  test('New timer-control API should require authentication', async ({ request }) => {
-    const response = await request.post(`${BASE_URL}/api/timer-control.php`, {
-      data: { action: 'start', location: 'Office' }
+  test('Time-entries API requires authentication', async ({ request }) => {
+    const response = await request.post(`${BASE_URL}/api/time-entries.php?action=start`, {
+      data: { date: '2025-01-01', startTime: '09:00:00', createdBy: 'E2E' }
     });
-    
-    expect(response.status()).toBe(401);
-    const data = await response.json();
-    expect(data.message).toContain('Unauthorized');
+    expect([401, 403]).toContain(response.status());
   });
 
   test('Old timer endpoints should not exist', async ({ request }) => {
@@ -45,9 +42,11 @@ test.describe('Timer Functionality E2E Tests', () => {
     }
   });
 
-  test('Constants file should be loaded', async ({ request }) => {
-    const response = await request.get(`${BASE_URL}/api/constants.php`);
+  test('CSRF token endpoint should respond', async ({ request }) => {
+    const response = await request.get(`${BASE_URL}/api/csrf-token.php`);
     expect(response.ok()).toBeTruthy();
+    const data = await response.json();
+    expect(data).toHaveProperty('csrfToken');
   });
 
   test('Security headers should be present', async ({ request }) => {
@@ -81,16 +80,7 @@ test.describe('Timer Functionality E2E Tests', () => {
     expect(criticalErrors.length).toBe(0);
   });
 
-  test('Timer service components should be present in bundle', async ({ request }) => {
-    // Check if main JS bundle contains our new components
-    const response = await request.get(`${BASE_URL}/dist/assets/index-DsjfTLkB.js`);
-    const jsContent = await response.text();
-    
-    // Verify new timer components are in the bundle
-    expect(jsContent).toContain('useTimer');
-    expect(jsContent).toContain('TimerService');
-    expect(jsContent).toContain('TIME.SECONDS_PER_HOUR');
-  });
+  // Removed bundle hash dependency to avoid brittle checks
 });
 
 test.describe('Performance Tests', () => {

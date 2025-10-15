@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Asset Test</title>
+</head>
+<body>
+    <h1>Asset Loading Test</h1>
+    <div id="results"></div>
+    <script>
+        const assets = [
+            '/assets/index-C02UeB1c.js',
+            '/assets/index-mmLeTg_1.css',
+            '/assets/html2canvas.esm-CBrSDip1.js',
+            '/assets/index.es-Bur9k7zb.js',
+            '/assets/purify.es-CQJ0hv7W.js'
+        ];
+
+        const results = document.getElementById('results');
+
+        assets.forEach(async (asset) => {
+            try {
+                const response = await fetch(asset);
+                const status = response.status;
+                const size = response.headers.get('content-length');
+                results.innerHTML += `<p style="color: ${status === 200 ? 'green' : 'red'}">
+                    ${asset}: ${status} (${size ? size + ' bytes' : 'unknown size'})
+                </p>`;
+            } catch (e) {
+                results.innerHTML += `<p style="color: red">${asset}: ERROR - ${e.message}</p>`;
+            }
+        });
+    </script>
+</body>
+</html>
