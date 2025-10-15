@@ -117,7 +117,7 @@ https://aze.mikropartner.de/api/health.php      ← Health Check
 
 ### .htaccess Rewrite Rules
 
-**Wichtig**: `/www/aze/.htaccess` leitet alle nicht-API-Requests zu `/dist/index.html`:
+**Wichtig**: `/.htaccess` (im HTTP Root) leitet alle nicht-API-Requests zu `/dist/index.html`:
 
 ```apache
 RewriteEngine On
@@ -147,7 +147,7 @@ Falls `deploy-secure.sh` nicht funktioniert:
 curl --ftp-ssl --insecure \
   --user "ftp10454681-aze:321MPStart321" \
   -T "lokale-datei.php" \
-  "ftp://wp10454681.server-he.de/www/aze/api/datei.php"
+  "ftp://wp10454681.server-he.de/api/datei.php"
 ```
 
 ### Mehrere Dateien hochladen:
@@ -157,18 +157,18 @@ curl --ftp-ssl --insecure \
 curl --ftp-ssl --insecure \
   --user "ftp10454681-aze:321MPStart321" \
   -T "dist/index.html" \
-  "ftp://wp10454681.server-he.de/www/aze/dist/index.html"
+  "ftp://wp10454681.server-he.de/dist/index.html"
 
 curl --ftp-ssl --insecure \
   --user "ftp10454681-aze:321MPStart321" \
   -T "dist/assets/index-C02UeB1c.js" \
-  "ftp://wp10454681.server-he.de/www/aze/dist/assets/index-C02UeB1c.js"
+  "ftp://wp10454681.server-he.de/dist/assets/index-C02UeB1c.js"
 
 # Backend
 curl --ftp-ssl --insecure \
   --user "ftp10454681-aze:321MPStart321" \
   -T "api/login.php" \
-  "ftp://wp10454681.server-he.de/www/aze/api/login.php"
+  "ftp://wp10454681.server-he.de/api/login.php"
 ```
 
 **Wichtig**:
@@ -237,10 +237,10 @@ Location: https://login.microsoftonline.com/...
 ### FTP-Verbindung testen:
 
 ```bash
-# Liste aller Dateien im Verzeichnis
+# Liste aller Dateien im Root-Verzeichnis
 curl --ftp-ssl --insecure \
   --user "ftp10454681-aze:321MPStart321" \
-  "ftp://wp10454681.server-he.de/www/aze/" \
+  "ftp://wp10454681.server-he.de/" \
   -l
 ```
 
@@ -262,7 +262,7 @@ ls -lh dist/assets/index-C02UeB1c.js
 curl --ftp-ssl --insecure \
   --user "ftp10454681-aze:321MPStart321" \
   -T "dist/assets/index-C02UeB1c.js" \
-  "ftp://wp10454681.server-he.de/www/aze/dist/assets/index-C02UeB1c.js"
+  "ftp://wp10454681.server-he.de/dist/assets/index-C02UeB1c.js"
 
 # 3. Remote Datei-Größe prüfen
 curl -k -I 'https://aze.mikropartner.de/assets/index-C02UeB1c.js' | grep Content-Length
@@ -335,7 +335,7 @@ EOF
 # Upload und Aufruf
 curl --ftp-ssl --insecure --user "ftp10454681-aze:321MPStart321" \
   -T "api/opcache-reset.php" \
-  "ftp://wp10454681.server-he.de/www/aze/api/opcache-reset.php"
+  "ftp://wp10454681.server-he.de/api/opcache-reset.php"
 
 curl -k 'https://aze.mikropartner.de/api/opcache-reset.php'
 ```
@@ -397,7 +397,28 @@ curl -k -I 'https://aze.mikropartner.de/'
 
 ---
 
-**Letzte Aktualisierung**: 2025-10-14
-**Version**: 1.0
+**Letzte Aktualisierung**: 2025-10-15
+**Version**: 1.1 (Pfad-Korrektur verifiziert)
 **Autor**: MP-IT
 **Status**: PRODUKTIV
+
+---
+
+## ⚠️ WICHTIGE ÄNDERUNG (v1.1)
+
+**Datum**: 2025-10-15
+
+**Problem**: Wiederholte Fehler mit FTP-Pfaden führten zu doppelt verschachtelten Verzeichnissen.
+
+**Korrektur**:
+- ✅ FTP_PATH muss `/` sein (NICHT `/www/aze/`)
+- ✅ FTP-User `ftp10454681-aze` landet direkt in `/www/it/aze/`
+- ✅ Alle manuellen curl-Befehle verwenden jetzt `ftp://wp10454681.server-he.de/` ohne `/www/aze/`
+- ✅ Dokumentation vollständig auf korrekte Pfade aktualisiert
+
+**Verifikation**:
+```bash
+# Teste, dass time-entries.php im richtigen Pfad liegt:
+curl -k -s 'https://aze.mikropartner.de/api/time-entries.php?ping' | grep file
+# Erwartung: "file": "/is/htdocs/wp10454681_6ZVVNFOUIZ/www/it/aze/api/time-entries.php"
+```
