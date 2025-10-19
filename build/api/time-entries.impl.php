@@ -2,7 +2,15 @@
 /**
  * Time Entries API
  * Supports actions: start, stop, check_running
+ *
+ * CRITICAL FIX (2025-10-19): session_name() MUST be ABSOLUTE FIRST LINE
  */
+
+// CRITICAL: Set session name as ABSOLUTE FIRST LINE (before ANY other code!)
+session_name('AZE_SESSION');
+
+// Start output buffering immediately to prevent any output before headers
+ob_start();
 
 declare(strict_types=1);
 

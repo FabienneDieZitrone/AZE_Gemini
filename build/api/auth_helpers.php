@@ -71,12 +71,20 @@ function initialize_api() {
  * Sendet eine JSON-Antwort mit dem entsprechenden HTTP-Statuscode und beendet das Skript.
  */
 function send_response($status_code, $data = null) {
+    // Clean any output buffer before sending response (prevents header corruption)
+    if (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+
     // Verhindere, dass nach dem Senden der Antwort noch etwas passiert.
     if (headers_sent()) {
         error_log("Attempted to send response, but headers already sent.");
         return;
     }
+
     http_response_code($status_code);
+    header('Content-Type: application/json; charset=utf-8');
+
     if ($data !== null) {
         echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     }
