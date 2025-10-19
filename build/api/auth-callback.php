@@ -2,8 +2,12 @@
 /**
  * OAuth Callback: Exchanges authorization code for tokens and creates user session
  *
- * CRITICAL FIX: Uses output buffering to prevent "headers already sent" errors
+ * CRITICAL FIX (2025-10-19): session_name() MUST be the ABSOLUTE FIRST LINE
+ * to prevent PHP from auto-starting a session with default name PHPSESSID!
  */
+
+// CRITICAL: Set session name as ABSOLUTE FIRST LINE (before ANY other code!)
+session_name('AZE_SESSION');
 
 // Start output buffering immediately
 ob_start();
@@ -31,10 +35,6 @@ if (!function_exists('aclog')) {
         @file_put_contents($f, $out . "\n", FILE_APPEND);
     }
 }
-
-// CRITICAL: Set session name BEFORE any session operations!
-// Start secure session INLINE to guarantee AZE_SESSION name
-session_name('AZE_SESSION');
 session_set_cookie_params([
     'lifetime' => 0,
     'path' => '/',

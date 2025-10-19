@@ -12,11 +12,19 @@ import { API } from './src/constants';
 
 
 const fetchApi = async (endpoint: string, options: RequestInit & { isAuthCheck?: boolean } = {}) => {
+    // Enhanced console logging for debugging OAuth → Dashboard flow
+    const debugPrefix = '[AZE-API]';
+    console.log(`${debugPrefix} Request: ${options.method || 'GET'} ${endpoint}`, {
+        isAuthCheck: options.isAuthCheck || false,
+        credentials: 'include',
+        timestamp: new Date().toISOString()
+    });
+
     const headers = new Headers({ 'Content-Type': 'application/json' });
     if (options.headers) {
         new Headers(options.headers).forEach((value, key) => headers.set(key, value));
     }
-    
+
     const controller = new AbortController();
     const fetchOptions: RequestInit = {
         ...options,
@@ -29,7 +37,20 @@ const fetchApi = async (endpoint: string, options: RequestInit & { isAuthCheck?:
     let response: Response;
     try {
         response = await fetch(`${API.BASE_URL}${endpoint}`, fetchOptions);
+        console.log(`${debugPrefix} Response: ${response.status} ${response.statusText}`, {
+            endpoint,
+            status: response.status,
+            ok: response.ok,
+            contentType: response.headers.get('content-type'),
+            timestamp: new Date().toISOString()
+        });
     } catch (err: any) {
+        console.error(`${debugPrefix} Fetch Error:`, {
+            endpoint,
+            error: err.message,
+            name: err.name,
+            timestamp: new Date().toISOString()
+        });
         if (err?.name === 'AbortError') {
             throw new Error('Die Anfrage hat zu lange gedauert und wurde abgebrochen (Timeout).');
         }
@@ -37,15 +58,26 @@ const fetchApi = async (endpoint: string, options: RequestInit & { isAuthCheck?:
     } finally {
         clearTimeout(timeoutId);
     }
-    
+
     if (response.status === 401 && !options.isAuthCheck) {
-        window.location.href = '/'; 
+        console.warn(`${debugPrefix} 401 Unauthorized - Redirecting to login`, {
+            endpoint,
+            isAuthCheck: false
+        });
+        window.location.href = '/';
         throw new Error('Session expired or invalid.');
     }
 
     if (!response.ok) {
         const errorText = await response.text();
-        
+        console.error(`${debugPrefix} API Error Response:`, {
+            endpoint,
+            status: response.status,
+            statusText: response.statusText,
+            errorText: errorText.substring(0, 500),
+            timestamp: new Date().toISOString()
+        });
+
         if (controller.signal.aborted) {
             throw new Error('Die Anfrage hat zu lange gedauert und wurde abgebrochen (Timeout).');
         }
@@ -58,22 +90,34 @@ const fetchApi = async (endpoint: string, options: RequestInit & { isAuthCheck?:
             if (e instanceof Error && (e.message.startsWith('API-Fehler:') || e.message.startsWith('Session expired'))) {
                  throw e;
             }
-            console.error("Raw API Error Response:", errorText);
+            console.error(`${debugPrefix} Raw API Error Response:`, errorText);
             throw new Error(`API-Fehler: ${response.status} ${response.statusText}. Server-Antwort: ${errorText.substring(0, 200)}...`);
         }
     }
 
     const contentType = response.headers.get("content-type");
     if (contentType && contentType.includes("application/json")) {
-        return response.text().then(text => text ? JSON.parse(text) : null);
+        const jsonData = await response.text().then(text => text ? JSON.parse(text) : null);
+        console.log(`${debugPrefix} Success: JSON data received`, {
+            endpoint,
+            dataKeys: jsonData ? Object.keys(jsonData) : [],
+            timestamp: new Date().toISOString()
+        });
+        return jsonData;
     }
     // Für 204 No Content Antworten
     if (response.status === 204) {
+        console.log(`${debugPrefix} Success: 204 No Content`, { endpoint });
         return null;
     }
-    
+
     // Fallback für nicht-JSON Antworten
-    return response.text();
+    const textData = await response.text();
+    console.log(`${debugPrefix} Success: Text data received`, {
+        endpoint,
+        length: textData.length
+    });
+    return textData;
 };
 
 // Fetch CSRF token for state-changing operations

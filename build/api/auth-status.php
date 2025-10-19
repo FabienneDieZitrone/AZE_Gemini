@@ -4,7 +4,12 @@
  * Returns:
  *  - 204 No Content if a valid session exists
  *  - 401 Unauthorized if no valid session exists
+ *
+ * CRITICAL FIX (2025-10-19): session_name() MUST be the ABSOLUTE FIRST LINE
  */
+
+// CRITICAL: Set session name as ABSOLUTE FIRST LINE (before ANY other code!)
+session_name('AZE_SESSION');
 
 // CORS headers
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
@@ -20,9 +25,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit;
 }
-
-// Start session with same config as other endpoints
-session_name('AZE_SESSION');
 session_set_cookie_params([
     'lifetime' => 0,
     'path' => '/',

@@ -6,6 +6,9 @@
  * - Vereinheitlichte Security: nutzt security-middleware anstatt security-headers
  */
 
+// CRITICAL: Start output buffering IMMEDIATELY to prevent any output before headers
+ob_start();
+
 // CRITICAL: Set session name BEFORE ANY OTHER CODE (even before require)
 session_name('AZE_SESSION');
 
@@ -75,6 +78,7 @@ if ($__is_diag) {
 
 // Erlaube ausschließlich POST für den Login-Payload
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+    ob_end_clean();
     http_response_code(405);
     header('Allow: POST');
     header('Content-Type: application/json; charset=utf-8');
@@ -82,6 +86,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     exit;
 }
 
+ob_end_clean();
 header('Content-Type: application/json; charset=utf-8');
 
 // Wrapper-Funktionen für frühere db-wrapper-Kompatibilität
@@ -98,8 +103,7 @@ if (!function_exists('executeQuery')) {
 }
 
 try {
-    // CRITICAL: Start session INLINE to ensure AZE_SESSION name
-    session_name('AZE_SESSION');
+    // Session already started at line 10 with AZE_SESSION name
     session_set_cookie_params([
         'lifetime' => 0,
         'path' => '/',

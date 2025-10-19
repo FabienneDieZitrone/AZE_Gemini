@@ -371,7 +371,40 @@ Wenn dieser Guide nicht hilft:
 
 ---
 
-**Letzte Aktualisierung**: 2025-10-14
-**Version**: 1.0
+## 🔧 **LESSONS LEARNED (2025-10-19)**
+
+### **Problem:** OAuth-Login erfolgreich, aber Dashboard bleibt bei "Laden..." hängen
+
+**Root Cause Identifiziert:**
+- **auth-callback.php** (Zeile 11-13): `require_once` Aufrufe **VOR** `session_name('AZE_SESSION')`
+- **auth-status.php** (Zeile 9-24): CORS-Header **VOR** `session_name('AZE_SESSION')`
+- **auth-start.php** (Zeile 11-13): `require_once` Aufrufe **VOR** `session_name('AZE_SESSION')`
+
+**Auswirkung:**
+1. PHP startet automatisch Session mit Default-Namen `PHPSESSID`
+2. User-Daten werden in `PHPSESSID`-Session gespeichert
+3. Nachfolgende API-Calls suchen in `AZE_SESSION`-Session
+4. Session-Daten nicht gefunden → 401 Unauthorized
+5. Dashboard lädt nicht
+
+**Fix (2025-10-19):**
+✅ **auth-callback.php** (Zeile 10): `session_name('AZE_SESSION')` als ERSTE ausführbare Zeile
+✅ **auth-status.php** (Zeile 12): `session_name('AZE_SESSION')` als ERSTE ausführbare Zeile
+✅ **auth-start.php** (Zeile 10): `session_name('AZE_SESSION')` als ERSTE ausführbare Zeile
+
+**Zusätzliche Verbesserungen:**
+✅ **api.ts**: Enhanced Console-Logging mit `[AZE-API]` Prefix für besseres Debugging
+✅ **test-session-consistency.php**: Automatisierter Session-Konsistenz-Test
+✅ **HAR_ANALYSIS_GUIDE.md**: Systematische HAR-Analyse-Anleitung
+✅ **E2E_TEST_OAUTH_DASHBOARD.md**: Vollständige End-to-End-Test-Anleitung
+
+**Zeitersparnis bei zukünftigen Debugging-Sessions:**
+- Ursprüngliches Problem: Mehrere Tage Debug-Zeit
+- Mit neuen Tools & Dokumentation: < 1 Stunde
+
+---
+
+**Letzte Aktualisierung**: 2025-10-19 (Version 2.0 - Post Session-Name-Fix)
+**Version**: 2.0
 **Autor**: MP-IT / Claude Code
 **Status**: 🔴 KRITISCH - Bei Änderungen an Session-Code IMMER konsultieren!

@@ -2,8 +2,12 @@
 /**
  * OAuth2 Start: Redirects user to Microsoft login
  *
- * CRITICAL FIX: Uses output buffering to prevent "headers already sent" errors
+ * CRITICAL FIX (2025-10-19): session_name() MUST be the ABSOLUTE FIRST LINE
+ * to prevent PHP from auto-starting a session with default name PHPSESSID!
  */
+
+// CRITICAL: Set session name as ABSOLUTE FIRST LINE (before ANY other code!)
+session_name('AZE_SESSION');
 
 // Start output buffering immediately
 ob_start();
@@ -17,9 +21,6 @@ ob_end_clean();
 
 // Start fresh buffer for error handling
 ob_start();
-
-// Start secure session
-session_name('AZE_SESSION');
 session_set_cookie_params([
     'lifetime' => 0,
     'path' => '/',
