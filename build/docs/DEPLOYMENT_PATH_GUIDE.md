@@ -15,39 +15,50 @@ Seit Tagen tritt wiederholt das gleiche Problem auf:
 
 ## 🏗️ **ARCHITEKTUR-ÜBERSICHT**
 
-### Server-Struktur (HostEurope)
+### Server-Struktur (HostEurope) ⚠️ AKTUALISIERT 2025-10-19
 
 ```
 FTP-User: ftp10454681-aze
-├─ FTP-Root = /www/it/aze/          ← FTP-User wird hier "chrooted"
-   ├─ index.php                      ← Haupt-Entry-Point
+Server: wp10454681.server-he.de
+
+WICHTIG: FTP-Root ist direkt "/" (nicht /www/aze!)
+├─ / (FTP-Root)                      ← Physischer Pfad: /is/htdocs/wp10454681_6ZVVNFOUIZ/www/it/aze/
+   ├─ index.php                      ← Haupt-Entry-Point (NICHT index.html!)
+   ├─ index.html                     ← Statische HTML (wird ignoriert wegen index.php)
    ├─ .htaccess                      ← DirectoryIndex: index.php index.html
+   ├─ .env                           ← Production credentials (KRITISCH!)
+   ├─ config.php                     ← Lädt .env Dateien
    ├─ api/                           ← Backend-APIs
-   │  ├─ auth-callback.php           ← OAuth Callback
-   │  ├─ auth-status.php
-   │  ├─ login.php
-   │  └─ .env                        ← Production credentials
-   ├─ assets/                        ← 🔥 KRITISCH: Frontend-Assets
-   │  ├─ index-C02UeB1c.js          ← Main JavaScript Bundle
-   │  ├─ index-mmLeTg_1.css         ← Main CSS
-   │  └─ ...                         ← Weitere Assets
-   └─ dist/                          ← Optional: Vite dist output
-      ├─ index.html                  ← Redirects to /
-      └─ assets/                     ← Duplicate (fallback)
+   │  ├─ auth-callback.php           ← OAuth Callback (session_name Zeile 10!)
+   │  ├─ auth-status.php             ← Session Check (session_name Zeile 12!)
+   │  ├─ auth-start.php              ← OAuth Start (session_name Zeile 10!)
+   │  ├─ login.php                   ← User Data Loader (session_name Zeile 13 + ob_start!)
+   │  ├─ test-session-consistency.php ← Session Validator (NEU 2025-10-19)
+   │  └─ DatabaseConnection.php      ← DB Connection Manager
+   ├─ assets/                        ← 🔥 KRITISCH: Frontend-Assets (aktuell!)
+   │  ├─ index-CVhqgbgK.js          ← Main JavaScript Bundle (720 KB) - 2025-10-19
+   │  ├─ index-mmLeTg_1.css         ← Main CSS (20 KB)
+   │  └─ ...                         ← Weitere Assets (html2canvas, purify, etc.)
+   └─ docs/                          ← Dokumentation (Optional)
+      ├─ HAR_ANALYSIS_GUIDE.md
+      ├─ E2E_TEST_OAUTH_DASHBOARD.md
+      └─ SESSION_LOGIN_TROUBLESHOOTING.md
 ```
 
 ### Domain-Konfiguration
 
 ```
 aze.mikropartner.de
-    └──→ DocumentRoot: /www/it/aze/
-         (identisch mit FTP-Root!)
+    └──→ DocumentRoot: /is/htdocs/wp10454681_6ZVVNFOUIZ/www/it/aze/
+         (identisch mit FTP-Root / beim Login!)
 ```
 
-**🔑 KRITISCHE ERKENNTNIS:**
-- **FTP-User-Root** = `/www/it/aze/`
-- **Domain-Root** = `/www/it/aze/`
-- **BEIDE ZEIGEN AUF DENSELBEN PUNKT!**
+**🔑 KRITISCHE ERKENNTNIS (2025-10-19 UPDATE):**
+- **FTP-Login-Path**: `/` (relativ)
+- **Physischer Server-Pfad**: `/is/htdocs/wp10454681_6ZVVNFOUIZ/www/it/aze/`
+- **Domain-Root**: identisch mit physischem Pfad
+- **FTP-Upload-Ziel**: IMMER `/` (relativ zum FTP-Root)
+- **NIEMALS** `/www/aze` verwenden - das existiert NICHT!
 
 ---
 
@@ -97,10 +108,10 @@ index.php → /index.php
 2. Apache: Lädt index.php (DirectoryIndex)
    ↓
 3. index.php: Gibt HTML mit:
-   <script src="/assets/index-C02UeB1c.js"></script>
+   <script src="/assets/index-CVhqgbgK.js"></script>
    <link href="/assets/index-mmLeTg_1.css">
    ↓
-4. Browser: Lädt https://aze.mikropartner.de/assets/index-C02UeB1c.js
+4. Browser: Lädt https://aze.mikropartner.de/assets/index-CVhqgbgK.js
    ↓
 5. ✅ Dashboard rendert
 ```
@@ -202,7 +213,7 @@ curl --ftp-ssl --insecure \
   "ftp://wp10454681.server-he.de/assets/" --list-only
 
 # Erwartete Ausgabe:
-# index-C02UeB1c.js
+# index-CVhqgbgK.js
 # index-mmLeTg_1.css
 # ...
 ```
@@ -214,9 +225,9 @@ curl --ftp-ssl --insecure \
 2. DevTools → Network Tab
 3. Filter: JS
 4. Erwartung:
-   - Request: https://aze.mikropartner.de/assets/index-C02UeB1c.js
+   - Request: https://aze.mikropartner.de/assets/index-CVhqgbgK.js
    - Status: 200 OK
-   - Size: ~735 KB
+   - Size: ~720 KB
 
 5. Wenn 404:
    → Assets nicht deployed!
@@ -250,14 +261,14 @@ Automatisches Deployment-Validation-Script wird erstellt:
 
 | Kontext | Pfad | Bedeutung |
 |---------|------|-----------|
-| **FTP Login** | `/` | FTP-User-Root = `/www/it/aze/` |
-| **Domain** | `https://aze.mikropartner.de/` | DocumentRoot = `/www/it/aze/` |
+| **FTP Login** | `/` | FTP-User-Root = `/is/htdocs/wp10454681_6ZVVNFOUIZ/www/it/aze/` |
+| **Domain** | `https://aze.mikropartner.de/` | DocumentRoot = `/is/htdocs/wp10454681_6ZVVNFOUIZ/www/it/aze/` |
 | **Deploy-Script** | `FTP_PATH=/` | Relativ zu FTP-Root |
 | **index.php** | `/assets/index-*.js` | Absolut vom DocumentRoot |
 | **Browser** | `https://aze.mikropartner.de/assets/` | Absolut von Domain-Root |
 
 **GOLDENE REGEL:**
-Alle Pfade sind RELATIV ZUM FTP-ROOT (`/www/it/aze/`), der IDENTISCH mit Domain-Root ist!
+Alle Pfade sind RELATIV ZUM FTP-ROOT (`/is/htdocs/wp10454681_6ZVVNFOUIZ/www/it/aze/`), der IDENTISCH mit Domain-Root ist!
 
 ---
 
@@ -267,7 +278,7 @@ Alle Pfade sind RELATIV ZUM FTP-ROOT (`/www/it/aze/`), der IDENTISCH mit Domain-
 
 ```bash
 # 1. Sofort-Check
-curl -I https://aze.mikropartner.de/assets/index-C02UeB1c.js
+curl -I https://aze.mikropartner.de/assets/index-CVhqgbgK.js
 
 # Wenn 404:
 cd /home/aios/projekte/aze-gemini/claude-container/projekt/build
@@ -313,8 +324,8 @@ bash deploy-secure.sh verify
 ---
 
 **Autor**: Günnix
-**Letzte Aktualisierung**: 2025-10-15
-**Version**: 1.0.0 (PERMANENT)
+**Letzte Aktualisierung**: 2025-10-19
+**Version**: 1.1.0 (Session-Fix Update)
 **Status**: ✅ **PRODUCTION-READY**
 
 ---
