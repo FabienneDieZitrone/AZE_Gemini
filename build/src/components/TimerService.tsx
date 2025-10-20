@@ -78,17 +78,11 @@ export const TimerService: React.FC<TimerServiceProps> = ({
 
   /**
    * Prüft beim Laden auf laufenden Timer
-   * TEMPORARILY DISABLED (2025-10-19): API returns empty response, causing JSON parse errors
-   * TODO: Fix check_running endpoint to return valid JSON
+   * RE-ENABLED (2025-10-20): API fixes completed, check_running now returns valid JSON
    */
   const checkForRunningTimer = useCallback(async () => {
     if (!currentUser) return;
 
-    // DISABLED: Causing JSON parse errors due to API issues
-    console.log('[Timer] Check for running timer disabled - API needs fix');
-    return;
-
-    /* ORIGINAL CODE - RE-ENABLE AFTER API FIX:
     try {
       const response = await fetch('/api/time-entries.php?action=check_running', {
         method: 'GET',
@@ -105,15 +99,13 @@ export const TimerService: React.FC<TimerServiceProps> = ({
     } catch (error) {
       console.error('Error checking for running timer:', error);
     }
-    */
   }, [currentUser, timer]);
 
-  // Check for running timer on mount - DISABLED
+  // Check for running timer on mount
   useEffect(() => {
-    // DISABLED: See checkForRunningTimer comment
-    // if (currentUser) {
-    //   checkForRunningTimer();
-    // }
+    if (currentUser) {
+      checkForRunningTimer();
+    }
   }, [currentUser, checkForRunningTimer]);
 
   /**
