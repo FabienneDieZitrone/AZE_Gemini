@@ -43,5 +43,3 @@ if (!class_exists('Config')) {
         }
     }
 }
-?>
-

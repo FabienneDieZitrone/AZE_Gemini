@@ -370,4 +370,3 @@ function getDatabaseConnection() {
 
 // Legacy support - maintain existing $conn variable behavior
 $conn = getDatabaseConnection();
-?>

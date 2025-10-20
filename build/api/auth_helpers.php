@@ -97,8 +97,9 @@ function send_response($status_code, $data = null) {
  * Diese Funktion behebt das Cookie-Pfad-Problem.
  */
 function start_secure_session() {
-    // NOTE (2025-10-19): session_name() removed - server ignores it
-    // Using default PHPSESSID which works correctly on this server
+    // CRITICAL: Session name MUST be AZE_SESSION (consistent with login.php)
+    // Set BEFORE any session operations
+    session_name('AZE_SESSION');
 
     // Falls bereits eine Session aktiv ist, migrieren
     $migrate = null;
@@ -125,7 +126,7 @@ function start_secure_session() {
         'samesite' => 'Lax'
     ]);
 
-    // Start session (using default PHPSESSID name)
+    // Start session (using AZE_SESSION name)
     if (session_status() !== PHP_SESSION_ACTIVE) {
         session_start();
     }

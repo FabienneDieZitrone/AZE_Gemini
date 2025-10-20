@@ -3,12 +3,17 @@
  * Time Entries API
  * Supports actions: start, stop, check_running
  *
- * NOTE (2025-10-19): session_name() removed - server ignores it, using default PHPSESSID
+ * FIX (2025-10-20): session_name() is set by time-entries.php (entry point)
+ * FIX (2025-10-20): Removed closing PHP tag to prevent output before send_response()
  */
 
 declare(strict_types=1);
 
-define('API_GUARD', true);
+// API_GUARD is already defined by time-entries.php (entry point)
+// Only define if not already set (for standalone testing)
+if (!defined('API_GUARD')) {
+    define('API_GUARD', true);
+}
 
 require_once __DIR__ . '/security-middleware.php';
 require_once __DIR__ . '/error-handler.php';
@@ -251,6 +256,7 @@ try {
     }
 } catch (ValidationException $ve) {
     tlog('validation_error', $ve->getValidationErrors());
+    hlog('validation_error', $ve->getValidationErrors());
     // Map to structured validation error
     send_response(400, [
         'error' => 'VALIDATION_ERROR',
@@ -258,7 +264,8 @@ try {
         'details' => $ve->getValidationErrors()
     ]);
 } catch (Throwable $e) {
-    tlog('fatal_error', ['type' => get_class($e), 'message' => $e->getMessage()]);
+    tlog('fatal_error', ['type' => get_class($e), 'message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+    hlog('fatal_error', ['type' => get_class($e), 'message' => $e->getMessage()]);
     // Structured generic error; details suppressed by default config
     send_response(500, [
         'error' => 'INTERNAL_ERROR',
@@ -397,6 +404,19 @@ function handleStart(mysqli $conn, array $sessionUser, InputValidationService $v
     tlog('start_user_resolved', $userId);
     hlog('start_user_resolved', $userId);
 
+    // Get user role from users table (needed for time_entries.role field)
+    $userRole = 'employee'; // Default fallback
+    if ($stmt = $conn->prepare("SELECT role FROM users WHERE id = ? LIMIT 1")) {
+        $stmt->bind_param('i', $userId);
+        if ($stmt->execute()) {
+            $stmt->bind_result($roleResult);
+            if ($stmt->fetch()) {
+                $userRole = $roleResult;
+            }
+        }
+        $stmt->close();
+    }
+
     // Prevent multiple running timers
     $stopCol = resolveColumn($conn, ['stop_time','end_time']);
     $statusCol = resolveColumn($conn, ['status']);
@@ -447,6 +467,13 @@ function handleStart(mysqli $conn, array $sessionUser, InputValidationService $v
             $types .= 's';
             $values[] = $loc;
         }
+        // Set role if column exists (fetched from users table)
+        if (!empty($cols['role'])) {
+            $fields[] = '`role`';
+            $placeholders[] = '?';
+            $types .= 's';
+            $values[] = $userRole;
+        }
         if (!empty($cols['created_at'])) { $fields[] = '`created_at`'; $placeholders[] = 'NOW()'; }
         if (!empty($cols['updated_at'])) { $fields[] = '`updated_at`'; $placeholders[] = 'NOW()'; }
 
@@ -474,6 +501,7 @@ function handleStart(mysqli $conn, array $sessionUser, InputValidationService $v
         if (!empty($cols['updated_by'])) { $sequenceValues[] = $payload['createdBy']; }
         if (!empty($cols['status'])) { $sequenceValues[] = 'running'; }
         if (!empty($cols['location'])) { $sequenceValues[] = $sessionUser['location'] ?? 'Home Office'; }
+        if (!empty($cols['role'])) { $sequenceValues[] = $userRole; }
         // Types accordingly
         $bindTypes = '';
         foreach ($sequenceValues as $idx => $val) {
@@ -599,5 +627,3 @@ function handleStop(mysqli $conn, array $sessionUser, InputValidationService $va
         ]);
     }
 }
-
-?>

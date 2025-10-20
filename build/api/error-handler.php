@@ -7,17 +7,19 @@
  */
 
 // Error codes matching frontend
-define('ERROR_CODES', [
-    'NETWORK_ERROR' => 'NETWORK_ERROR',
-    'AUTH_EXPIRED' => 'AUTH_EXPIRED',
-    'TIMER_ALREADY_RUNNING' => 'TIMER_ALREADY_RUNNING',
-    'TIMER_NOT_RUNNING' => 'TIMER_NOT_RUNNING',
-    'VALIDATION_ERROR' => 'VALIDATION_ERROR',
-    'DATABASE_ERROR' => 'DATABASE_ERROR',
-    'PERMISSION_DENIED' => 'PERMISSION_DENIED',
-    'NOT_FOUND' => 'NOT_FOUND',
-    'INTERNAL_ERROR' => 'INTERNAL_ERROR'
-]);
+if (!defined('ERROR_CODES')) {
+    define('ERROR_CODES', [
+        'NETWORK_ERROR' => 'NETWORK_ERROR',
+        'AUTH_EXPIRED' => 'AUTH_EXPIRED',
+        'TIMER_ALREADY_RUNNING' => 'TIMER_ALREADY_RUNNING',
+        'TIMER_NOT_RUNNING' => 'TIMER_NOT_RUNNING',
+        'VALIDATION_ERROR' => 'VALIDATION_ERROR',
+        'DATABASE_ERROR' => 'DATABASE_ERROR',
+        'PERMISSION_DENIED' => 'PERMISSION_DENIED',
+        'NOT_FOUND' => 'NOT_FOUND',
+        'INTERNAL_ERROR' => 'INTERNAL_ERROR'
+    ]);
+}
 
 class AppError extends Exception {
     public $code;
@@ -37,6 +39,7 @@ class AppError extends Exception {
 /**
  * Global error handler function
  */
+if (!function_exists('handleError')) {
 function handleError($error) {
     // Normalize to AppError if needed
     if (!($error instanceof AppError)) {
@@ -70,10 +73,12 @@ function handleError($error) {
     echo json_encode($response);
     exit;
 }
+}
 
 /**
  * Map error codes to HTTP status codes
  */
+if (!function_exists('getHttpStatusCode')) {
 function getHttpStatusCode($errorCode) {
     $mapping = [
         ERROR_CODES['AUTH_EXPIRED'] => 401,
@@ -88,6 +93,7 @@ function getHttpStatusCode($errorCode) {
     ];
     
     return $mapping[$errorCode] ?? 500;
+}
 }
 
 /**
@@ -111,6 +117,7 @@ if (!isset($_ENV['APP_DEBUG']) || $_ENV['APP_DEBUG'] !== 'true') {
 /**
  * Helper function to throw validation errors
  */
+if (!function_exists('throwValidationError')) {
 function throwValidationError($field, $message) {
     throw new AppError(
         ERROR_CODES['VALIDATION_ERROR'],
@@ -120,10 +127,12 @@ function throwValidationError($field, $message) {
         'correct_input'
     );
 }
+}
 
 /**
  * Helper function to throw auth errors
  */
+if (!function_exists('throwAuthError')) {
 function throwAuthError($message = 'Authentication required') {
     throw new AppError(
         ERROR_CODES['AUTH_EXPIRED'],
@@ -133,10 +142,12 @@ function throwAuthError($message = 'Authentication required') {
         'login'
     );
 }
+}
 
 /**
  * Helper function to throw database errors
  */
+if (!function_exists('throwDatabaseError')) {
 function throwDatabaseError($message, $query = null) {
     $details = null;
     if (isset($_ENV['APP_DEBUG']) && $_ENV['APP_DEBUG'] === 'true' && $query) {
@@ -150,4 +161,5 @@ function throwDatabaseError($message, $query = null) {
         $details,
         'retry'
     );
+}
 }

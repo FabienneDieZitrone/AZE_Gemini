@@ -17,5 +17,3 @@ if (!defined('APP_ENV')) {
 }
 
 // Nothing to return; this file only defines constants.
-?>
-

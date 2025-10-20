@@ -19,6 +19,7 @@ import { TIME } from '../constants';
 import { Logo } from '../components/common/Logo';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { ThemeToggle } from '../components/common/ThemeToggle';
+import { ErrorDebugOverlay } from '../components/ErrorDebugOverlay';
 import { EditEntryModal } from '../components/modals/EditEntryModal';
 import { ConfirmDeleteModal } from '../components/modals/ConfirmDeleteModal';
 import { RoleAssignmentModal } from '../components/modals/RoleAssignmentModal';
@@ -448,6 +449,7 @@ export const MainAppView: React.FC = () => {
         {showSupervisorModal && ( <SupervisorNotificationModal notifications={supervisorNotifications} onClose={closeSupervisorModal}/> )}
       </div>
       <Toaster position="top-right" />
+      <ErrorDebugOverlay />
     </>
   );
 };

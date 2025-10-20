@@ -1,8 +1,8 @@
 <?php
 // Lightweight wrapper with early diagnostics to avoid fatals during includes
 
-// NOTE (2025-10-19): session_name() removed - server ignores it, using default PHPSESSID
-// This matches other working APIs that use PHPSESSID successfully
+// CRITICAL: Session name MUST be set first (consistent with login.php)
+session_name('AZE_SESSION');
 
 define('API_GUARD', true);
 

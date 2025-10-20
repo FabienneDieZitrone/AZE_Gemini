@@ -263,7 +263,17 @@ export class ErrorMessageService {
       userAgent: navigator.userAgent,
       url: window.location.href
     };
-    
+
+    // CRITICAL FIX: Dispatch ErrorEvent so ErrorDebugOverlay can catch it!
+    const errorEvent = new ErrorEvent('error', {
+      message: error.message || 'Unknown error',
+      error: error,
+      filename: window.location.href,
+      lineno: 0,
+      colno: 0
+    });
+    window.dispatchEvent(errorEvent);
+
     // In production, send to error tracking service
     if (process.env.NODE_ENV === 'production') {
       // TODO: Send to error tracking service

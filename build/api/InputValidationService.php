@@ -343,6 +343,13 @@ class InputValidationService {
     }
     
     /**
+     * Sanitize string (remove control characters, trim)
+     */
+    public function sanitizeString($input) {
+        return (new StringSanitizer())->sanitize($input);
+    }
+
+    /**
      * Sanitize string for safe output
      */
     public function escapeHtml(string $string): string {
@@ -419,13 +426,6 @@ class InputValidator {
         return (new StringSanitizer())->sanitize($input);
     }
     
-    /**
-     * Instance method for sanitizing strings
-     */
-    public function sanitizeString($input) {
-        return (new StringSanitizer())->sanitize($input);
-    }
-    
     public static function isValidDate($date): bool {
         return isValidDate($date);
     }
@@ -442,4 +442,3 @@ class InputValidator {
         return escapeHtml($string);
     }
 }
-?>
