@@ -1,10 +1,10 @@
 [
   {
-    "id": "cmd-swarm-1760374408223",
+    "id": "cmd-swarm-1760542544769",
     "type": "swarm",
     "success": true,
-    "duration": 8.412599,
-    "timestamp": 1760374408231,
+    "duration": 7.72825499999999,
+    "timestamp": 1760542544777,
     "metadata": {}
   }
 ]

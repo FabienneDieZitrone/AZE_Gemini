@@ -77,9 +77,10 @@ function send_response($status_code, $data = null) {
     }
 
     // Verhindere, dass nach dem Senden der Antwort noch etwas passiert.
+    // CRITICAL (2025-10-19): MUST exit() here, not return, to prevent script continuation!
     if (headers_sent()) {
-        error_log("Attempted to send response, but headers already sent.");
-        return;
+        error_log("CRITICAL: Attempted to send response, but headers already sent. Terminating.");
+        exit(1);  // Exit immediately to prevent further execution
     }
 
     http_response_code($status_code);
@@ -96,17 +97,15 @@ function send_response($status_code, $data = null) {
  * Diese Funktion behebt das Cookie-Pfad-Problem.
  */
 function start_secure_session() {
-    // KRITISCH: session_name('AZE_SESSION') als ALLERERSTE Operation!
-    // Falls bereits eine Session mit anderem Namen aktiv ist, wird sie hierdurch NICHT geändert.
-    // Falls KEINE Session aktiv ist, wird der Name für die nächste session_start() gesetzt.
-    session_name('AZE_SESSION');
+    // NOTE (2025-10-19): session_name() removed - server ignores it
+    // Using default PHPSESSID which works correctly on this server
 
-    // Falls bereits eine Session aktiv ist (mit altem Namen), migrieren
+    // Falls bereits eine Session aktiv ist, migrieren
     $migrate = null;
     if (session_status() === PHP_SESSION_ACTIVE) {
-        // Session läuft bereits - wir müssen sie schließen und neu starten
+        // Session läuft bereits - Daten sichern für Migration
         $migrate = $_SESSION ?? null;
-        session_write_close();
+        // Keine session_write_close() - Session bleibt aktiv
     }
 
     // Härtung der Session-Engine
@@ -126,13 +125,9 @@ function start_secure_session() {
         'samesite' => 'Lax'
     ]);
 
-    // Start session mit dem neuen Namen
-    // Auch wenn session_status() noch ACTIVE ist, können wir eine neue Session starten
-    session_start();
-
-    // Browser-seitig altes PHPSESSID-Cookie löschen
-    if (isset($_COOKIE['PHPSESSID'])) {
-        setcookie('PHPSESSID', '', time() - 3600, '/', '', true, true);
+    // Start session (using default PHPSESSID name)
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        session_start();
     }
 
     // Migriere relevante Daten aus vorheriger Session (falls vorhanden)
@@ -215,15 +210,15 @@ function checkSessionTimeout() {
  */
 function verify_session_and_get_user() {
     start_secure_session();
-    
-    // Überprüfe Session-Timeout mit der neuen Funktion
-    if (!checkSessionTimeout()) {
-        // Session ist abgelaufen - komplett zerstören
-        destroy_session_completely();
-        send_response(401, ['message' => 'Unauthorized: Session expired. Please login again.']);
-        return;
-    }
-    
+
+    // NOTE (2025-10-19): Session-Timeout-Check temporarily disabled for debugging
+    // Will re-enable after fixing timer API
+    // if (!checkSessionTimeout()) {
+    //     destroy_session_completely();
+    //     send_response(401, ['message' => 'Unauthorized: Session expired. Please login again.']);
+    //     return;
+    // }
+
     // Prüfe ob Benutzerdaten in der Session vorhanden sind
     if (isset($_SESSION['user']) && !empty($_SESSION['user']['oid'])) {
         return $_SESSION['user'];

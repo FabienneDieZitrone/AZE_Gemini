@@ -1,5 +1,9 @@
 <?php
 // Lightweight wrapper with early diagnostics to avoid fatals during includes
+
+// NOTE (2025-10-19): session_name() removed - server ignores it, using default PHPSESSID
+// This matches other working APIs that use PHPSESSID successfully
+
 define('API_GUARD', true);
 
 // Ultra-early ping (no includes)

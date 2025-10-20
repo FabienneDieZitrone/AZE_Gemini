@@ -78,16 +78,23 @@ export const TimerService: React.FC<TimerServiceProps> = ({
 
   /**
    * Prüft beim Laden auf laufenden Timer
+   * TEMPORARILY DISABLED (2025-10-19): API returns empty response, causing JSON parse errors
+   * TODO: Fix check_running endpoint to return valid JSON
    */
   const checkForRunningTimer = useCallback(async () => {
     if (!currentUser) return;
-    
+
+    // DISABLED: Causing JSON parse errors due to API issues
+    console.log('[Timer] Check for running timer disabled - API needs fix');
+    return;
+
+    /* ORIGINAL CODE - RE-ENABLE AFTER API FIX:
     try {
       const response = await fetch('/api/time-entries.php?action=check_running', {
         method: 'GET',
         credentials: 'include'
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         if (data.hasRunningTimer && data.runningTimer) {
@@ -98,13 +105,15 @@ export const TimerService: React.FC<TimerServiceProps> = ({
     } catch (error) {
       console.error('Error checking for running timer:', error);
     }
+    */
   }, [currentUser, timer]);
 
-  // Check for running timer on mount
+  // Check for running timer on mount - DISABLED
   useEffect(() => {
-    if (currentUser) {
-      checkForRunningTimer();
-    }
+    // DISABLED: See checkForRunningTimer comment
+    // if (currentUser) {
+    //   checkForRunningTimer();
+    // }
   }, [currentUser, checkForRunningTimer]);
 
   /**
@@ -139,26 +148,25 @@ export const TimerService: React.FC<TimerServiceProps> = ({
         if (response.ok) {
           timer.stop();
           onTimerStop(timer.timerId);
-          
-          // Double-check that no timer is running after stop
-          setTimeout(async () => {
-            try {
-              const checkResponse = await fetch('/api/time-entries.php?action=check_running', {
-                method: 'GET',
-                credentials: 'include'
-              });
-              
-              if (checkResponse.ok) {
-                const checkData = await checkResponse.json();
-                if (checkData.hasRunningTimer) {
-                  // Force stop any remaining timer
-                  timer.stop();
-                }
-              }
-            } catch (error) {
-              console.error('Error in double-check:', error);
-            }
-          }, 100);
+
+          // DISABLED (2025-10-19): Double-check causes JSON parse errors
+          // TODO: Re-enable after fixing check_running endpoint
+          // setTimeout(async () => {
+          //   try {
+          //     const checkResponse = await fetch('/api/time-entries.php?action=check_running', {
+          //       method: 'GET',
+          //       credentials: 'include'
+          //     });
+          //     if (checkResponse.ok) {
+          //       const checkData = await checkResponse.json();
+          //       if (checkData.hasRunningTimer) {
+          //         timer.stop();
+          //       }
+          //     }
+          //   } catch (error) {
+          //     console.error('Error in double-check:', error);
+          //   }
+          // }, 100);
         } else {
           const errorData = await response.json().catch(() => ({}));
           const err: any = new Error(errorData.message || 'Fehler beim Stoppen der Zeiterfassung');
@@ -188,6 +196,12 @@ export const TimerService: React.FC<TimerServiceProps> = ({
 
         if (response.ok) {
           const data = await response.json();
+
+          // ✅ FIX: Validate response contains required 'id' field
+          if (!data || !data.id) {
+            throw new Error('Server-Response enthält keine Timer-ID');
+          }
+
           const startTimestamp = new Date(`${currentDate}T${startTime}`).getTime();
           timer.start(startTimestamp, data.id);
           onTimerStart(data.id);

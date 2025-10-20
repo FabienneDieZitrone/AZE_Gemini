@@ -309,6 +309,13 @@ export const MainAppView: React.FC = () => {
   const calculatedOvertimeSeconds = useMemo(() => {
     if (!currentUser || !masterData[currentUser.id]) return 0;
     const md = masterData[currentUser.id] as any;
+
+    // ✅ FIX: Defensive validation for masterData structure
+    if (!md || typeof md !== 'object') {
+      console.warn('[MainAppView] Invalid masterData for user:', currentUser.id);
+      return 0;
+    }
+
     const workdays: string[] = Array.isArray(md.workdays) ? md.workdays : [];
     const flexible: boolean = !!md.flexibleWorkdays;
     const dailyHours: Record<string, number> = md.dailyHours || {};
@@ -375,7 +382,12 @@ export const MainAppView: React.FC = () => {
   const renderContent = () => {
     if (isLoading) return <LoadingSpinner />;
     if (error) return <ErrorDisplay error={{ message: error }} onRetry={initializeAndFetchData} />;
-    if (!currentUser || !globalSettings) return <LoadingSpinner />;
+    if (!currentUser || !globalSettings) {
+      return <ErrorDisplay
+        error={{ message: error || "Keine Benutzerdaten geladen. Bitte laden Sie die Seite neu." }}
+        onRetry={initializeAndFetchData}
+      />;
+    }
   
     const canSeeMasterData = ['Admin', 'Bereichsleiter', 'Standortleiter'].includes(currentUser.role);
     const canApprove = ['Admin', 'Bereichsleiter', 'Standortleiter'].includes(currentUser.role);

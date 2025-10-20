@@ -30,7 +30,9 @@ export const useSupervisorNotifications = ({
     if (!canCheck) return;
 
     const notifications: SupervisorNotification[] = [];
-    const thresholdSeconds = globalSettings.overtimeThreshold * TIME.SECONDS_PER_HOUR;
+
+    // ✅ FIX: Defensive access with fallback to default
+    const thresholdSeconds = (globalSettings?.overtimeThreshold ?? 8.0) * TIME.SECONDS_PER_HOUR;
     
     // Calculate last week's date range
     const lastWeekStart = getStartOfWeek(new Date(new Date().setDate(new Date().getDate() - 7)));
@@ -45,18 +47,24 @@ export const useSupervisorNotifications = ({
       const userMaster = masterData[user.id];
       if (!userMaster) return;
 
+      // ✅ FIX: Defensive check for weeklyHours
+      if (typeof userMaster.weeklyHours !== 'number' || userMaster.weeklyHours <= 0) return;
+
       const weeklySollSeconds = userMaster.weeklyHours * TIME.SECONDS_PER_HOUR;
       
       // Filter time entries for last week
       const userEntriesLastWeek = timeEntries.filter(e => {
-        return e.userId === user.id && 
-               e.date >= lastWeekStart.toISOString().split('T')[0] && 
+        return e.userId === user.id &&
+               e.date >= lastWeekStart.toISOString().split('T')[0] &&
                e.date <= lastWeekEnd.toISOString().split('T')[0];
       });
-      
+
+      // ✅ FIX: Filter out entries without stopTime (running timers) before calculating
+      const completedEntries = userEntriesLastWeek.filter(e => e.stopTime != null && e.stopTime !== '');
+
       // Calculate total worked seconds
-      const totalSecondsWorked = userEntriesLastWeek.reduce(
-        (sum, e) => sum + calculateDurationInSeconds(e.startTime, e.stopTime), 
+      const totalSecondsWorked = completedEntries.reduce(
+        (sum, e) => sum + calculateDurationInSeconds(e.startTime, e.stopTime),
         0
       );
       

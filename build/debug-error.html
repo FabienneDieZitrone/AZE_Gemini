@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Error Debug Tool</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
+        .error-box { background: #2d2d2d; padding: 15px; margin: 10px 0; border-left: 4px solid #f44336; }
+        .success-box { background: #2d2d2d; padding: 15px; margin: 10px 0; border-left: 4px solid #4caf50; }
+        pre { white-space: pre-wrap; word-wrap: break-word; }
+        button { padding: 10px 20px; margin: 5px; background: #007acc; color: white; border: none; cursor: pointer; }
+        button:hover { background: #005a9e; }
+    </style>
+</head>
+<body>
+    <h1>🔍 AZE Gemini - Error Debugging Tool</h1>
+
+    <div class="success-box">
+        <h2>Anleitung:</h2>
+        <ol>
+            <li>Öffne diese Seite im gleichen Browser-Tab wie AZE Gemini</li>
+            <li>In AZE Gemini: Warte bis der Error auftritt</li>
+            <li>Wechsle zurück zu diesem Tab</li>
+            <li>Klick auf "Error-Details auslesen"</li>
+        </ol>
+    </div>
+
+    <button onclick="captureError()">Error-Details auslesen</button>
+    <button onclick="clearLog()">Log leeren</button>
+
+    <div id="output"></div>
+
+    <script>
+        // Intercept console.error and store last error
+        window.lastCapturedError = null;
+
+        const originalConsoleError = console.error;
+        console.error = function(...args) {
+            window.lastCapturedError = {
+                timestamp: new Date().toISOString(),
+                args: args,
+                message: args[0]?.message || args[0],
+                stack: args[0]?.stack || 'No stack available'
+            };
+            originalConsoleError.apply(console, args);
+        };
+
+        // Intercept ErrorMessageService if available
+        window.addEventListener('unhandledrejection', event => {
+            window.lastCapturedError = {
+                timestamp: new Date().toISOString(),
+                type: 'unhandledRejection',
+                reason: event.reason,
+                message: event.reason?.message || String(event.reason),
+                stack: event.reason?.stack || 'No stack'
+            };
+        });
+
+        window.addEventListener('error', event => {
+            window.lastCapturedError = {
+                timestamp: new Date().toISOString(),
+                type: 'uncaughtError',
+                message: event.message,
+                filename: event.filename,
+                lineno: event.lineno,
+                colno: event.colno,
+                error: event.error,
+                stack: event.error?.stack || 'No stack'
+            };
+        });
+
+        function captureError() {
+            const output = document.getElementById('output');
+
+            if (!window.lastCapturedError) {
+                output.innerHTML = '<div class="error-box"><h3>❌ Kein Error gefunden</h3><p>Warte bis der Error in AZE Gemini auftritt, dann versuche es erneut.</p></div>';
+                return;
+            }
+
+            const error = window.lastCapturedError;
+
+            output.innerHTML = `
+                <div class="success-box">
+                    <h2>✅ Error Details gefunden!</h2>
+                    <p><strong>Timestamp:</strong> ${error.timestamp}</p>
+                    <p><strong>Type:</strong> ${error.type || 'console.error'}</p>
+                </div>
+
+                <div class="error-box">
+                    <h3>📝 Error Message:</h3>
+                    <pre>${error.message}</pre>
+                </div>
+
+                <div class="error-box">
+                    <h3>🗂️ Stack Trace:</h3>
+                    <pre>${error.stack}</pre>
+                </div>
+
+                <div class="error-box">
+                    <h3>🔍 Full Error Object:</h3>
+                    <pre>${JSON.stringify(error, null, 2)}</pre>
+                </div>
+            `;
+        }
+
+        function clearLog() {
+            window.lastCapturedError = null;
+            document.getElementById('output').innerHTML = '<div class="success-box">Log cleared!</div>';
+        }
+
+        // Auto-capture on load if error exists
+        setTimeout(() => {
+            if (window.lastCapturedError) {
+                captureError();
+            }
+        }, 1000);
+    </script>
+</body>
+</html>
