@@ -100,34 +100,36 @@ function start_secure_session() {
     // CRITICAL: Session name MUST be AZE_SESSION (consistent with login.php)
     // IMPORTANT: Can ONLY be set BEFORE session is active!
     $migrate = null;
-    if (session_status() === PHP_SESSION_ACTIVE) {
+    $sessionWasActive = (session_status() === PHP_SESSION_ACTIVE);
+
+    if ($sessionWasActive) {
         // Session läuft bereits - Daten sichern für Migration
         $migrate = $_SESSION ?? null;
         // Keine session_write_close() - Session bleibt aktiv
     } else {
-        // Session ist noch nicht aktiv - jetzt session_name() setzen
+        // Session ist noch nicht aktiv - jetzt konfigurieren
+
+        // Set session name
         session_name('AZE_SESSION');
-    }
 
-    // Härtung der Session-Engine
-    @ini_set('session.use_strict_mode', '1');
-    @ini_set('session.use_only_cookies', '1');
-    @ini_set('session.cookie_httponly', '1');
-    @ini_set('session.cookie_secure', '1');
-    @ini_set('session.cookie_samesite', 'Lax');
+        // Härtung der Session-Engine (nur wenn Session noch nicht aktiv)
+        @ini_set('session.use_strict_mode', '1');
+        @ini_set('session.use_only_cookies', '1');
+        @ini_set('session.cookie_httponly', '1');
+        @ini_set('session.cookie_secure', '1');
+        @ini_set('session.cookie_samesite', 'Lax');
 
-    // Set cookie params BEFORE session_start
-    session_set_cookie_params([
-        'lifetime' => 0,
-        'path' => '/',
-        'domain' => '',  // Empty = current domain automatically
-        'secure' => true,
-        'httponly' => true,
-        'samesite' => 'Lax'
-    ]);
+        // Set cookie params BEFORE session_start
+        session_set_cookie_params([
+            'lifetime' => 0,
+            'path' => '/',
+            'domain' => '',  // Empty = current domain automatically
+            'secure' => true,
+            'httponly' => true,
+            'samesite' => 'Lax'
+        ]);
 
-    // Start session (using AZE_SESSION name)
-    if (session_status() !== PHP_SESSION_ACTIVE) {
+        // Start session (using AZE_SESSION name)
         session_start();
     }
 
