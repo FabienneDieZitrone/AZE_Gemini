@@ -98,15 +98,15 @@ function send_response($status_code, $data = null) {
  */
 function start_secure_session() {
     // CRITICAL: Session name MUST be AZE_SESSION (consistent with login.php)
-    // Set BEFORE any session operations
-    session_name('AZE_SESSION');
-
-    // Falls bereits eine Session aktiv ist, migrieren
+    // IMPORTANT: Can ONLY be set BEFORE session is active!
     $migrate = null;
     if (session_status() === PHP_SESSION_ACTIVE) {
         // Session läuft bereits - Daten sichern für Migration
         $migrate = $_SESSION ?? null;
         // Keine session_write_close() - Session bleibt aktiv
+    } else {
+        // Session ist noch nicht aktiv - jetzt session_name() setzen
+        session_name('AZE_SESSION');
     }
 
     // Härtung der Session-Engine
