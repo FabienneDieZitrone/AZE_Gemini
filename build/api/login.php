@@ -217,8 +217,9 @@ try {
     ];
 
     // Benutzerliste (direkte mysqli-Nutzung, stabil)
+    // CRITICAL: Use SQL_NO_CACHE to prevent MySQL query cache from returning stale data
     try {
-        $sql = "SELECT id, display_name AS name, role, azure_oid AS azureOid FROM users";
+        $sql = "SELECT SQL_NO_CACHE id, display_name AS name, role, azure_oid AS azureOid FROM users";
         $s = $db->prepare($sql);
         if ($s && $s->execute()) {
             $r = $s->get_result();

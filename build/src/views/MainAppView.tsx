@@ -165,7 +165,11 @@ export const MainAppView: React.FC = () => {
   
   const refreshData = async () => {
     try {
+        console.log('[refreshData] START - Calling api.loginAndGetInitialData()');
         const initialData = await api.loginAndGetInitialData();
+        console.log('[refreshData] API response received, users count:', initialData.users?.length);
+        console.log('[refreshData] User data sample:', initialData.users?.slice(0, 3));
+
         setCurrentUser(initialData.currentUser);
         setUsers(initialData.users);
         setMasterData(initialData.masterData);
@@ -179,7 +183,9 @@ export const MainAppView: React.FC = () => {
         if ((initialData as any).currentLocation) {
           setCurrentLocation((initialData as any).currentLocation);
         }
+        console.log('[refreshData] State updates completed');
     } catch(err) {
+        console.error('[refreshData] ERROR:', err);
         const msg = err instanceof Error ? err.message : 'Fehler beim Aktualisieren der Daten.';
         setError(msg);
         api.logError({message: msg, stack: (err as Error).stack, context: 'refreshData'});
@@ -272,15 +278,29 @@ export const MainAppView: React.FC = () => {
   
   const handleRoleSave = async (userId: number, newRole: Role) => {
     try {
+        console.log('[handleRoleSave] START', { userId, newRole, currentUsers: users.length });
+
         // Close modal IMMEDIATELY for better UX (prevents showing stale role data)
         setEditingRoleForUser(null);
+        console.log('[handleRoleSave] Modal closed');
 
         await api.updateUserRole(userId, newRole);
+        console.log('[handleRoleSave] API call successful');
+
+        const usersBefore = users.find(u => u.id === userId);
+        console.log('[handleRoleSave] User BEFORE refreshData:', usersBefore);
+
         await refreshData();
+        console.log('[handleRoleSave] refreshData() completed');
+
+        const usersAfter = users.find(u => u.id === userId);
+        console.log('[handleRoleSave] User AFTER refreshData:', usersAfter);
 
         const userName = users.find(u=>u.id===userId)?.name || 'Benutzer';
         notificationService.success(`Rolle für ${userName} wurde auf ${newRole} geändert.`);
+        console.log('[handleRoleSave] SUCCESS - Toast shown');
     } catch(err) {
+        console.error('[handleRoleSave] ERROR:', err);
         const msg = err instanceof Error ? err.message : 'Fehler beim Ändern der Rolle.';
         setError(msg);
         api.logError({message: msg, stack: (err as Error).stack, context: 'handleRoleSave'});
