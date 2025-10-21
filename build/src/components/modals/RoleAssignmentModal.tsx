@@ -30,8 +30,8 @@ export const RoleAssignmentModal: React.FC<{
     }, [currentUser.role]);
 
     const handleSave = () => {
+        // Don't close immediately - let parent handle closing after refreshData()
         onSave(user.id, selectedRole);
-        onClose();
     };
 
     return (

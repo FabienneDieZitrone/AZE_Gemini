@@ -274,6 +274,8 @@ export const MainAppView: React.FC = () => {
     try {
         await api.updateUserRole(userId, newRole);
         await refreshData();
+        // Close modal AFTER successful update
+        setEditingRoleForUser(null);
         const userName = users.find(u=>u.id===userId)?.name || 'Benutzer';
         notificationService.success(`Rolle für ${userName} wurde auf ${newRole} geändert.`);
     } catch(err) {
