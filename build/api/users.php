@@ -82,12 +82,67 @@ if ($actorRole !== 'Admin' && $newRole === 'Admin') {
   send_response(403, ['message' => 'Nur Administratoren dürfen Admin-Rollen vergeben']);
 }
 
+// Prepare UPDATE statement
 $st = $conn->prepare("UPDATE users SET role = ? WHERE id = ?");
-if (!$st) { send_response(500, ['message' => 'Database error (prepare)']); }
+if (!$st) {
+    error_log("users.php: Failed to prepare UPDATE statement");
+    send_response(500, ['message' => 'Database error (prepare)']);
+}
+
 $st->bind_param('si', $newRole, $userId);
-if (!$st->execute()) { $e = $st->error; $st->close(); send_response(500, ['message' => 'Database error (execute)', 'error' => $e]); }
+if (!$st->execute()) {
+    $e = $st->error;
+    error_log("users.php: Failed to execute UPDATE - Error: $e");
+    $st->close();
+    send_response(500, ['message' => 'Database error (execute)', 'error' => $e]);
+}
+
+// Check if any rows were actually updated
+$affectedRows = $st->affected_rows;
 $st->close();
 
-send_response(200, ['success' => true]);
+if ($affectedRows === 0) {
+    // Either user doesn't exist, or role is already set to this value
+    // Verify which case it is
+    $userExists = false;
+    $currentRole = null;
+    if ($checkStmt = $conn->prepare("SELECT role FROM users WHERE id = ? LIMIT 1")) {
+        $checkStmt->bind_param('i', $userId);
+        if ($checkStmt->execute()) {
+            $checkStmt->bind_result($currentRole);
+            $userExists = $checkStmt->fetch();
+        }
+        $checkStmt->close();
+    }
 
-?>
+    if (!$userExists) {
+        error_log("users.php: User ID $userId not found");
+        send_response(404, ['message' => "Benutzer mit ID $userId nicht gefunden"]);
+    } else if ($currentRole === $newRole) {
+        error_log("users.php: User ID $userId already has role $newRole");
+        send_response(200, ['success' => true, 'message' => 'Rolle war bereits gesetzt', 'unchanged' => true]);
+    } else {
+        // This shouldn't happen - UPDATE should have worked
+        error_log("users.php: Unexpected state - user exists but UPDATE didn't work. Current role: $currentRole, New role: $newRole");
+        send_response(500, ['message' => 'Update fehlgeschlagen (unerwarteter Fehler)']);
+    }
+} else {
+    // Success - verify the update actually worked
+    $verifiedRole = null;
+    if ($verifyStmt = $conn->prepare("SELECT role FROM users WHERE id = ? LIMIT 1")) {
+        $verifyStmt->bind_param('i', $userId);
+        if ($verifyStmt->execute()) {
+            $verifyStmt->bind_result($verifiedRole);
+            $verifyStmt->fetch();
+        }
+        $verifyStmt->close();
+    }
+
+    if ($verifiedRole === $newRole) {
+        error_log("users.php: Successfully updated user ID $userId to role $newRole");
+        send_response(200, ['success' => true, 'newRole' => $verifiedRole]);
+    } else {
+        error_log("users.php: UPDATE reported success but verification failed. Expected: $newRole, Got: $verifiedRole");
+        send_response(500, ['message' => 'Update scheinbar erfolgreich, aber Verifikation fehlgeschlagen']);
+    }
+}
