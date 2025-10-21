@@ -272,15 +272,11 @@ export const MainAppView: React.FC = () => {
   
   const handleRoleSave = async (userId: number, newRole: Role) => {
     try {
-        await api.updateUserRole(userId, newRole);
-        // Refresh data to get updated user list from database
-        await refreshData();
+        // Close modal IMMEDIATELY for better UX (prevents showing stale role data)
+        setEditingRoleForUser(null);
 
-        // CRITICAL: Update editingRoleForUser with fresh data from refreshData()
-        // Must use setTimeout to ensure state update has completed
-        setTimeout(() => {
-          setEditingRoleForUser(null);
-        }, 100);
+        await api.updateUserRole(userId, newRole);
+        await refreshData();
 
         const userName = users.find(u=>u.id===userId)?.name || 'Benutzer';
         notificationService.success(`Rolle für ${userName} wurde auf ${newRole} geändert.`);
