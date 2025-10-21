@@ -9,6 +9,7 @@ require_once __DIR__ . '/security-middleware.php';
 require_once __DIR__ . '/auth_helpers.php';
 require_once __DIR__ . '/csrf-middleware.php';
 require_once __DIR__ . '/DatabaseConnection.php';
+require_once __DIR__ . '/debug-helpers.php';
 
 initialize_api();
 initSecurityMiddleware();
@@ -66,19 +67,38 @@ $data = json_decode($raw, true) ?: [];
 
 $userId = isset($data['userId']) ? (int)$data['userId'] : 0;
 $newRole = isset($data['newRole']) ? (string)$data['newRole'] : '';
-if ($userId <= 0 || $newRole === '') { send_response(400, ['message' => 'Ungültige Parameter']); }
+
+hlog('PATCH /api/users.php', [
+    'userId' => $userId,
+    'newRole' => $newRole,
+    'sessionUser' => $sessionUser['name'] ?? 'unknown'
+], 'info');
+
+if ($userId <= 0 || $newRole === '') {
+    hlog('Validation failed', 'Invalid userId or newRole', 'error');
+    send_response(400, ['message' => 'Ungültige Parameter']);
+}
 
 $allowedRoles = ['Admin','Bereichsleiter','Standortleiter','Mitarbeiter','Honorarkraft'];
 if (!in_array($newRole, $allowedRoles, true)) { send_response(400, ['message' => 'Ungültige Rolle']); }
 
 $actorRole = getUserRole($conn, $sessionUser);
+
+hlog('Permission check', [
+    'actorRole' => $actorRole,
+    'targetUserId' => $userId,
+    'newRole' => $newRole
+], 'info');
+
 // Only Admin/Bereichsleiter/Standortleiter may update other users
 if (!in_array($actorRole, ['Admin','Bereichsleiter','Standortleiter'], true)) {
+  hlog('Permission denied', 'Actor role not allowed: ' . $actorRole, 'error');
   send_response(403, ['message' => 'Keine Berechtigung']);
 }
 
 // Optionally prevent privilege escalation by non-admins to Admin role
 if ($actorRole !== 'Admin' && $newRole === 'Admin') {
+  hlog('Permission denied', 'Only Admin can assign Admin role', 'error');
   send_response(403, ['message' => 'Nur Administratoren dürfen Admin-Rollen vergeben']);
 }
 
@@ -101,6 +121,12 @@ if (!$st->execute()) {
 $affectedRows = $st->affected_rows;
 $st->close();
 
+hlog('UPDATE executed', [
+    'affected_rows' => $affectedRows,
+    'userId' => $userId,
+    'newRole' => $newRole
+], $affectedRows > 0 ? 'success' : 'warning');
+
 if ($affectedRows === 0) {
     // Either user doesn't exist, or role is already set to this value
     // Verify which case it is
@@ -116,13 +142,21 @@ if ($affectedRows === 0) {
     }
 
     if (!$userExists) {
+        hlog('User not found', "User ID $userId does not exist", 'error');
         error_log("users.php: User ID $userId not found");
         send_response(404, ['message' => "Benutzer mit ID $userId nicht gefunden"]);
     } else if ($currentRole === $newRole) {
+        hlog('Role unchanged', "User ID $userId already has role $newRole", 'info');
         error_log("users.php: User ID $userId already has role $newRole");
         send_response(200, ['success' => true, 'message' => 'Rolle war bereits gesetzt', 'unchanged' => true]);
     } else {
         // This shouldn't happen - UPDATE should have worked
+        hlog('Unexpected state', [
+            'userId' => $userId,
+            'currentRole' => $currentRole,
+            'newRole' => $newRole,
+            'message' => 'User exists but UPDATE did not work'
+        ], 'error');
         error_log("users.php: Unexpected state - user exists but UPDATE didn't work. Current role: $currentRole, New role: $newRole");
         send_response(500, ['message' => 'Update fehlgeschlagen (unerwarteter Fehler)']);
     }
@@ -139,9 +173,20 @@ if ($affectedRows === 0) {
     }
 
     if ($verifiedRole === $newRole) {
+        hlog('Role update successful', [
+            'userId' => $userId,
+            'newRole' => $verifiedRole,
+            'verified' => true
+        ], 'success');
         error_log("users.php: Successfully updated user ID $userId to role $newRole");
         send_response(200, ['success' => true, 'newRole' => $verifiedRole]);
     } else {
+        hlog('Verification failed', [
+            'userId' => $userId,
+            'expected' => $newRole,
+            'actual' => $verifiedRole,
+            'message' => 'UPDATE reported success but verification failed'
+        ], 'error');
         error_log("users.php: UPDATE reported success but verification failed. Expected: $newRole, Got: $verifiedRole");
         send_response(500, ['message' => 'Update scheinbar erfolgreich, aber Verifikation fehlgeschlagen']);
     }
