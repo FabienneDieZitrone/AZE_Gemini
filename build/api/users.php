@@ -173,12 +173,16 @@ if ($affectedRows === 0) {
     }
 
     if ($verifiedRole === $newRole) {
+        // CRITICAL: Explicitly commit the transaction since autocommit is disabled
+        $conn->commit();
+
         hlog('Role update successful', [
             'userId' => $userId,
             'newRole' => $verifiedRole,
-            'verified' => true
+            'verified' => true,
+            'committed' => true
         ], 'success');
-        error_log("users.php: Successfully updated user ID $userId to role $newRole");
+        error_log("users.php: Successfully updated user ID $userId to role $newRole and committed");
         send_response(200, ['success' => true, 'newRole' => $verifiedRole]);
     } else {
         hlog('Verification failed', [
