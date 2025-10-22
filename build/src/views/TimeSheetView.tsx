@@ -208,7 +208,7 @@ export const TimeSheetView: React.FC<{
         <table className="data-table" style={{ tableLayout: 'auto' }}>
           <colgroup>
             <col /> {/* Details */}
-            <col /> {/* Username */}
+            <col /> {/* Name */}
             <col /> {/* Datum */}
             <col /> {/* Startzeit */}
             <col /> {/* Stoppzeit */}
@@ -223,7 +223,7 @@ export const TimeSheetView: React.FC<{
           <thead>
             <tr>
               <th>Details</th>
-              <th>Username</th>
+              <th>Name</th>
               <th>Datum</th>
               <th>Startzeit</th>
               <th>Stoppzeit</th>
@@ -262,10 +262,11 @@ export const TimeSheetView: React.FC<{
                 let rowClass = request ? (request.type === 'edit' ? 'pending-change' : 'pending-deletion') : '';
                 if (entry.isUnsynced) rowClass += ' unsynced-entry';
 
+                const userName = allUsers.find(u => u.id === entry.userId)?.name || entry.username;
                 return (
                   <tr key={`${entry.date}-${entry.username}`} className={rowClass}>
                     <td className="cell-center"><button className="details-button" onClick={() => onShowDetails(entry.date, entry.username)}>Details</button></td>
-                    <td className="text-left">{entry.username}</td>
+                    <td className="text-left">{userName}</td>
                     <td className="cell-center">{new Date(entry.date + "T00:00:00").toLocaleDateString('de-DE')}</td>
                     <td className="cell-center">{entry.firstStart}</td>
                     <td className="cell-center">{entry.lastStop}</td>
