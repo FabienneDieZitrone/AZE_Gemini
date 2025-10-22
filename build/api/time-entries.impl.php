@@ -449,8 +449,28 @@ function handleStart(mysqli $conn, array $sessionUser, InputValidationService $v
             $res->close();
         }
         tlog('start_cols', array_keys($cols));
-        $sessionLoc = $sessionUser['location'] ?? 'Home Office';
-        tlog('start_location_session', $sessionLoc);
+
+        // IP-basierte Standorterkennung
+        $detectedLocation = 'Home Office'; // Default
+        $clientIP = $_SERVER['REMOTE_ADDR'] ?? '';
+        if ($clientIP) {
+            $ipMapFile = __DIR__ . '/../cache/ip-location-map.json';
+            if (file_exists($ipMapFile) && is_readable($ipMapFile)) {
+                $ipMapData = json_decode(@file_get_contents($ipMapFile), true);
+                if (isset($ipMapData['entries']) && is_array($ipMapData['entries'])) {
+                    foreach ($ipMapData['entries'] as $entry) {
+                        $prefix = trim($entry['prefix'] ?? '');
+                        $location = trim($entry['location'] ?? '');
+                        if ($prefix && $location && strpos($clientIP, $prefix) === 0) {
+                            $detectedLocation = $location;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        $sessionLoc = $detectedLocation;
+        tlog('start_location_detected', ['ip' => $clientIP, 'location' => $sessionLoc]);
         // Build insert columns/params based on available columns
         $fields = ['`user_id`', '`date`', '`start_time`'];
         $placeholders = ['?', '?', '?'];
@@ -604,7 +624,26 @@ function handleStop(mysqli $conn, array $sessionUser, InputValidationService $va
         $stmt->close();
         // Erzwinge Standort auch beim Stop (sollte bereits gesetzt sein, ist hier idempotent)
         if (!empty($cols['location'])) {
-            $loc = $sessionUser['location'] ?? 'Home Office';
+            // IP-basierte Standorterkennung beim Stop
+            $detectedLocation = 'Home Office';
+            $clientIP = $_SERVER['REMOTE_ADDR'] ?? '';
+            if ($clientIP) {
+                $ipMapFile = __DIR__ . '/../cache/ip-location-map.json';
+                if (file_exists($ipMapFile) && is_readable($ipMapFile)) {
+                    $ipMapData = json_decode(@file_get_contents($ipMapFile), true);
+                    if (isset($ipMapData['entries']) && is_array($ipMapData['entries'])) {
+                        foreach ($ipMapData['entries'] as $entry) {
+                            $prefix = trim($entry['prefix'] ?? '');
+                            $location = trim($entry['location'] ?? '');
+                            if ($prefix && $location && strpos($clientIP, $prefix) === 0) {
+                                $detectedLocation = $location;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            $loc = $detectedLocation;
             $u = $conn->prepare("UPDATE time_entries SET location = ? WHERE id = ?");
             if ($u) { $u->bind_param('si', $loc, $entryId); @$u->execute(); $u->close(); }
         }
