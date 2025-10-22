@@ -129,12 +129,37 @@ try {
         exit;
     }
 
-    // Store user in session
+    // Fetch user role from database
+    require_once __DIR__ . '/DatabaseConnection.php';
+    $db_role = 'Mitarbeiter'; // Default fallback
+    $db_id = null;
+    try {
+        $conn = DatabaseConnection::getInstance()->getConnection();
+        $stmt = $conn->prepare("SELECT id, role FROM users WHERE azure_oid = ? LIMIT 1");
+        if ($stmt) {
+            $stmt->bind_param('s', $oid);
+            $stmt->execute();
+            $stmt->bind_result($db_id, $db_role);
+            if ($stmt->fetch()) {
+                aclog('role_fetched', ['id' => $db_id, 'role' => $db_role]);
+            } else {
+                aclog('warning', 'User not found in database for oid: ' . $oid);
+            }
+            $stmt->close();
+        }
+    } catch (Exception $e) {
+        aclog('db_error', $e->getMessage());
+        // Continue with default role
+    }
+
+    // Store user in session (including role from database!)
     $_SESSION['user'] = [
         'oid' => $oid,
+        'id' => $db_id,
         'name' => $name ?: $upn,
         'username' => $upn,
-        'azure_oid' => $oid
+        'azure_oid' => $oid,
+        'role' => $db_role  // ← CRITICAL: Role from database!
     ];
 
     aclog('login_success', $_SESSION['user']);
