@@ -39,12 +39,12 @@ if ($method === 'GET') {
 }
 
 if ($method === 'PUT') {
-  // Only Admins may modify
+  // Only Admin, Bereichsleiter, and Standortleiter may modify
   $sessionUser = verify_session_and_get_user();
   $role = $sessionUser['role'] ?? '';
-  if (!in_array($role, ['Admin'], true)) {
+  if (!in_array($role, ['Admin', 'Bereichsleiter', 'Standortleiter'], true)) {
     http_response_code(403);
-    echo json_encode(['message'=>'Nur Admins dürfen die IP-Standort-Zuordnung ändern.']);
+    echo json_encode(['message'=>'Nur Admins, Bereichsleiter und Standortleiter dürfen die IP-Standort-Zuordnung ändern.']);
     exit;
   }
   // CSRF
