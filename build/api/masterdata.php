@@ -85,6 +85,23 @@ $role = resolveRole($conn, $sessionUser);
 $allowed = ($sessionUser['id'] ?? null) == $userId || in_array($role, ['Admin','Bereichsleiter','Standortleiter'], true);
 if (!$allowed) { send_response(403, ['message' => 'Keine Berechtigung']); }
 
+// Validate: sum of daily hours must equal weekly hours
+if (!empty($dailyHours) && $weeklyHours !== null) {
+    $dailySum = array_sum(array_map('floatval', array_values($dailyHours)));
+    if (abs($dailySum - $weeklyHours) > 0.01) {
+        send_response(400, [
+            'message' => 'VALIDATION_ERROR',
+            'error' => sprintf(
+                'Die Summe der täglichen Stunden (%.2fh) muss der regelmäßigen Wochenarbeitszeit (%.2fh) entsprechen!',
+                $dailySum,
+                $weeklyHours
+            ),
+            'dailySum' => $dailySum,
+            'weeklyHours' => $weeklyHours
+        ]);
+    }
+}
+
 // Validate locations against global_settings.locations (if present)
 $allowedLocations = [];
 if ($res = $conn->query("SHOW COLUMNS FROM global_settings LIKE 'locations'")) {

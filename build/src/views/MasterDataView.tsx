@@ -82,12 +82,24 @@ export const MasterDataView: React.FC<{
     const handleSave = (e: React.FormEvent) => {
         e.preventDefault();
         if (formData) {
+            // Validate: sum of daily hours must equal weekly hours
+            const dailyHoursSum = Object.values((formData as any).dailyHours || {}).reduce((sum: number, h: any) => sum + (parseFloat(h) || 0), 0);
+            const weeklyHours = formData.weeklyHours || 0;
+            if (Math.abs(dailyHoursSum - weeklyHours) > 0.01) { // Allow small floating point differences
+                alert(`Die Summe der täglichen Stunden (${dailyHoursSum.toFixed(2)}h) muss der regelmäßigen Wochenarbeitszeit (${weeklyHours.toFixed(2)}h) entsprechen!`);
+                return;
+            }
             onSave(selectedUserId, formData);
         }
     };
 
     const workdaysOptions = ["Mo", "Di", "Mi", "Do", "Fr"];
     const selectedUser = users.find(u => u.id === selectedUserId) || currentUser;
+
+    // Calculate daily hours sum for validation display
+    const dailyHoursSum = formData ? Object.values((formData as any).dailyHours || {}).reduce((sum: number, h: any) => sum + (parseFloat(h) || 0), 0) : 0;
+    const weeklyHours = formData?.weeklyHours || 0;
+    const hoursMatch = Math.abs(dailyHoursSum - weeklyHours) < 0.01;
 
     if (!formData) {
         return <div className="view-container"><LoadingSpinner/></div>;
@@ -144,6 +156,12 @@ export const MasterDataView: React.FC<{
                                   }} />
                                 </label>
                               ))}
+                            </div>
+                            <div style={{ marginTop: 8, padding: 8, backgroundColor: hoursMatch ? '#d4edda' : '#f8d7da', color: hoursMatch ? '#155724' : '#721c24', borderRadius: 4, fontSize: '0.9em' }}>
+                              {hoursMatch
+                                ? `✓ Summe stimmt: ${dailyHoursSum.toFixed(2)}h = ${weeklyHours.toFixed(2)}h`
+                                : `⚠ Summe stimmt nicht: ${dailyHoursSum.toFixed(2)}h ≠ ${weeklyHours.toFixed(2)}h (Differenz: ${Math.abs(dailyHoursSum - weeklyHours).toFixed(2)}h)`
+                              }
                             </div>
                           </div>
                         )}

@@ -231,7 +231,7 @@ try {
 
     // Masterdaten
     try {
-        $sql = "SELECT user_id, weekly_hours, workdays, can_work_from_home, flexible_workdays FROM master_data";
+        $sql = "SELECT user_id, weekly_hours, workdays, can_work_from_home, flexible_workdays, daily_hours FROM master_data";
         $s = $db->prepare($sql);
         if ($s && $s->execute()) {
             $r = $s->get_result();
@@ -242,6 +242,7 @@ try {
                     'workdays' => json_decode($row['workdays'], true) ?: [],
                     'canWorkFromHome' => (bool)$row['can_work_from_home'],
                     'flexibleWorkdays' => (bool)($row['flexible_workdays'] ?? 0),
+                    'dailyHours' => json_decode($row['daily_hours'] ?? 'null', true) ?: null,
                 ];
             }
             $response['masterData'] = $md;
