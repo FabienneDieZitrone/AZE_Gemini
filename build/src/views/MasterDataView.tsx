@@ -183,7 +183,7 @@ export const MasterDataView: React.FC<{
                     </div>
                 </div>
                 <div className="master-data-actions">
-                     <button type="submit" className="action-button">Änderungen speichern</button>
+                     <button type="submit" className="action-button" disabled={!hoursMatch} title={!hoursMatch ? 'Bitte korrigieren Sie die Stundensumme' : ''}>Änderungen speichern</button>
                 </div>
             </form>
             <footer className="view-footer">

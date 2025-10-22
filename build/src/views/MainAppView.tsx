@@ -271,7 +271,16 @@ export const MainAppView: React.FC = () => {
         notificationService.success(`Stammdaten für ${userName} wurden gespeichert.`);
       } catch(err) {
         const msg = err instanceof Error ? err.message : 'Fehler beim Speichern der Stammdaten.';
-        setError(msg);
+
+        // Check if it's a validation error from backend
+        if (msg.includes('VALIDATION_ERROR') || msg.includes('Summe der täglichen Stunden')) {
+          // Extract the user-friendly error message from the backend response
+          const match = msg.match(/Die Summe der täglichen Stunden[^!]+!/);
+          const validationMsg = match ? match[0] : 'Die Summe der täglichen Stunden muss der regelmäßigen Wochenarbeitszeit entsprechen!';
+          notificationService.error(validationMsg);
+        } else {
+          setError(msg);
+        }
         api.logError({message: msg, stack: (err as Error).stack, context: 'handleMasterDataSave'});
       }
   };
