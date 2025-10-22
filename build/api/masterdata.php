@@ -85,6 +85,24 @@ $role = resolveRole($conn, $sessionUser);
 $allowed = ($sessionUser['id'] ?? null) == $userId || in_array($role, ['Admin','Bereichsleiter','Standortleiter'], true);
 if (!$allowed) { send_response(403, ['message' => 'Keine Berechtigung']); }
 
+// CRITICAL: Only Admin/Bereichsleiter/Standortleiter may assign locations
+$canAssignLocations = in_array($role, ['Admin','Bereichsleiter','Standortleiter'], true);
+if (!$canAssignLocations) {
+    // Mitarbeiter dürfen locations nicht ändern - bestehende locations aus DB behalten
+    $existingLocations = [];
+    if ($st = $conn->prepare("SELECT locations FROM master_data WHERE user_id = ? LIMIT 1")) {
+        $st->bind_param('i', $userId);
+        if ($st->execute()) {
+            $st->bind_result($locJson);
+            if ($st->fetch()) {
+                $existingLocations = json_decode($locJson ?? '[]', true) ?: [];
+            }
+        }
+        $st->close();
+    }
+    $locations = $existingLocations; // Behalte existing locations bei
+}
+
 // Validate: sum of daily hours must equal weekly hours
 if (!empty($dailyHours) && $weeklyHours !== null) {
     $dailySum = array_sum(array_map('floatval', array_values($dailyHours)));

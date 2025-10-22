@@ -114,6 +114,9 @@ export const MasterDataView: React.FC<{
     const weeklyHours = formData?.weeklyHours || 0;
     const hoursMatch = Math.abs(dailyHoursSum - weeklyHours) < 0.01;
 
+    // Check if current user can assign locations
+    const canAssignLocations = ['Admin', 'Bereichsleiter', 'Standortleiter'].includes(currentUser.role);
+
     if (!formData) {
         return <div className="view-container"><LoadingSpinner/></div>;
     }
@@ -179,15 +182,20 @@ export const MasterDataView: React.FC<{
                           </div>
                         )}
                     </div>
-                    <div className="form-group">
-                        <label>Zugeordnete Standorte</label>
-                        <select multiple size={4} value={(formData as any).locations || []} onChange={(e) => {
-                            const vals = Array.from(e.target.selectedOptions).map(o => o.value);
-                            setFormData(prev => prev ? ({ ...(prev as any), locations: vals } as any) : prev);
-                        }}>
-                            {locations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
-                        </select>
-                    </div>
+                    {canAssignLocations && (
+                        <div className="form-group">
+                            <label>Zugeordnete Standorte</label>
+                            <select multiple size={4} value={(formData as any).locations || []} onChange={(e) => {
+                                const vals = Array.from(e.target.selectedOptions).map(o => o.value);
+                                setFormData(prev => prev ? ({ ...(prev as any), locations: vals } as any) : prev);
+                            }}>
+                                {locations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
+                            </select>
+                            <div style={{ marginTop: 4, fontSize: '0.9em', color: '#666' }}>
+                                Halten Sie Strg/Cmd gedrückt um mehrere Standorte auszuwählen
+                            </div>
+                        </div>
+                    )}
                      <div className="form-group">
                         <label>Home Office</label>
                          <div className="checkbox-group">
