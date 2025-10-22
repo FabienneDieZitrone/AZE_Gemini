@@ -196,13 +196,40 @@ try {
         }
     }
 
+    // IP-basierte Standorterkennung
+    $detectedLocation = 'Home Office'; // Default
+    $clientIP = $_SERVER['REMOTE_ADDR'] ?? '';
+
+    if ($clientIP) {
+        // Load IP-location mapping from cache
+        $ipMapFile = __DIR__ . '/../cache/ip-location-map.json';
+        if (file_exists($ipMapFile) && is_readable($ipMapFile)) {
+            $ipMapData = json_decode(@file_get_contents($ipMapFile), true);
+            if (isset($ipMapData['entries']) && is_array($ipMapData['entries'])) {
+                // Check each IP prefix mapping
+                foreach ($ipMapData['entries'] as $entry) {
+                    $prefix = trim($entry['prefix'] ?? '');
+                    $location = trim($entry['location'] ?? '');
+
+                    if ($prefix && $location && strpos($clientIP, $prefix) === 0) {
+                        // Match found!
+                        $detectedLocation = $location;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
     $response = [
         'currentUser' => [
             'id' => $current_user_id,
             'name' => $user_display_name,
             'role' => $user_role,
-            'azureOid' => $azure_oid
+            'azureOid' => $azure_oid,
+            'location' => $detectedLocation  // ← Erkannter Standort
         ],
+        'currentLocation' => $detectedLocation,  // ← Für Frontend-Kompatibilität
         'users' => [],
         'masterData' => new stdClass(),
         'timeEntries' => [],
