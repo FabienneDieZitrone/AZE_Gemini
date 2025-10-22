@@ -169,7 +169,8 @@ export const TimerService: React.FC<TimerServiceProps> = ({
       } else {
         // Start timer
         const now = new Date();
-        const currentDate = now.toISOString().split('T')[0];
+        // CRITICAL: Use local date/time, not UTC, to prevent midnight timezone issues
+        const currentDate = now.toLocaleDateString('en-CA'); // YYYY-MM-DD format in local timezone
         const startTime = now.toTimeString().split(' ')[0];
         
         const csrf = await fetchCsrfToken();
