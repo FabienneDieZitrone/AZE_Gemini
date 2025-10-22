@@ -91,17 +91,47 @@ export const GlobalSettingsView: React.FC<{
         setIpMap(prev => prev.map((e,i)=> i===idx ? ({...e, [key]: val}) : e));
     };
     const handleRemoveIpRow = (idx: number) => setIpMap(prev => prev.filter((_,i)=>i!==idx));
+
+    // CSRF-Token abrufen
+    const fetchCsrfToken = async (): Promise<string> => {
+        try {
+            const resp = await fetch('/api/csrf-token.php', { credentials: 'include' });
+            if (!resp.ok) throw new Error('CSRF Token konnte nicht geladen werden');
+            const data = await resp.json();
+            return String(data?.csrfToken || '');
+        } catch (err) {
+            console.error('CSRF Token Fehler:', err);
+            return '';
+        }
+    };
+
     const handleSaveIpMap = async () => {
         try {
+            // CSRF-Token holen
+            const csrfToken = await fetchCsrfToken();
+            if (!csrfToken) {
+                alert('Sicherheitstoken konnte nicht geladen werden. Bitte versuchen Sie es erneut.');
+                return;
+            }
+
             // Nur valide und vollständig ausgefüllte Zeilen übertragen
             const entries = ipMap
                 .map(r => ({ prefix: (r.prefix||'').trim(), location: canonicalizeLocation(r.location||'') }))
                 .filter(r => r.prefix && r.location && isValidPrefix(r.prefix));
             const res = await fetch('/api/ip-location-map.php', {
-                method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+                method: 'PUT',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfToken
+                },
                 body: JSON.stringify({ entries })
             });
-            if (!res.ok) throw new Error(await res.text());
+            if (!res.ok) {
+                const errorText = await res.text();
+                console.error('API Error:', errorText);
+                throw new Error(errorText);
+            }
             // Nach dem Speichern frisch laden und alphabetisch sortieren
             const re = await fetch('/api/ip-location-map.php', { credentials: 'include' });
             const d = await re.json().catch(()=>null);
@@ -110,7 +140,8 @@ export const GlobalSettingsView: React.FC<{
               setIpMap(sorted);
             }
             alert('IP-Standort-Zuordnung gespeichert.');
-        } catch {
+        } catch (err) {
+            console.error('Save Error:', err);
             alert('Speichern der IP-Standort-Zuordnung fehlgeschlagen.');
         }
     };
