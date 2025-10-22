@@ -195,6 +195,20 @@ body, html {
   color: var(--accent-color);
   margin-bottom: 0.5rem;
 }
+
+.overtime-display-clickable {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+  transition: color 0.2s ease, text-decoration-color 0.2s ease;
+}
+
+.overtime-display-clickable:hover {
+  color: var(--accent-color-hover);
+  text-decoration-style: solid;
+}
+
 .location-display {
     font-size: 0.9rem;
     color: var(--secondary-text-color);

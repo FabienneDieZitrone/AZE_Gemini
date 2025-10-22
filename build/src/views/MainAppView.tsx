@@ -25,6 +25,7 @@ import { ConfirmDeleteModal } from '../components/modals/ConfirmDeleteModal';
 import { RoleAssignmentModal } from '../components/modals/RoleAssignmentModal';
 import { SupervisorNotificationModal } from '../components/modals/SupervisorNotificationModal';
 import { NewEntryModal } from '../components/modals/NewEntryModal';
+import { OvertimeBreakdownModal } from '../components/modals/OvertimeBreakdownModal';
 import { useSupervisorNotifications } from '../hooks/useSupervisorNotifications';
 
 import { TimeSheetView } from './TimeSheetView';
@@ -51,6 +52,7 @@ export const MainAppView: React.FC = () => {
   const [deletingEntry, setDeletingEntry] = useState<TimeEntry | null>(null);
   const [editingRoleForUser, setEditingRoleForUser] = useState<User | null>(null);
   const [requestNewEntryOpen, setRequestNewEntryOpen] = useState<boolean>(false);
+  const [showOvertimeBreakdown, setShowOvertimeBreakdown] = useState<boolean>(false);
 
   const [currentLocation, setCurrentLocation] = useState<string>('Zentrale Berlin');
   const [theme, setTheme] = useState<Theme>('light');
@@ -372,8 +374,15 @@ export const MainAppView: React.FC = () => {
       const actual = dailyTotals[date];
 
       if (flexible) {
-        // Bei flexibel gibt es keine feste Sollzeit pro Tag – alles zählt als geleistete Zeit
-        totalDifference += actual;
+        // Bei flexiblen Arbeitstagen: Berechne durchschnittliche Sollzeit basierend auf Wochenstunden
+        if (workdaySet.has(dayName)) {
+          const sollHours = md.weeklyHours && workdays.length ? md.weeklyHours / workdays.length : 8;
+          const soll = sollHours * TIME.SECONDS_PER_HOUR;
+          totalDifference += (actual - soll);
+        } else {
+          // Nicht regulärer Arbeitstag → alles als Pluszeit zählen
+          totalDifference += actual;
+        }
         continue;
       }
 
@@ -439,7 +448,17 @@ export const MainAppView: React.FC = () => {
       default:
         return (
           <>
-            <header className="main-view-header" aria-live="polite">{`${currentUser.name} ${formattedOvertime} - ${currentDate}`}</header>
+            <header className="main-view-header" aria-live="polite">
+              {currentUser.name}{' '}
+              <span
+                className="overtime-display-clickable"
+                onClick={() => setShowOvertimeBreakdown(true)}
+                title="Klicken für detaillierte Übersicht"
+              >
+                {formattedOvertime}
+              </span>
+              {' '}- {currentDate}
+            </header>
             <div className="location-display">Erkannter Standort: <strong>{currentLocation}</strong></div>
             <TimerService 
               currentUser={currentUser}
@@ -480,6 +499,14 @@ export const MainAppView: React.FC = () => {
         )}
         {editingRoleForUser && currentUser && ( <RoleAssignmentModal user={editingRoleForUser} currentUser={currentUser} onClose={() => setEditingRoleForUser(null)} onSave={handleRoleSave}/> )}
         {showSupervisorModal && ( <SupervisorNotificationModal notifications={supervisorNotifications} onClose={closeSupervisorModal}/> )}
+        {showOvertimeBreakdown && currentUser && masterData[currentUser.id] && (
+          <OvertimeBreakdownModal
+            timeEntries={timeEntries}
+            userId={currentUser.id}
+            masterData={masterData[currentUser.id]}
+            onClose={() => setShowOvertimeBreakdown(false)}
+          />
+        )}
       </div>
       <Toaster position="top-right" />
       <ErrorDebugOverlay />
