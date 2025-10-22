@@ -33,13 +33,26 @@ export const MasterDataView: React.FC<{
         if (masterData[selectedUserId]) {
             // Merge with defaults to ensure new fields exist
             const md = masterData[selectedUserId] as any;
+            const workdays = Array.isArray(md.workdays) ? md.workdays : defaultForm.workdays;
+
+            // Initialize dailyHours with defaults if empty/null
+            let dailyHours = md.dailyHours || {};
+            if (!md.dailyHours || Object.keys(md.dailyHours).length === 0) {
+                // Calculate default hours per day
+                const hoursPerDay = workdays.length > 0 ? md.weeklyHours / workdays.length : 8;
+                dailyHours = {};
+                workdays.forEach((day: string) => {
+                    dailyHours[day] = Math.round(hoursPerDay * 4) / 4; // Round to nearest 0.25
+                });
+            }
+
             setFormData({
                 weeklyHours: md.weeklyHours,
-                workdays: Array.isArray(md.workdays) ? md.workdays : defaultForm.workdays,
+                workdays: workdays,
                 canWorkFromHome: !!md.canWorkFromHome,
                 locations: Array.isArray(md.locations) ? md.locations : [],
                 flexibleWorkdays: !!md.flexibleWorkdays,
-                dailyHours: md.dailyHours || {}
+                dailyHours: dailyHours
             } as any);
         } else {
             // Provide sane defaults so UI is usable instead of hanging on loader
