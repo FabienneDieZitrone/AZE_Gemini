@@ -153,13 +153,15 @@ try {
     $current_user_id = null;
     $user_role = 'Mitarbeiter';
     $user_display_name = $display_name;
+    $needs_onboarding = false;
     try {
-        $stmt = executeQuery("SELECT id, username, display_name, role FROM users WHERE azure_oid = ?", 's', [$azure_oid]);
+        $stmt = executeQuery("SELECT id, username, display_name, role, onboarding_completed FROM users WHERE azure_oid = ?", 's', [$azure_oid]);
         $res = $stmt->get_result();
         if ($res && ($row = $res->fetch_assoc())) {
             $current_user_id = (int)$row['id'];
             $user_role = $row['role'] ?: 'Mitarbeiter';
             $user_display_name = $row['display_name'] ?: $display_name;
+            $needs_onboarding = !((int)($row['onboarding_completed'] ?? 0));
         } else {
             $ins = executeQuery("INSERT INTO users (username, display_name, role, azure_oid, created_at) VALUES (?, ?, 'Mitarbeiter', ?, NOW())", 'sss', [$username, $display_name, $azure_oid]);
             $current_user_id = $db->insert_id;
@@ -169,7 +171,7 @@ try {
     } catch (Throwable $e) {
         logError('user_sync_failed_executeQuery', ['msg' => $e->getMessage()]);
         try {
-            $sel = $db->prepare("SELECT id, username, display_name, role FROM users WHERE azure_oid = ?");
+            $sel = $db->prepare("SELECT id, username, display_name, role, onboarding_completed FROM users WHERE azure_oid = ?");
             if (!$sel) { throw new Exception('mysqli_prepare(select) failed: ' . $db->error); }
             $sel->bind_param('s', $azure_oid);
             $sel->execute();
@@ -178,6 +180,7 @@ try {
                 $current_user_id = (int)$row['id'];
                 $user_role = $row['role'] ?: 'Mitarbeiter';
                 $user_display_name = $row['display_name'] ?: $display_name;
+                $needs_onboarding = !((int)($row['onboarding_completed'] ?? 0));
             } else {
                 $ins = $db->prepare("INSERT INTO users (username, display_name, role, azure_oid, created_at) VALUES (?, ?, 'Mitarbeiter', ?, NOW())");
                 if (!$ins) { throw new Exception('mysqli_prepare(insert) failed: ' . $db->error); }
@@ -193,6 +196,7 @@ try {
             $current_user_id = 0;
             $user_role = 'Mitarbeiter';
             $user_display_name = $display_name;
+            $needs_onboarding = false;
         }
     }
 
@@ -227,7 +231,8 @@ try {
             'name' => $user_display_name,
             'role' => $user_role,
             'azureOid' => $azure_oid,
-            'location' => $detectedLocation  // ← Erkannter Standort
+            'location' => $detectedLocation,  // ← Erkannter Standort
+            'needsOnboarding' => $needs_onboarding  // ← Onboarding-Flag für neue Mitarbeiter
         ],
         'currentLocation' => $detectedLocation,  // ← Für Frontend-Kompatibilität
         'users' => [],

@@ -16,6 +16,7 @@ export type User = {
     name: string;
     role: Role;
     azureOid?: string;
+    needsOnboarding?: boolean;
 };
 
 export type TimeEntry = {
@@ -93,6 +94,14 @@ export type HistoryEntry = Omit<ApprovalRequest, 'status'> & {
 export type SupervisorNotification = {
     employeeName: string;
     deviationHours: number;
+};
+
+export type PendingOnboardingUser = {
+    id: number;
+    name: string;
+    homeLocation: string;
+    pendingSince: string;
+    daysPending: number;
 };
 
 export type GlobalSettings = {

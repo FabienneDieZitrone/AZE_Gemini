@@ -219,5 +219,18 @@ export const api = {
             method: 'PUT',
             body: JSON.stringify(settings)
         });
+    },
+
+    completeOnboarding: async (homeLocation: string) => {
+        const csrf = await getCsrfToken();
+        return fetchApi('/onboarding-complete.php', {
+            method: 'POST',
+            headers: { 'X-CSRF-Token': csrf },
+            body: JSON.stringify({ homeLocation, csrf_token: csrf })
+        });
+    },
+
+    getPendingOnboardingUsers: async () => {
+        return fetchApi('/pending-onboarding-users.php', { method: 'GET' });
     }
 };

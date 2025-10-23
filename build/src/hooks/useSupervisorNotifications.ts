@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { User, MasterData, TimeEntry, GlobalSettings, SupervisorNotification } from '../types';
+import { User, MasterData, TimeEntry, GlobalSettings, SupervisorNotification, PendingOnboardingUser } from '../types';
 import { getStartOfWeek, calculateDurationInSeconds } from '../utils/time';
 import { TIME } from '../constants';
+import { api } from '../../api';
 
 interface UseSupervisorNotificationsProps {
   currentUser: User | null;
@@ -19,15 +20,32 @@ export const useSupervisorNotifications = ({
   globalSettings
 }: UseSupervisorNotificationsProps) => {
   const [supervisorNotifications, setSupervisorNotifications] = useState<SupervisorNotification[]>([]);
+  const [pendingOnboardingUsers, setPendingOnboardingUsers] = useState<PendingOnboardingUser[]>([]);
   const [showSupervisorModal, setShowSupervisorModal] = useState(false);
   const shownOnceRef = useRef(false);
 
   useEffect(() => {
-    if (!currentUser || !globalSettings || !masterData || timeEntries.length === 0) return;
-    
+    if (!currentUser || !globalSettings) return;
+
     // Check if user has supervisor role
     const canCheck = ['Admin', 'Bereichsleiter', 'Standortleiter'].includes(currentUser.role);
     if (!canCheck) return;
+
+    const loadPendingOnboardingUsers = async () => {
+      try {
+        const response = await api.getPendingOnboardingUsers();
+        if (response?.success && Array.isArray(response.pendingUsers)) {
+          setPendingOnboardingUsers(response.pendingUsers);
+        }
+      } catch (error) {
+        console.error('Failed to load pending onboarding users:', error);
+      }
+    };
+
+    loadPendingOnboardingUsers();
+
+    // Skip overtime notifications if no time entries available
+    if (!masterData || timeEntries.length === 0) return;
 
     const notifications: SupervisorNotification[] = [];
 
@@ -80,20 +98,23 @@ export const useSupervisorNotifications = ({
     });
 
     // Show modal only once per session (after login), not on every view/interaction
-    if (notifications.length > 0 && !shownOnceRef.current) {
+    // Show if either overtime notifications OR pending onboarding users exist
+    if ((notifications.length > 0 || pendingOnboardingUsers.length > 0) && !shownOnceRef.current) {
       setSupervisorNotifications(notifications);
       setShowSupervisorModal(true);
       shownOnceRef.current = true;
     }
-  }, [currentUser, users, masterData, timeEntries, globalSettings]);
+  }, [currentUser, users, masterData, timeEntries, globalSettings, pendingOnboardingUsers]);
 
   const closeSupervisorModal = () => {
     setShowSupervisorModal(false);
     setSupervisorNotifications([]);
+    setPendingOnboardingUsers([]);
   };
 
   return {
     supervisorNotifications,
+    pendingOnboardingUsers,
     showSupervisorModal,
     closeSupervisorModal
   };

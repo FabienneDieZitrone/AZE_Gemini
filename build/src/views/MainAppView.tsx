@@ -35,6 +35,7 @@ import { ApprovalView } from './ApprovalView';
 import { ChangeHistoryView } from './ChangeHistoryView';
 import { DashboardView } from './DashboardView';
 import { GlobalSettingsView } from './GlobalSettingsView';
+import { OnboardingView } from './OnboardingView';
 
 export const MainAppView: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -153,10 +154,11 @@ export const MainAppView: React.FC = () => {
   }, []);
   
   // Use the supervisor notifications hook
-  const { 
-    supervisorNotifications, 
-    showSupervisorModal, 
-    closeSupervisorModal 
+  const {
+    supervisorNotifications,
+    pendingOnboardingUsers,
+    showSupervisorModal,
+    closeSupervisorModal
   } = useSupervisorNotifications({
     currentUser,
     users,
@@ -342,6 +344,17 @@ export const MainAppView: React.FC = () => {
       }
   };
 
+  const handleOnboardingComplete = async (homeLocation: string) => {
+    try {
+      await api.completeOnboarding(homeLocation);
+      await refreshData();
+      notificationService.success('Onboarding abgeschlossen! Sie können nun Ihre Arbeitszeit erfassen.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Fehler beim Abschließen des Onboardings.';
+      throw new Error(msg);
+    }
+  };
+
   const calculatedOvertimeSeconds = useMemo(() => {
     if (!currentUser || !masterData[currentUser.id]) return 0;
     const md = masterData[currentUser.id] as any;
@@ -431,6 +444,17 @@ export const MainAppView: React.FC = () => {
         onRetry={initializeAndFetchData}
       />;
     }
+
+    // Onboarding-Check: Neue Mitarbeiter müssen zuerst Heimat-Standort wählen
+    if (currentUser.needsOnboarding) {
+      return (
+        <OnboardingView
+          globalSettings={globalSettings}
+          userName={currentUser.name}
+          onComplete={handleOnboardingComplete}
+        />
+      );
+    }
   
     const canSeeMasterData = ['Admin', 'Bereichsleiter', 'Standortleiter'].includes(currentUser.role);
     const canApprove = ['Admin', 'Bereichsleiter', 'Standortleiter'].includes(currentUser.role);
@@ -498,7 +522,7 @@ export const MainAppView: React.FC = () => {
           <NewEntryModal onClose={() => setRequestNewEntryOpen(false)} onSubmit={handleNewEntryRequest} locations={globalSettings.locations} defaultRole={currentUser.role} changeReasons={globalSettings.changeReasons} />
         )}
         {editingRoleForUser && currentUser && ( <RoleAssignmentModal user={editingRoleForUser} currentUser={currentUser} onClose={() => setEditingRoleForUser(null)} onSave={handleRoleSave}/> )}
-        {showSupervisorModal && ( <SupervisorNotificationModal notifications={supervisorNotifications} onClose={closeSupervisorModal}/> )}
+        {showSupervisorModal && ( <SupervisorNotificationModal notifications={supervisorNotifications} pendingOnboardingUsers={pendingOnboardingUsers} onClose={closeSupervisorModal}/> )}
         {showOvertimeBreakdown && currentUser && masterData[currentUser.id] && (
           <OvertimeBreakdownModal
             timeEntries={timeEntries}
