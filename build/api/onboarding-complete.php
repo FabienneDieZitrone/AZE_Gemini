@@ -48,27 +48,15 @@ try {
     // Datenbank-Update
     $conn = DatabaseConnection::getInstance()->getConnection();
 
-    // Prüfe ob User bereits Onboarding abgeschlossen hat
-    $stmt = $conn->prepare("SELECT onboarding_completed FROM users WHERE id = ?");
-    $stmt->bind_param('i', $userId);
-    $stmt->execute();
-    $stmt->bind_result($alreadyCompleted);
-    $stmt->fetch();
-    $stmt->close();
-
-    if ($alreadyCompleted) {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'message' => 'Onboarding bereits abgeschlossen']);
-        exit;
-    }
-
-    // Speichere Heimat-Standort und setze pending_since
+    // KRITISCH: Setze onboarding_completed = 1 damit User die App nutzen kann!
+    // Speichere Heimat-Standort und setze pending_since für Standortleiter-Benachrichtigung
     $now = date('Y-m-d H:i:s');
     $stmt = $conn->prepare("
         UPDATE users
         SET home_location = ?,
             pending_since = ?,
-            created_via_onboarding = 1
+            created_via_onboarding = 1,
+            onboarding_completed = 1
         WHERE id = ?
     ");
     $stmt->bind_param('ssi', $homeLocation, $now, $userId);
