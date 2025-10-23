@@ -175,8 +175,8 @@ export const MasterDataView: React.FC<{
                             </div>
                             <div style={{ marginTop: 8, padding: 8, backgroundColor: hoursMatch ? '#d4edda' : '#f8d7da', color: hoursMatch ? '#155724' : '#721c24', borderRadius: 4, fontSize: '0.9em' }}>
                               {hoursMatch
-                                ? `✓ Summe stimmt: ${dailyHoursSum.toFixed(2)}h = ${weeklyHours.toFixed(2)}h`
-                                : `⚠ Summe stimmt nicht: ${dailyHoursSum.toFixed(2)}h ≠ ${weeklyHours.toFixed(2)}h (Differenz: ${Math.abs(dailyHoursSum - weeklyHours).toFixed(2)}h)`
+                                ? `✓ Summe stimmt: ${weeklyHours.toFixed(2)}h (Regelmäßige Wochenarbeitszeit) = ${dailyHoursSum.toFixed(2)}h (Tägliche Stunden aller ausgewählten Tage)`
+                                : `⚠ Summe stimmt nicht: ${weeklyHours.toFixed(2)}h (Regelmäßige Wochenarbeitszeit) ≠ ${dailyHoursSum.toFixed(2)}h (Tägliche Stunden) - Differenz: ${Math.abs(dailyHoursSum - weeklyHours).toFixed(2)}h`
                               }
                             </div>
                           </div>
