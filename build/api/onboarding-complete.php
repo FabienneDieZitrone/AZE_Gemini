@@ -80,7 +80,7 @@ try {
 
     // Erstelle Minimal-Masterdata (damit User sofort tracken kann)
     $stmt = $conn->prepare("
-        INSERT INTO masterdata (user_id, weekly_hours, workdays, can_work_from_home)
+        INSERT INTO master_data (user_id, weekly_hours, workdays, can_work_from_home)
         VALUES (?, 40, ?, 1)
         ON DUPLICATE KEY UPDATE user_id = user_id
     ");
@@ -92,7 +92,7 @@ try {
     // Finde Standortleiter des gewählten Standorts
     $standortleiterNotified = false;
     $stmt = $conn->prepare("
-        SELECT id, name FROM users
+        SELECT id, display_name FROM users
         WHERE role = 'Standortleiter'
         AND home_location = ?
         LIMIT 1

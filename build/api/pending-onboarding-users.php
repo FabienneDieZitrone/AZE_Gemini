@@ -59,7 +59,7 @@ try {
 
     // Hole alle pending Onboarding-Users
     $query = "
-        SELECT u.id, u.name, u.home_location, u.pending_since, u.created_via_onboarding
+        SELECT u.id, u.display_name, u.home_location, u.pending_since, u.created_via_onboarding
         FROM users u
         WHERE u.onboarding_completed = 0
         AND u.created_via_onboarding = 1
@@ -98,7 +98,7 @@ try {
 
         $pendingUsers[] = [
             'id' => (int)$row['id'],
-            'name' => $row['name'],
+            'name' => $row['display_name'],
             'homeLocation' => $row['home_location'],
             'pendingSince' => $row['pending_since'],
             'pendingDuration' => $pendingDuration,
