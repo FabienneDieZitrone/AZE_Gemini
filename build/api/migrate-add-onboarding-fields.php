@@ -10,11 +10,10 @@
  */
 
 define('API_GUARD', true);
-require_once __DIR__ . '/error-handler.php';
 require_once __DIR__ . '/DatabaseConnection.php';
 
-initialize_api();
-header('Content-Type: application/json; charset=utf-8');
+// Don't use error-handler.php for migrations - it interferes with output
+header('Content-Type: text/plain; charset=utf-8');
 
 try {
     $conn = DatabaseConnection::getInstance()->getConnection();

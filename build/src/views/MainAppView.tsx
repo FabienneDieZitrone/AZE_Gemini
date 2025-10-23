@@ -67,7 +67,7 @@ export const MainAppView: React.FC = () => {
         setError(null);
         
         const initialData = await api.loginAndGetInitialData();
-        
+
         setCurrentUser(initialData.currentUser);
         setUsers(initialData.users);
         setMasterData(initialData.masterData);
