@@ -129,23 +129,53 @@ try {
         exit;
     }
 
-    // Fetch user role from database
+    // Fetch user role from database OR create new user
     require_once __DIR__ . '/DatabaseConnection.php';
     $db_role = 'Mitarbeiter'; // Default fallback
     $db_id = null;
+    $needs_onboarding = false;
+
     try {
         $conn = DatabaseConnection::getInstance()->getConnection();
-        $stmt = $conn->prepare("SELECT id, role FROM users WHERE azure_oid = ? LIMIT 1");
+        $stmt = $conn->prepare("SELECT id, role, onboarding_completed FROM users WHERE azure_oid = ? LIMIT 1");
         if ($stmt) {
             $stmt->bind_param('s', $oid);
             $stmt->execute();
-            $stmt->bind_result($db_id, $db_role);
+            $stmt->bind_result($db_id, $db_role, $onboarding_completed);
+
             if ($stmt->fetch()) {
-                aclog('role_fetched', ['id' => $db_id, 'role' => $db_role]);
+                aclog('user_found', ['id' => $db_id, 'role' => $db_role, 'onboarding_completed' => $onboarding_completed]);
+
+                // Check if onboarding needed
+                if ($onboarding_completed == 0) {
+                    $needs_onboarding = true;
+                }
             } else {
-                aclog('warning', 'User not found in database for oid: ' . $oid);
+                // User not found - create new user for onboarding
+                aclog('new_user_detected', ['oid' => $oid, 'name' => $name, 'upn' => $upn]);
+                $stmt->close();
+
+                // Create new user with minimal data
+                $insertStmt = $conn->prepare("
+                    INSERT INTO users (name, azure_oid, role, onboarding_completed, created_via_onboarding)
+                    VALUES (?, ?, 'Mitarbeiter', 0, 1)
+                ");
+                $insertStmt->bind_param('ss', $name, $oid);
+
+                if ($insertStmt->execute()) {
+                    $db_id = $conn->insert_id;
+                    $db_role = 'Mitarbeiter';
+                    $needs_onboarding = true;
+                    aclog('new_user_created', ['id' => $db_id, 'needs_onboarding' => true]);
+                } else {
+                    aclog('error', 'Failed to create new user: ' . $conn->error);
+                }
+                $insertStmt->close();
             }
-            $stmt->close();
+
+            if (isset($stmt) && $stmt !== null) {
+                $stmt->close();
+            }
         }
     } catch (Exception $e) {
         aclog('db_error', $e->getMessage());
@@ -159,7 +189,8 @@ try {
         'name' => $name ?: $upn,
         'username' => $upn,
         'azure_oid' => $oid,
-        'role' => $db_role  // ← CRITICAL: Role from database!
+        'role' => $db_role,  // ← CRITICAL: Role from database!
+        'needs_onboarding' => $needs_onboarding  // ← NEW: Onboarding flag
     ];
 
     aclog('login_success', $_SESSION['user']);

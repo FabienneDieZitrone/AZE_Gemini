@@ -1,0 +1,233 @@
+/**
+ * OnboardingView Styles
+ */
+
+.onboarding-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 2rem;
+}
+
+.onboarding-card {
+  background-color: var(--secondary-bg-color, #ffffff);
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-width: 600px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.onboarding-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 2.5rem 2rem;
+  text-align: center;
+}
+
+.onboarding-header .app-logo-svg {
+  height: 50px;
+  width: auto;
+  margin-bottom: 1rem;
+  filter: brightness(0) invert(1);
+}
+
+.onboarding-title {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
+}
+
+.onboarding-subtitle {
+  font-size: 1.1rem;
+  margin: 0;
+  opacity: 0.95;
+}
+
+.onboarding-content {
+  padding: 2rem;
+}
+
+.onboarding-welcome-message {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.onboarding-welcome-message h2 {
+  color: var(--accent-color, #0056b3);
+  font-size: 1.5rem;
+  margin: 0 0 1rem 0;
+}
+
+.onboarding-welcome-message p {
+  color: var(--secondary-text-color, #6c757d);
+  font-size: 1rem;
+  margin: 0;
+}
+
+.onboarding-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.form-label {
+  display: block;
+  font-size: 1.1rem;
+  color: var(--primary-text-color, #333);
+  margin-bottom: 0.5rem;
+}
+
+.form-help-text {
+  font-size: 0.9rem;
+  color: var(--secondary-text-color, #6c757d);
+  margin: 0.5rem 0 1rem 0;
+  line-height: 1.5;
+}
+
+.form-select {
+  width: 100%;
+  padding: 0.75rem;
+  font-size: 1rem;
+  border: 2px solid var(--border-color, #dee2e6);
+  border-radius: 8px;
+  background-color: var(--secondary-bg-color, #ffffff);
+  color: var(--primary-text-color, #333);
+  transition: border-color 0.3s ease;
+}
+
+.form-select:focus {
+  outline: none;
+  border-color: var(--accent-color, #0056b3);
+}
+
+.form-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.onboarding-error {
+  background-color: var(--red-color-light, #f8d7da);
+  color: var(--red-color, #dc3545);
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--red-color, #dc3545);
+  text-align: center;
+  font-weight: 500;
+}
+
+.onboarding-info-box {
+  background-color: var(--tertiary-bg-color, #f8f9fa);
+  border-left: 4px solid var(--accent-color, #0056b3);
+  padding: 1.5rem;
+  border-radius: 8px;
+}
+
+.onboarding-info-box h3 {
+  font-size: 1.1rem;
+  color: var(--accent-color, #0056b3);
+  margin: 0 0 1rem 0;
+}
+
+.onboarding-info-box ul {
+  margin: 0;
+  padding-left: 1.5rem;
+  color: var(--secondary-text-color, #6c757d);
+}
+
+.onboarding-info-box li {
+  margin-bottom: 0.5rem;
+  line-height: 1.5;
+}
+
+.onboarding-actions {
+  margin-top: 1.5rem;
+}
+
+.onboarding-submit-button {
+  width: 100%;
+  padding: 1rem 2rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.onboarding-submit-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
+}
+
+.onboarding-submit-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.onboarding-submit-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.onboarding-footer {
+  background-color: var(--tertiary-bg-color, #f8f9fa);
+  padding: 1.5rem;
+  text-align: center;
+  border-top: 1px solid var(--border-color, #dee2e6);
+}
+
+.onboarding-footer-text {
+  margin: 0;
+  color: var(--secondary-text-color, #6c757d);
+  font-size: 0.9rem;
+}
+
+/* Dark Mode Support */
+[data-theme="dark"] .onboarding-card {
+  background-color: var(--secondary-bg-color, #1e1e1e);
+}
+
+[data-theme="dark"] .form-select {
+  background-color: var(--primary-bg-color, #121212);
+  border-color: var(--border-color, #444);
+}
+
+[data-theme="dark"] .onboarding-info-box {
+  background-color: var(--primary-bg-color, #121212);
+}
+
+[data-theme="dark"] .onboarding-footer {
+  background-color: var(--primary-bg-color, #121212);
+  border-top-color: var(--border-color, #444);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .onboarding-container {
+    padding: 1rem;
+  }
+
+  .onboarding-card {
+    max-width: 100%;
+  }
+
+  .onboarding-header {
+    padding: 2rem 1.5rem;
+  }
+
+  .onboarding-content {
+    padding: 1.5rem;
+  }
+
+  .onboarding-title {
+    font-size: 1.5rem;
+  }
+
+  .onboarding-welcome-message h2 {
+    font-size: 1.25rem;
+  }
+}
