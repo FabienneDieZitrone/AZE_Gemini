@@ -137,36 +137,64 @@ try {
 
     try {
         $conn = DatabaseConnection::getInstance()->getConnection();
-        $stmt = $conn->prepare("SELECT id, role, onboarding_completed FROM users WHERE azure_oid = ? LIMIT 1");
+
+        // Check if onboarding columns exist (migration-safe)
+        $hasOnboardingCols = false;
+        try {
+            $colCheck = $conn->query("SHOW COLUMNS FROM users LIKE 'onboarding_completed'");
+            $hasOnboardingCols = $colCheck && $colCheck->num_rows > 0;
+            if ($colCheck) $colCheck->close();
+        } catch (Exception $e) {
+            aclog('column_check_failed', $e->getMessage());
+        }
+
+        // Build query based on column availability
+        $selectFields = "id, role" . ($hasOnboardingCols ? ", onboarding_completed" : "");
+        $stmt = $conn->prepare("SELECT $selectFields FROM users WHERE azure_oid = ? LIMIT 1");
         if ($stmt) {
             $stmt->bind_param('s', $oid);
             $stmt->execute();
-            $stmt->bind_result($db_id, $db_role, $onboarding_completed);
+
+            if ($hasOnboardingCols) {
+                $stmt->bind_result($db_id, $db_role, $onboarding_completed);
+            } else {
+                $stmt->bind_result($db_id, $db_role);
+            }
 
             if ($stmt->fetch()) {
-                aclog('user_found', ['id' => $db_id, 'role' => $db_role, 'onboarding_completed' => $onboarding_completed]);
+                aclog('user_found', ['id' => $db_id, 'role' => $db_role]);
 
-                // Check if onboarding needed
-                if ($onboarding_completed == 0) {
+                // Check if onboarding needed (only if column exists)
+                if ($hasOnboardingCols && isset($onboarding_completed) && $onboarding_completed == 0) {
                     $needs_onboarding = true;
                 }
             } else {
-                // User not found - create new user for onboarding
+                // User not found - create new user
                 aclog('new_user_detected', ['oid' => $oid, 'name' => $name, 'upn' => $upn]);
                 $stmt->close();
 
-                // Create new user with minimal data
-                $insertStmt = $conn->prepare("
-                    INSERT INTO users (name, azure_oid, role, onboarding_completed, created_via_onboarding)
-                    VALUES (?, ?, 'Mitarbeiter', 0, 1)
-                ");
-                $insertStmt->bind_param('ss', $name, $oid);
+                // Create new user with or without onboarding fields
+                if ($hasOnboardingCols) {
+                    // Create with onboarding fields
+                    $insertStmt = $conn->prepare("
+                        INSERT INTO users (name, azure_oid, role, onboarding_completed, created_via_onboarding)
+                        VALUES (?, ?, 'Mitarbeiter', 0, 1)
+                    ");
+                    $insertStmt->bind_param('ss', $name, $oid);
+                    $needs_onboarding = true;
+                } else {
+                    // Create without onboarding fields (backward compatible)
+                    $insertStmt = $conn->prepare("
+                        INSERT INTO users (username, display_name, role, azure_oid, created_at)
+                        VALUES (?, ?, 'Mitarbeiter', ?, NOW())
+                    ");
+                    $insertStmt->bind_param('sss', $upn, $name, $oid);
+                }
 
                 if ($insertStmt->execute()) {
                     $db_id = $conn->insert_id;
                     $db_role = 'Mitarbeiter';
-                    $needs_onboarding = true;
-                    aclog('new_user_created', ['id' => $db_id, 'needs_onboarding' => true]);
+                    aclog('new_user_created', ['id' => $db_id, 'has_onboarding' => $hasOnboardingCols]);
                 } else {
                     aclog('error', 'Failed to create new user: ' . $conn->error);
                 }
