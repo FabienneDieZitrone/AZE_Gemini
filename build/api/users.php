@@ -173,16 +173,15 @@ if ($affectedRows === 0) {
     }
 
     if ($verifiedRole === $newRole) {
-        // CRITICAL: Explicitly commit the transaction since autocommit is disabled
-        $conn->commit();
+        // ✅ FIX: No manual commit needed - autocommit is enabled by default
+        // (DatabaseConnection.php now uses autocommit=true as default)
 
         hlog('Role update successful', [
             'userId' => $userId,
             'newRole' => $verifiedRole,
-            'verified' => true,
-            'committed' => true
+            'verified' => true
         ], 'success');
-        error_log("users.php: Successfully updated user ID $userId to role $newRole and committed");
+        error_log("users.php: Successfully updated user ID $userId to role $newRole");
         send_response(200, ['success' => true, 'newRole' => $verifiedRole]);
     } else {
         hlog('Verification failed', [
