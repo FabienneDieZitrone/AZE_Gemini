@@ -104,7 +104,8 @@ export const useSupervisorNotifications = ({
       setShowSupervisorModal(true);
       shownOnceRef.current = true;
     }
-  }, [currentUser, users, masterData, timeEntries, globalSettings, pendingOnboardingUsers]);
+  }, [currentUser, users, masterData, timeEntries, globalSettings]);
+  // ✅ FIX: pendingOnboardingUsers REMOVED from dependency array to prevent infinite loop
 
   const closeSupervisorModal = () => {
     setShowSupervisorModal(false);

@@ -166,9 +166,11 @@ class DatabaseConnection implements DatabaseConnectionInterface {
         
         // Set connection timeout
         $this->connection->options(MYSQLI_OPT_CONNECT_TIMEOUT, $this->config['timeout']);
-        
-        // Disable autocommit for better transaction control
-        $this->connection->autocommit(false);
+
+        // ✅ CRITICAL FIX: ENABLE autocommit by default!
+        // Only disable when explicitly using transactions via beginTransaction()
+        // Without this, ALL queries require explicit commit() - causing massive bugs!
+        $this->connection->autocommit(true);
     }
     
     /**
@@ -176,16 +178,19 @@ class DatabaseConnection implements DatabaseConnectionInterface {
      */
     public function beginTransaction() {
         $connection = $this->getConnection();
-        
+
         if ($this->inTransaction) {
             $this->logger->warning('Attempting to begin transaction while already in transaction');
             return;
         }
-        
+
+        // Disable autocommit for transaction
+        $connection->autocommit(false);
+
         if (!$connection->begin_transaction()) {
             throw new RuntimeException('Failed to begin transaction');
         }
-        
+
         $this->inTransaction = true;
         $this->logger->debug('Database transaction started');
     }
@@ -198,13 +203,16 @@ class DatabaseConnection implements DatabaseConnectionInterface {
             $this->logger->warning('Attempting to commit without active transaction');
             return;
         }
-        
+
         $connection = $this->getConnection();
-        
+
         if (!$connection->commit()) {
             throw new RuntimeException('Failed to commit transaction');
         }
-        
+
+        // Re-enable autocommit after transaction
+        $connection->autocommit(true);
+
         $this->inTransaction = false;
         $this->logger->debug('Database transaction committed');
     }
@@ -217,13 +225,16 @@ class DatabaseConnection implements DatabaseConnectionInterface {
             $this->logger->warning('Attempting to rollback without active transaction');
             return;
         }
-        
+
         $connection = $this->getConnection();
-        
+
         if (!$connection->rollback()) {
             $this->logger->error('Failed to rollback transaction');
         }
-        
+
+        // Re-enable autocommit after rollback
+        $connection->autocommit(true);
+
         $this->inTransaction = false;
         $this->logger->debug('Database transaction rolled back');
     }
