@@ -191,70 +191,13 @@ export const OvertimeBreakdownModal: React.FC<OvertimeBreakdownModalProps> = ({
         <div className="modal-body">
           {/* Cumulative Total - Prominent Display */}
           <div className="cumulative-total-card">
-            <h3>Gesamt-Überstunden (kumulativ)</h3>
+            <h3>Gesamt-Überstunden</h3>
             <div className={`cumulative-value ${cumulativeTotal >= 0 ? 'positive' : 'negative'}`}>
               {formatHours(cumulativeTotal)}
             </div>
             <p className="cumulative-hint">
-              Summe aller Überstunden seit Beginn der Aufzeichnung
+              Summe aller Überstunden
             </p>
-          </div>
-
-          {/* Monthly Totals */}
-          <div className="breakdown-section">
-            <h3>Monatliche Übersicht</h3>
-            <table className="breakdown-table">
-              <thead>
-                <tr>
-                  <th>Monat</th>
-                  <th>Soll</th>
-                  <th>Ist</th>
-                  <th>Differenz</th>
-                </tr>
-              </thead>
-              <tbody>
-                {monthlyTotals.map((month) => (
-                  <tr key={month.monthKey}>
-                    <td><strong>{month.monthName}</strong></td>
-                    <td>{formatHoursNoSign(month.shouldSeconds)}</td>
-                    <td>{formatHoursNoSign(month.actualSeconds)}</td>
-                    <td className={month.differenceSeconds >= 0 ? 'positive' : 'negative'}>
-                      {formatHours(month.differenceSeconds)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Weekly Totals */}
-          <div className="breakdown-section">
-            <h3>Wöchentliche Übersicht</h3>
-            <table className="breakdown-table">
-              <thead>
-                <tr>
-                  <th>Woche</th>
-                  <th>Soll</th>
-                  <th>Ist</th>
-                  <th>Differenz</th>
-                </tr>
-              </thead>
-              <tbody>
-                {weeklyTotals.slice(0, 12).map((week) => (
-                  <tr key={week.yearWeek}>
-                    <td><strong>{week.yearWeek}</strong></td>
-                    <td>{formatHoursNoSign(week.shouldSeconds)}</td>
-                    <td>{formatHoursNoSign(week.actualSeconds)}</td>
-                    <td className={week.differenceSeconds >= 0 ? 'positive' : 'negative'}>
-                      {formatHours(week.differenceSeconds)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {weeklyTotals.length > 12 && (
-              <p className="table-hint">Zeigt die letzten 12 Wochen</p>
-            )}
           </div>
 
           {/* Daily Totals */}
@@ -287,6 +230,63 @@ export const OvertimeBreakdownModal: React.FC<OvertimeBreakdownModalProps> = ({
             {dailyTotals.length > 30 && (
               <p className="table-hint">Zeigt die letzten 30 Tage</p>
             )}
+          </div>
+
+          {/* Weekly Totals */}
+          <div className="breakdown-section">
+            <h3>Wöchentliche Übersicht</h3>
+            <table className="breakdown-table">
+              <thead>
+                <tr>
+                  <th>Woche</th>
+                  <th>Soll</th>
+                  <th>Ist</th>
+                  <th>Differenz</th>
+                </tr>
+              </thead>
+              <tbody>
+                {weeklyTotals.slice(0, 12).map((week) => (
+                  <tr key={week.yearWeek}>
+                    <td><strong>{week.yearWeek}</strong></td>
+                    <td>{formatHoursNoSign(week.shouldSeconds)}</td>
+                    <td>{formatHoursNoSign(week.actualSeconds)}</td>
+                    <td className={week.differenceSeconds >= 0 ? 'positive' : 'negative'}>
+                      {formatHours(week.differenceSeconds)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {weeklyTotals.length > 12 && (
+              <p className="table-hint">Zeigt die letzten 12 Wochen</p>
+            )}
+          </div>
+
+          {/* Monthly Totals */}
+          <div className="breakdown-section">
+            <h3>Monatliche Übersicht</h3>
+            <table className="breakdown-table">
+              <thead>
+                <tr>
+                  <th>Monat</th>
+                  <th>Soll</th>
+                  <th>Ist</th>
+                  <th>Differenz</th>
+                </tr>
+              </thead>
+              <tbody>
+                {monthlyTotals.map((month) => (
+                  <tr key={month.monthKey}>
+                    <td><strong>{month.monthName}</strong></td>
+                    <td>{formatHoursNoSign(month.shouldSeconds)}</td>
+                    <td>{formatHoursNoSign(month.actualSeconds)}</td>
+                    <td className={month.differenceSeconds >= 0 ? 'positive' : 'negative'}>
+                      {formatHours(month.differenceSeconds)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
 
