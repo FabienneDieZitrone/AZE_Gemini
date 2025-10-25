@@ -1,12 +1,13 @@
 /**
  * Titel: Tagesdetail-Ansicht
- * Version: 1.0
- * Letzte Aktualisierung: 08.11.2024
+ * Version: 1.1
+ * Letzte Aktualisierung: 25.10.2025
  * Autor: MP-IT
  * Datei: /src/views/DayDetailView.tsx
+ * Änderung: Display_name statt Username anzeigen
  */
 import React from 'react';
-import { TimeEntry, ApprovalRequest, Role } from '../types';
+import { TimeEntry, ApprovalRequest, Role, User } from '../types';
 import { formatTime, calculateDurationInSeconds } from '../utils/time';
 
 export const DayDetailView: React.FC<{
@@ -20,7 +21,8 @@ export const DayDetailView: React.FC<{
   date: string;
   username: string;
   userRole: Role;
-}> = ({ onBack, onGoToMain, onShowHistory, onEdit, onDelete, entries, approvalRequests, date, username, userRole }) => {
+  allUsers: User[];
+}> = ({ onBack, onGoToMain, onShowHistory, onEdit, onDelete, entries, approvalRequests, date, username, userRole, allUsers }) => {
     
     const entriesForDay = entries.filter(
         entry => entry.date === date && entry.username === username
@@ -79,7 +81,7 @@ export const DayDetailView: React.FC<{
                         <tr>
                             <th>Bearbeiten</th>
                             <th>Löschen</th>
-                            <th>Username</th>
+                            <th>Name</th>
                             <th>Startzeit</th>
                             <th>Stoppzeit</th>
                             <th>Arbeitszeit</th>
@@ -91,11 +93,13 @@ export const DayDetailView: React.FC<{
                         {entriesForDay.map(entry => {
                             const totalSeconds = calculateDurationInSeconds(entry.startTime, entry.stopTime);
                             const isPending = pendingRequestIds.has(entry.id);
+                            const user = allUsers.find(u => u.id === entry.userId);
+                            const displayName = user?.name || entry.username;
                             return (
                                 <tr key={entry.id} className={getRowClass(entry)}>
                                     <td className="cell-center"><button className="edit-button" onClick={() => onEdit(entry)} disabled={isPending}>Bearbeiten</button></td>
                                     <td className="cell-center"><button className="delete-button" onClick={() => onDelete(entry)} disabled={isPending}>Löschen</button></td>
-                                    <td className="text-left">{entry.username}</td>
+                                    <td className="text-left">{displayName}</td>
                                     <td className="cell-center">{entry.startTime}</td>
                                     <td className="cell-center">{entry.stopTime}</td>
                                     <td className="cell-center">{formatTime(totalSeconds)}</td>
