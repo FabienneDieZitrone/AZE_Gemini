@@ -79,7 +79,6 @@ function send_response($status_code, $data = null) {
     // Verhindere, dass nach dem Senden der Antwort noch etwas passiert.
     // CRITICAL (2025-10-19): MUST exit() here, not return, to prevent script continuation!
     if (headers_sent()) {
-        error_log("CRITICAL: Attempted to send response, but headers already sent. Terminating.");
         exit(1);  // Exit immediately to prevent further execution
     }
 
@@ -166,12 +165,10 @@ function checkSessionTimeout() {
     if (isset($_SESSION['created_at'])) {
         if ($current_time - $_SESSION['created_at'] > $absolute_timeout) {
             // Session ist älter als 24 Stunden
-            error_log("Session timeout: Absolute timeout reached (24h)");
             return false;
         }
     } else {
         // Kein Erstellungszeitpunkt - Session ist ungültig
-        error_log("Session timeout: No creation timestamp found");
         return false;
     }
     
@@ -179,12 +176,10 @@ function checkSessionTimeout() {
     if (isset($_SESSION['last_activity'])) {
         if ($current_time - $_SESSION['last_activity'] > $inactivity_timeout) {
             // Letzte Aktivität ist länger als 1 Stunde her
-            error_log("Session timeout: Inactivity timeout reached (1h)");
             return false;
         }
     } else {
         // Keine letzte Aktivität verzeichnet - Session ist ungültig
-        error_log("Session timeout: No last activity timestamp found");
         return false;
     }
     
@@ -197,7 +192,6 @@ function checkSessionTimeout() {
     } else if ($current_time - $_SESSION['last_regeneration'] > 1800) { // 30 Minuten
         session_regenerate_id(true);
         $_SESSION['last_regeneration'] = $current_time;
-        error_log("Session ID regenerated for security");
     }
     
     return true;
@@ -249,6 +243,4 @@ function destroy_session_completely() {
     
     // Session zerstören
     session_destroy();
-    
-    error_log("Session completely destroyed");
 }

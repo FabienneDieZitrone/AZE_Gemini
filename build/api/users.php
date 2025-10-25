@@ -9,7 +9,15 @@ require_once __DIR__ . '/security-middleware.php';
 require_once __DIR__ . '/auth_helpers.php';
 require_once __DIR__ . '/csrf-middleware.php';
 require_once __DIR__ . '/DatabaseConnection.php';
-require_once __DIR__ . '/debug-helpers.php';
+// require_once __DIR__ . '/debug-helpers.php';  // TEMP DISABLED FOR DEBUGGING
+
+// Dummy hlog function
+if (!function_exists('hlog')) {
+    function hlog($title, $data = null, $level = 'info') {
+        // DO NOTHING
+        return;
+    }
+}
 
 initialize_api();
 initSecurityMiddleware();
@@ -105,14 +113,12 @@ if ($actorRole !== 'Admin' && $newRole === 'Admin') {
 // Prepare UPDATE statement
 $st = $conn->prepare("UPDATE users SET role = ? WHERE id = ?");
 if (!$st) {
-    error_log("users.php: Failed to prepare UPDATE statement");
-    send_response(500, ['message' => 'Database error (prepare)']);
+    send_response(500, ['message' => 'Database error (prepare)', 'error' => $conn->error]);
 }
 
 $st->bind_param('si', $newRole, $userId);
 if (!$st->execute()) {
     $e = $st->error;
-    error_log("users.php: Failed to execute UPDATE - Error: $e");
     $st->close();
     send_response(500, ['message' => 'Database error (execute)', 'error' => $e]);
 }
@@ -143,11 +149,9 @@ if ($affectedRows === 0) {
 
     if (!$userExists) {
         hlog('User not found', "User ID $userId does not exist", 'error');
-        error_log("users.php: User ID $userId not found");
         send_response(404, ['message' => "Benutzer mit ID $userId nicht gefunden"]);
     } else if ($currentRole === $newRole) {
         hlog('Role unchanged', "User ID $userId already has role $newRole", 'info');
-        error_log("users.php: User ID $userId already has role $newRole");
         send_response(200, ['success' => true, 'message' => 'Rolle war bereits gesetzt', 'unchanged' => true]);
     } else {
         // This shouldn't happen - UPDATE should have worked
@@ -157,7 +161,6 @@ if ($affectedRows === 0) {
             'newRole' => $newRole,
             'message' => 'User exists but UPDATE did not work'
         ], 'error');
-        error_log("users.php: Unexpected state - user exists but UPDATE didn't work. Current role: $currentRole, New role: $newRole");
         send_response(500, ['message' => 'Update fehlgeschlagen (unerwarteter Fehler)']);
     }
 } else {
@@ -181,7 +184,6 @@ if ($affectedRows === 0) {
             'newRole' => $verifiedRole,
             'verified' => true
         ], 'success');
-        error_log("users.php: Successfully updated user ID $userId to role $newRole");
         send_response(200, ['success' => true, 'newRole' => $verifiedRole]);
     } else {
         hlog('Verification failed', [
@@ -190,7 +192,6 @@ if ($affectedRows === 0) {
             'actual' => $verifiedRole,
             'message' => 'UPDATE reported success but verification failed'
         ], 'error');
-        error_log("users.php: UPDATE reported success but verification failed. Expected: $newRole, Got: $verifiedRole");
         send_response(500, ['message' => 'Update scheinbar erfolgreich, aber Verifikation fehlgeschlagen']);
     }
 }
