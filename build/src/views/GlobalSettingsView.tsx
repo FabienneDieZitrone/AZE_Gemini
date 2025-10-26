@@ -196,7 +196,7 @@ export const GlobalSettingsView: React.FC<{
                     </div>
                     <div className="form-group location-manager">
                         <label style={{ fontWeight: 600 }} title="Stammliste">Standorte</label>
-                        <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #ccc', padding: 8, borderRadius: 4, width: '100%' }}>
+                        <div style={{ maxHeight: '200px', overflowY: 'scroll', border: '1px solid #ccc', padding: 8, borderRadius: 4, width: '100%' }}>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                                 {[...formData.locations].sort((a, b) => a.localeCompare(b, 'de', {sensitivity: 'base'})).map(loc => (
                                     <div key={loc} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -239,7 +239,7 @@ export const GlobalSettingsView: React.FC<{
                     <div className="form-group location-manager">
                         <label style={{ fontWeight: 600 }} title="Nur Standorte aus Stammliste möglich">IP-Adressen → Standort-Namen Zuordnung</label>
                         {ipLoadError && <div className="error">{ipLoadError}</div>}
-                        <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #ccc', padding: 8, borderRadius: 4, width: '100%' }}>
+                        <div style={{ maxHeight: '200px', overflowY: 'scroll', border: '1px solid #ccc', padding: 8, borderRadius: 4, width: '100%' }}>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                                 {ipMap.map((row, idx) => (
                                     <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>

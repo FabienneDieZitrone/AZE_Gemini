@@ -423,17 +423,14 @@ body, html {
 }
 
 .view-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  text-align: center;
   width: 100%;
-  gap: 1rem;
-  flex-wrap: wrap;
+  margin-bottom: 1rem;
 }
 
 .view-header h2 {
   color: var(--accent-color);
-  margin: 0;
+  margin: 0 0 1rem 0;
   font-size: 1.8rem;
   font-weight: 500;
 }
@@ -501,6 +498,36 @@ body, html {
   font-size: 1rem;
   background-color: var(--secondary-bg-color);
   color: var(--primary-text-color);
+}
+
+/* Scrollbalken in Stammdaten dauerhaft sichtbar machen */
+.form-group select[multiple],
+.location-manager > div[style*="overflow"] {
+  overflow-y: scroll !important;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent-color) var(--tertiary-bg-color);
+}
+
+.form-group select[multiple]::-webkit-scrollbar,
+.location-manager > div[style*="overflow"]::-webkit-scrollbar {
+  width: 8px;
+}
+
+.form-group select[multiple]::-webkit-scrollbar-track,
+.location-manager > div[style*="overflow"]::-webkit-scrollbar-track {
+  background: var(--tertiary-bg-color);
+  border-radius: 4px;
+}
+
+.form-group select[multiple]::-webkit-scrollbar-thumb,
+.location-manager > div[style*="overflow"]::-webkit-scrollbar-thumb {
+  background: var(--accent-color);
+  border-radius: 4px;
+}
+
+.form-group select[multiple]::-webkit-scrollbar-thumb:hover,
+.location-manager > div[style*="overflow"]::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-color-hover);
 }
 
 .action-button {
