@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 120" width="500" height="120">
+  <!-- Gelber/Lime Bogen (links) -->
+  <path d="M 15 60 Q 15 25, 35 25 Q 55 25, 55 45 L 55 95 Q 55 115, 35 115 Q 15 115, 15 95 Z"
+        fill="#C8E500" opacity="0.95"/>
+
+  <!-- Petrol Kreis (Kopf der Figur) -->
+  <circle cx="75" cy="40" r="14" fill="#0A5161"/>
+
+  <!-- Petrol Körper (oberer Teil) -->
+  <path d="M 63 58 L 75 54 L 87 58 L 92 75 L 58 75 Z" fill="#0A5161"/>
+
+  <!-- Petrol Beine (unterer Teil) -->
+  <path d="M 60 75 L 63 100 L 72 102 L 75 77 L 78 102 L 87 100 L 90 75 Z" fill="#0A5161"/>
+
+  <!-- Petrol Arm-Elemente (Schwung rechts) -->
+  <path d="M 87 58 Q 100 50, 110 55 Q 115 60, 110 65 Q 100 70, 90 65 Z" fill="#0A5161" opacity="0.8"/>
+  <path d="M 90 65 Q 105 68, 115 75 Q 118 80, 112 83 Q 100 85, 92 78 Z" fill="#0A5161" opacity="0.7"/>
+
+  <!-- Text MIKRO PARTNER in Petrol (#0A5161) -->
+  <text x="140" y="55" font-family="Arial, sans-serif" font-size="38" font-weight="700" fill="#0A5161" letter-spacing="1">
+    MIKRO
+  </text>
+  <text x="140" y="95" font-family="Arial, sans-serif" font-size="38" font-weight="700" fill="#0A5161" letter-spacing="1">
+    PARTNER
+  </text>
+</svg>
