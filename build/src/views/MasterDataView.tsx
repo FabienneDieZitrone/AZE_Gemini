@@ -107,6 +107,13 @@ export const MasterDataView: React.FC<{
     };
 
     const workdaysOptions = ["Mo", "Di", "Mi", "Do", "Fr"];
+    const workdaysLabels: Record<string, string> = {
+        "Mo": "Montag",
+        "Di": "Dienstag",
+        "Mi": "Mittwoch",
+        "Do": "Donnerstag",
+        "Fr": "Freitag"
+    };
     const selectedUser = users.find(u => u.id === selectedUserId) || currentUser;
 
     // Calculate daily hours sum for validation display
@@ -137,50 +144,58 @@ export const MasterDataView: React.FC<{
                     </div>
                      <button type="button" className="nav-button" onClick={() => onEditRole(selectedUser)}>Rolle vergeben/bearbeiten</button>
                 </div>
-                <div className="form-grid">
+                <div className="form-grid" style={{ gridTemplateColumns: '1fr', maxWidth: 800 }}>
                     <div className="form-group">
                         <label htmlFor="weeklyHours">Regelmäßige Wochenarbeitszeit</label>
                         <input type="number" id="weeklyHours" value={formData.weeklyHours} onChange={handleHoursChange} step="0.25"/>
                     </div>
                     <div className="form-group">
                         <label>Regelmäßige Wochenarbeitstage</label>
-                        <div className="checkbox-group" style={{ gap: 12 }}>
-                            {workdaysOptions.map(day => (
-                                <label key={day}>
-                                    <input type="checkbox" value={day} checked={formData.workdays.includes(day)} onChange={handleDayChange}/>
-                                    {day}
-                                </label>
-                            ))}
-                        </div>
                         <div style={{ marginTop: 8 }}>
                             <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                                 <input type="checkbox" checked={(formData as any).flexibleWorkdays || false} onChange={e => setFormData(prev => prev ? ({ ...(prev as any), flexibleWorkdays: e.target.checked } as any) : prev)} />
                                 Flexibel
                             </label>
                         </div>
-                        {/* Daily hours per selected workday */}
-                        {formData.workdays.length > 0 && (
-                          <div style={{ marginTop: 12 }}>
-                            <div style={{ fontWeight: 600, marginBottom: 6 }}>Tägliche Stunden je ausgewähltem Tag</div>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 8 }}>
-                              {formData.workdays.map(d => (
-                                <label key={d} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                  <span>{d}</span>
-                                  <input type="number" min={0} step={0.25} value={(formData as any).dailyHours?.[d] ?? 8} onChange={e => {
+                        {/* Daily hours with checkbox as header - horizontal layout */}
+                        <div style={{ marginTop: 12, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                          {workdaysOptions.map(day => (
+                            <div key={day} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, cursor: 'pointer' }}>
+                                <input type="checkbox" value={day} checked={formData.workdays.includes(day)} onChange={handleDayChange}/>
+                                {workdaysLabels[day]}
+                              </label>
+                              {formData.workdays.includes(day) && (
+                                <input
+                                  type="number"
+                                  min={0}
+                                  step={0.25}
+                                  value={(formData as any).dailyHours?.[day] ?? 8}
+                                  onChange={e => {
                                     const v = parseFloat(e.target.value);
-                                    setFormData(prev => prev ? ({ ...(prev as any), dailyHours: { ...(prev as any).dailyHours, [d]: isNaN(v) ? 0 : v } } as any) : prev)
-                                  }} />
-                                </label>
-                              ))}
+                                    setFormData(prev => prev ? ({ ...(prev as any), dailyHours: { ...(prev as any).dailyHours, [day]: isNaN(v) ? 0 : v } } as any) : prev)
+                                  }}
+                                  style={{ width: 90 }}
+                                  placeholder="Std."
+                                />
+                              )}
                             </div>
-                            <div style={{ marginTop: 8, padding: 8, backgroundColor: hoursMatch ? '#d4edda' : '#f8d7da', color: hoursMatch ? '#155724' : '#721c24', borderRadius: 4, fontSize: '0.9em' }}>
-                              {hoursMatch
-                                ? `✓ Summe stimmt: ${weeklyHours.toFixed(2)}h (Regelmäßige Wochenarbeitszeit) = ${dailyHoursSum.toFixed(2)}h (Tägliche Stunden aller ausgewählten Tage)`
-                                : `⚠ Summe stimmt nicht: ${weeklyHours.toFixed(2)}h (Regelmäßige Wochenarbeitszeit) ≠ ${dailyHoursSum.toFixed(2)}h (Tägliche Stunden) - Differenz: ${Math.abs(dailyHoursSum - weeklyHours).toFixed(2)}h`
-                              }
-                            </div>
+                          ))}
+                        </div>
+                        {formData.workdays.length > 0 && (
+                          <div style={{ marginTop: 12, padding: 8, backgroundColor: hoursMatch ? '#d4edda' : '#f8d7da', color: hoursMatch ? '#155724' : '#721c24', borderRadius: 4, fontSize: '0.9em' }}>
+                            {hoursMatch
+                              ? `✓ Summe stimmt: ${weeklyHours.toFixed(2)}h (Regelmäßige Wochenarbeitszeit) = ${dailyHoursSum.toFixed(2)}h (Tägliche Stunden aller ausgewählten Tage)`
+                              : `⚠ Summe stimmt nicht: ${weeklyHours.toFixed(2)}h (Regelmäßige Wochenarbeitszeit) ≠ ${dailyHoursSum.toFixed(2)}h (Tägliche Stunden) - Differenz: ${Math.abs(dailyHoursSum - weeklyHours).toFixed(2)}h`
+                            }
                           </div>
                         )}
+                    </div>
+                    <div className="form-group">
+                        <label>Home Office</label>
+                        <div className="checkbox-group">
+                            <label><input type="checkbox" checked={formData.canWorkFromHome} onChange={handleHomeOfficeChange}/> Erlaubt</label>
+                        </div>
                     </div>
                     {canAssignLocations && (
                         <div className="form-group">
@@ -196,12 +211,6 @@ export const MasterDataView: React.FC<{
                             </div>
                         </div>
                     )}
-                     <div className="form-group">
-                        <label>Home Office</label>
-                         <div className="checkbox-group">
-                             <label><input type="checkbox" checked={formData.canWorkFromHome} onChange={handleHomeOfficeChange}/> Erlaubt</label>
-                         </div>
-                    </div>
                 </div>
                 <div className="master-data-actions">
                      <button type="submit" className="action-button" disabled={!hoursMatch} title={!hoursMatch ? 'Bitte korrigieren Sie die Stundensumme' : ''}>Änderungen speichern</button>
