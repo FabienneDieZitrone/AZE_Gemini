@@ -178,7 +178,13 @@ try {
             // Only check onboarding if column exists
             $needs_onboarding = $hasOnboardingCol ? !((int)($row['onboarding_completed'] ?? 0)) : false;
         } else {
-            $ins = executeQuery("INSERT INTO users (username, display_name, role, azure_oid, created_at) VALUES (?, ?, 'Mitarbeiter', ?, NOW())", 'sss', [$username, $display_name, $azure_oid]);
+            // New user - set onboarding fields if column exists
+            if ($hasOnboardingCol) {
+                $ins = executeQuery("INSERT INTO users (username, display_name, role, azure_oid, created_at, onboarding_completed, created_via_onboarding) VALUES (?, ?, 'Mitarbeiter', ?, NOW(), 0, 0)", 'sss', [$username, $display_name, $azure_oid]);
+                $needs_onboarding = true; // New users need onboarding
+            } else {
+                $ins = executeQuery("INSERT INTO users (username, display_name, role, azure_oid, created_at) VALUES (?, ?, 'Mitarbeiter', ?, NOW())", 'sss', [$username, $display_name, $azure_oid]);
+            }
             $current_user_id = $db->insert_id;
             if (method_exists($ins, 'close')) { $ins->close(); }
         }
@@ -197,12 +203,23 @@ try {
                 $user_display_name = $row['display_name'] ?: $display_name;
                 $needs_onboarding = $hasOnboardingCol ? !((int)($row['onboarding_completed'] ?? 0)) : false;
             } else {
-                $ins = $db->prepare("INSERT INTO users (username, display_name, role, azure_oid, created_at) VALUES (?, ?, 'Mitarbeiter', ?, NOW())");
-                if (!$ins) { throw new Exception('mysqli_prepare(insert) failed: ' . $db->error); }
-                $ins->bind_param('sss', $username, $display_name, $azure_oid);
-                $ins->execute();
-                $current_user_id = (int)$db->insert_id;
-                $ins->close();
+                // New user in fallback path - set onboarding fields if column exists
+                if ($hasOnboardingCol) {
+                    $ins = $db->prepare("INSERT INTO users (username, display_name, role, azure_oid, created_at, onboarding_completed, created_via_onboarding) VALUES (?, ?, 'Mitarbeiter', ?, NOW(), 0, 0)");
+                    if (!$ins) { throw new Exception('mysqli_prepare(insert) failed: ' . $db->error); }
+                    $ins->bind_param('sss', $username, $display_name, $azure_oid);
+                    $ins->execute();
+                    $current_user_id = (int)$db->insert_id;
+                    $needs_onboarding = true; // New users need onboarding
+                    $ins->close();
+                } else {
+                    $ins = $db->prepare("INSERT INTO users (username, display_name, role, azure_oid, created_at) VALUES (?, ?, 'Mitarbeiter', ?, NOW())");
+                    if (!$ins) { throw new Exception('mysqli_prepare(insert) failed: ' . $db->error); }
+                    $ins->bind_param('sss', $username, $display_name, $azure_oid);
+                    $ins->execute();
+                    $current_user_id = (int)$db->insert_id;
+                    $ins->close();
+                }
             }
             $sel->close();
         } catch (Throwable $e2) {

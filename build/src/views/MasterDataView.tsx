@@ -9,15 +9,16 @@ import React, { useState, useEffect } from 'react';
 import { MasterData, User } from '../types';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 
-export const MasterDataView: React.FC<{ 
+export const MasterDataView: React.FC<{
     onBack: () => void;
     masterData: Record<number, MasterData>;
     users: User[];
     currentUser: User;
     onSave: (userId: number, data: MasterData) => void;
     onEditRole: (user: User) => void;
+    onDeleteUser?: (userId: number) => Promise<void>;
     locations: string[];
-}> = ({ onBack, masterData, users, currentUser, onSave, onEditRole, locations }) => {
+}> = ({ onBack, masterData, users, currentUser, onSave, onEditRole, onDeleteUser, locations }) => {
     const [selectedUserId, setSelectedUserId] = useState<number>(currentUser.id);
     const defaultForm: MasterData = {
         weeklyHours: 40,
@@ -106,6 +107,56 @@ export const MasterDataView: React.FC<{
         }
     };
 
+    const handleDelete = async () => {
+        if (!onDeleteUser) return;
+
+        // Cannot delete yourself
+        if (selectedUserId === currentUser.id) {
+            alert('Sie können sich nicht selbst löschen!');
+            return;
+        }
+
+        const selectedUser = users.find(u => u.id === selectedUserId);
+        if (!selectedUser) return;
+
+        // Security confirmation with user details
+        const confirmMessage = `ACHTUNG: Möchten Sie den Benutzer wirklich UNWIDERRUFLICH löschen?\n\n` +
+            `Name: ${selectedUser.name}\n` +
+            `Rolle: ${selectedUser.role}\n\n` +
+            `ALLE DATEN werden gelöscht:\n` +
+            `- Stammdaten\n` +
+            `- Zeiteinträge\n` +
+            `- Genehmigungsanträge\n\n` +
+            `Diese Aktion kann NICHT rückgängig gemacht werden!\n\n` +
+            `Zum Bestätigen geben Sie bitte den Namen des Benutzers ein:`;
+
+        const userInput = prompt(confirmMessage);
+
+        if (userInput === null) {
+            // User cancelled
+            return;
+        }
+
+        if (userInput.trim() !== selectedUser.name.trim()) {
+            alert('Der eingegebene Name stimmt nicht überein. Löschvorgang abgebrochen.');
+            return;
+        }
+
+        // Final confirmation
+        if (!confirm(`Letzte Bestätigung: Benutzer "${selectedUser.name}" wirklich löschen?`)) {
+            return;
+        }
+
+        try {
+            await onDeleteUser(selectedUserId);
+            // After successful deletion, select current user
+            setSelectedUserId(currentUser.id);
+        } catch (error) {
+            console.error('Delete error:', error);
+            alert('Fehler beim Löschen des Benutzers: ' + (error as Error).message);
+        }
+    };
+
     const workdaysOptions = ["Mo", "Di", "Mi", "Do", "Fr"];
     const workdaysLabels: Record<string, string> = {
         "Mo": "Montag",
@@ -142,7 +193,20 @@ export const MasterDataView: React.FC<{
                             {users.map(u => <option key={u.id} value={u.id}>{u.name}{u.id === currentUser.id ? ' (Ich)' : ''}</option>)}
                         </select>
                     </div>
-                     <button type="button" className="nav-button" onClick={() => onEditRole(selectedUser)}>Rolle vergeben/bearbeiten</button>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                        <button type="button" className="nav-button" onClick={() => onEditRole(selectedUser)}>Rolle vergeben/bearbeiten</button>
+                        {currentUser.role === 'Admin' && onDeleteUser && selectedUserId !== currentUser.id && (
+                            <button
+                                type="button"
+                                className="nav-button"
+                                onClick={handleDelete}
+                                style={{ backgroundColor: '#dc3545', color: 'white' }}
+                                title="Benutzer unwiderruflich löschen"
+                            >
+                                Benutzer löschen
+                            </button>
+                        )}
+                    </div>
                 </div>
                 <div className="form-grid" style={{ gridTemplateColumns: '1fr', maxWidth: 800 }}>
                     <div className="form-group">

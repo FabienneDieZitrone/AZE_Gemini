@@ -78,7 +78,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
                 required
               >
                 <option value="">-- Bitte wählen --</option>
-                {globalSettings.locations.map(loc => (
+                {[...globalSettings.locations].sort((a, b) => a.localeCompare(b, 'de', { sensitivity: 'base' })).map(loc => (
                   <option key={loc} value={loc}>{loc}</option>
                 ))}
               </select>

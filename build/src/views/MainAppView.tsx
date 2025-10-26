@@ -319,6 +319,22 @@ export const MainAppView: React.FC = () => {
         api.logError({message: msg, stack: (err as Error).stack, context: 'handleRoleSave'});
     }
   };
+
+  const handleDeleteUser = async (userId: number) => {
+    try {
+      const userName = users.find(u => u.id === userId)?.name || 'Benutzer';
+
+      await api.deleteUser(userId);
+      await refreshData();
+
+      notificationService.success(`Benutzer ${userName} wurde erfolgreich gelöscht.`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Fehler beim Löschen des Benutzers.';
+      setError(msg);
+      api.logError({message: msg, stack: (err as Error).stack, context: 'handleDeleteUser'});
+      throw err; // Re-throw so the UI can handle it
+    }
+  };
   
   const processRequest = async (requestId: string, finalStatus: 'genehmigt' | 'abgelehnt') => {
       try {
@@ -462,7 +478,7 @@ export const MainAppView: React.FC = () => {
   
     switch (viewState.current) {
       case 'timesheet': return <TimeSheetView onBack={() => setViewState({ current: 'main'})} currentUser={currentUser} onShowDetails={(date, username) => setViewState({ current: 'daydetail', context: { date, username } })} timeEntries={timeEntries} masterData={masterData} approvalRequests={approvalRequests} allUsers={users} locations={globalSettings.locations}/>;
-      case 'masterdata': return <MasterDataView onBack={() => setViewState({ current: 'main'})} masterData={masterData} users={users} currentUser={currentUser} onSave={handleMasterDataSave} onEditRole={(user) => setEditingRoleForUser(user)} locations={globalSettings.locations}/>;
+      case 'masterdata': return <MasterDataView onBack={() => setViewState({ current: 'main'})} masterData={masterData} users={users} currentUser={currentUser} onSave={handleMasterDataSave} onEditRole={(user) => setEditingRoleForUser(user)} onDeleteUser={handleDeleteUser} locations={globalSettings.locations}/>;
       case 'daydetail': return <DayDetailView onBack={() => setViewState({ current: 'timesheet'})} onGoToMain={() => setViewState({ current: 'main' })} onShowHistory={() => setViewState({ current: 'changehistory', context: viewState.context })} date={viewState.context.date} username={viewState.context.username} userRole={currentUser.role} entries={timeEntries} approvalRequests={approvalRequests} onEdit={(entry) => setEditingEntry(entry)} onDelete={(entry) => setDeletingEntry(entry)} allUsers={users}/>;
       case 'approvals': return <ApprovalView onBack={() => setViewState({ current: 'main' })} requests={approvalRequests} onApprove={(id) => processRequest(id, 'genehmigt')} onReject={(id) => processRequest(id, 'abgelehnt')} onLoadAll={async ()=>{ try { setApprovalRequests(await api.getAllApprovals()); } catch(e){} }} onLoadPending={async ()=>{ try { setApprovalRequests(await api.getPendingApprovals()); } catch(e){} }} />;
       case 'changehistory': return <ChangeHistoryView onBack={() => setViewState({ current: 'daydetail', context: viewState.context })} history={history} allUsers={users} locations={globalSettings.locations}/>;

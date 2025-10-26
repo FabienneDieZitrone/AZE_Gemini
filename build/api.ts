@@ -232,5 +232,14 @@ export const api = {
 
     getPendingOnboardingUsers: async () => {
         return fetchApi('/pending-onboarding-users.php', { method: 'GET' });
+    },
+
+    deleteUser: async (userId: number) => {
+        const csrf = await getCsrfToken();
+        return fetchApi('/delete-user.php', {
+            method: 'POST',
+            headers: { 'X-CSRF-Token': csrf },
+            body: JSON.stringify({ userId, csrf_token: csrf })
+        });
     }
 };

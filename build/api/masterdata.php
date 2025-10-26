@@ -188,19 +188,19 @@ try {
     $st->close();
   }
 
-  // Check if user was created via onboarding and mark onboarding as completed
-  // This finalizes the onboarding process after Standortleiter completes master data
-  $onboardingCheck = $conn->prepare("SELECT onboarding_completed, created_via_onboarding FROM users WHERE id = ? LIMIT 1");
+  // Check if user was created via onboarding and finalize onboarding after Standortleiter completes master data
+  // This removes the user from the pending list by clearing pending_since
+  $onboardingCheck = $conn->prepare("SELECT pending_since, created_via_onboarding FROM users WHERE id = ? LIMIT 1");
   if ($onboardingCheck) {
     $onboardingCheck->bind_param('i', $userId);
     $onboardingCheck->execute();
-    $onboardingCheck->bind_result($onboarding_completed, $created_via_onboarding);
+    $onboardingCheck->bind_result($pending_since, $created_via_onboarding);
     if ($onboardingCheck->fetch()) {
       $onboardingCheck->close();
 
-      // If user was created via onboarding and onboarding not yet completed, mark as completed
-      if ($created_via_onboarding == 1 && $onboarding_completed == 0) {
-        $completeStmt = $conn->prepare("UPDATE users SET onboarding_completed = 1, pending_since = NULL WHERE id = ?");
+      // If user was created via onboarding and still has pending_since, clear it (finalizes onboarding)
+      if ($created_via_onboarding == 1 && $pending_since !== null) {
+        $completeStmt = $conn->prepare("UPDATE users SET pending_since = NULL WHERE id = ?");
         if ($completeStmt) {
           $completeStmt->bind_param('i', $userId);
           $completeStmt->execute();
