@@ -263,16 +263,52 @@ try {
         ]
     ];
 
-    // Benutzerliste (direkte mysqli-Nutzung, stabil)
+    // Benutzerliste (Security Fix 2025-10-26: Location-based filtering)
     try {
-        $sql = "SELECT id, display_name AS name, role, azure_oid AS azureOid FROM users";
-        $s = $db->prepare($sql);
-        if ($s && $s->execute()) {
+        // Admin sieht alle Users
+        // Bereichsleiter und Standortleiter sehen nur Users ihrer zugeordneten Standorte
+        // Mitarbeiter/Honorarkraft sehen nur sich selbst
+
+        if ($user_role === 'Admin') {
+            // Alle Users
+            $sql = "SELECT id, display_name AS name, role, azure_oid AS azureOid FROM users";
+            $s = $db->prepare($sql);
+            $s->execute();
+        } else if ($user_role === 'Bereichsleiter' || $user_role === 'Standortleiter') {
+            // Nur Users die einen der zugeordneten Standorte haben
+            $assignedLocations = get_user_assigned_locations($db, $current_user_id);
+
+            if (empty($assignedLocations)) {
+                // Bereichsleiter/Standortleiter ohne zugeordnete Standorte sieht nur sich selbst
+                $sql = "SELECT id, display_name AS name, role, azure_oid AS azureOid FROM users WHERE id = ?";
+                $s = $db->prepare($sql);
+                $s->bind_param('i', $current_user_id);
+                $s->execute();
+            } else {
+                // Users mit zugeordneten Standorten + sich selbst
+                $sql = "SELECT DISTINCT u.id, u.display_name AS name, u.role, u.azure_oid AS azureOid
+                        FROM users u
+                        LEFT JOIN master_data md ON u.id = md.user_id
+                        WHERE u.id = ? OR JSON_OVERLAPS(md.locations, CAST(? AS JSON))";
+                $s = $db->prepare($sql);
+                $locationsJson = json_encode($assignedLocations);
+                $s->bind_param('is', $current_user_id, $locationsJson);
+                $s->execute();
+            }
+        } else {
+            // Mitarbeiter/Honorarkraft sehen nur sich selbst
+            $sql = "SELECT id, display_name AS name, role, azure_oid AS azureOid FROM users WHERE id = ?";
+            $s = $db->prepare($sql);
+            $s->bind_param('i', $current_user_id);
+            $s->execute();
+        }
+
+        if ($s) {
             $r = $s->get_result();
             $response['users'] = $r ? $r->fetch_all(MYSQLI_ASSOC) : [];
             $s->close();
         } else {
-            throw new Exception($db->error ?: ($s ? $s->error : 'prepare failed'));
+            throw new Exception($db->error);
         }
     } catch (Throwable $e) { logError('load_users_failed', ['msg' => $e->getMessage()]); }
 
@@ -319,16 +355,49 @@ try {
         }
     } catch (Throwable $e) { logError('load_global_settings_failed', ['msg' => $e->getMessage()]); }
 
-    // Zeiteinträge
+    // Zeiteinträge (Security Fix 2025-10-26: Location-based filtering)
     try {
-        $sql = "SELECT id, user_id AS userId, username, date, start_time AS startTime, stop_time AS stopTime, location, role, created_at AS createdAt, updated_by AS updatedBy, updated_at AS updatedAt FROM time_entries ORDER BY date DESC, start_time DESC";
-        $s = $db->prepare($sql);
-        if ($s && $s->execute()) {
+        // Admin sieht alle Einträge
+        // Bereichsleiter und Standortleiter sehen nur Einträge von Users ihrer zugeordneten Standorte
+        // Mitarbeiter/Honorarkraft sehen nur eigene Einträge
+
+        if ($user_role === 'Admin') {
+            // Alle Einträge
+            $sql = "SELECT id, user_id AS userId, username, date, start_time AS startTime, stop_time AS stopTime, location, role, created_at AS createdAt, updated_by AS updatedBy, updated_at AS updatedAt FROM time_entries ORDER BY date DESC, start_time DESC";
+            $s = $db->prepare($sql);
+            $s->execute();
+        } else if ($user_role === 'Bereichsleiter' || $user_role === 'Standortleiter') {
+            // Nur Einträge von Users die einen der zugeordneten Standorte haben
+            $assignedLocations = get_user_assigned_locations($db, $current_user_id);
+
+            if (empty($assignedLocations)) {
+                // Bereichsleiter/Standortleiter ohne zugeordnete Standorte sieht keine Einträge
+                $response['timeEntries'] = [];
+            } else {
+                // Baue SQL mit IN-Clause für zugeordnete Standorte
+                $placeholders = implode(',', array_fill(0, count($assignedLocations), '?'));
+                $sql = "SELECT DISTINCT te.id, te.user_id AS userId, te.username, te.date, te.start_time AS startTime, te.stop_time AS stopTime, te.location, te.role, te.created_at AS createdAt, te.updated_by AS updatedBy, te.updated_at AS updatedAt
+                        FROM time_entries te
+                        INNER JOIN master_data md ON te.user_id = md.user_id
+                        WHERE JSON_OVERLAPS(md.locations, CAST(? AS JSON))
+                        ORDER BY te.date DESC, te.start_time DESC";
+                $s = $db->prepare($sql);
+                $locationsJson = json_encode($assignedLocations);
+                $s->bind_param('s', $locationsJson);
+                $s->execute();
+            }
+        } else {
+            // Mitarbeiter/Honorarkraft sehen nur eigene Einträge
+            $sql = "SELECT id, user_id AS userId, username, date, start_time AS startTime, stop_time AS stopTime, location, role, created_at AS createdAt, updated_by AS updatedBy, updated_at AS updatedAt FROM time_entries WHERE user_id = ? ORDER BY date DESC, start_time DESC";
+            $s = $db->prepare($sql);
+            $s->bind_param('i', $current_user_id);
+            $s->execute();
+        }
+
+        if (isset($s)) {
             $r = $s->get_result();
             $response['timeEntries'] = $r ? $r->fetch_all(MYSQLI_ASSOC) : [];
             $s->close();
-        } else {
-            throw new Exception($db->error ?: ($s ? $s->error : 'prepare failed'));
         }
     } catch (Throwable $e) { logError('load_time_entries_failed', ['msg' => $e->getMessage()]); }
 
@@ -343,25 +412,39 @@ try {
         $hasRequestedAt = !empty($cols['requested_at']);
         $orderBy = $hasRequestedAt ? 'ORDER BY requested_at DESC' : 'ORDER BY id DESC';
 
+        // Security Fix 2025-10-26: Use assigned locations instead of IP-detected location
         $role = $user_role;
         if ($role === 'Honorarkraft' || $role === 'Mitarbeiter') {
             $sql = "SELECT id, type, original_entry_data, new_data, reason_data, requested_by, status FROM approval_requests WHERE (status IS NULL OR LOWER(status)='pending') AND requested_by = ? $orderBy";
             $s = $db->prepare($sql);
             $s->bind_param('s', $username);
             $s->execute();
-        } else if ($role === 'Standortleiter') {
-            $loc = $response['currentUser']['location'] ?? '';
-            // Versuche COALESCE(new_data.location, original.location), sonst Fallback nur original
-            $sql1 = "SELECT id, type, original_entry_data, new_data, reason_data, requested_by, status FROM approval_requests WHERE (status IS NULL OR LOWER(status)='pending') AND COALESCE(JSON_UNQUOTE(JSON_EXTRACT(new_data, '$.location')), JSON_UNQUOTE(JSON_EXTRACT(original_entry_data, '$.location'))) = ? $orderBy";
-            $s = $db->prepare($sql1);
-            if (!$s) {
-                logError('load_approvals_role_fallback', ['msg' => $db->error]);
-                $sql2 = "SELECT id, type, original_entry_data, new_data, reason_data, requested_by, status FROM approval_requests WHERE (status IS NULL OR LOWER(status)='pending') AND JSON_EXTRACT(original_entry_data, '$.location') = ? $orderBy";
-                $s = $db->prepare($sql2);
+        } else if ($role === 'Bereichsleiter' || $role === 'Standortleiter') {
+            // Use assigned locations from master_data instead of IP-detected location
+            $assignedLocations = get_user_assigned_locations($db, $current_user_id);
+
+            if (empty($assignedLocations)) {
+                // Bereichsleiter/Standortleiter ohne zugeordnete Standorte sieht nur eigene Requests
+                $sql = "SELECT id, type, original_entry_data, new_data, reason_data, requested_by, status FROM approval_requests WHERE (status IS NULL OR LOWER(status)='pending') AND requested_by = ? $orderBy";
+                $s = $db->prepare($sql);
+                $s->bind_param('s', $username);
+                $s->execute();
+            } else {
+                // Filter by users with assigned locations (check requested_by user's locations)
+                $sql = "SELECT DISTINCT ar.id, ar.type, ar.original_entry_data, ar.new_data, ar.reason_data, ar.requested_by, ar.status
+                        FROM approval_requests ar
+                        INNER JOIN users u ON ar.requested_by = u.username
+                        INNER JOIN master_data md ON u.id = md.user_id
+                        WHERE (ar.status IS NULL OR LOWER(ar.status)='pending')
+                        AND JSON_OVERLAPS(md.locations, CAST(? AS JSON))
+                        $orderBy";
+                $s = $db->prepare($sql);
+                $locationsJson = json_encode($assignedLocations);
+                $s->bind_param('s', $locationsJson);
+                $s->execute();
             }
-            $s->bind_param('s', $loc);
-            $s->execute();
         } else {
+            // Admin sieht alle
             $sql = "SELECT id, type, original_entry_data, new_data, reason_data, requested_by, status FROM approval_requests WHERE (status IS NULL OR LOWER(status)='pending') $orderBy";
             $s = $db->prepare($sql);
             $s->execute();
@@ -405,23 +488,38 @@ try {
         $hasResolvedAt = !empty($cols2['resolved_at']);
         $orderByHist = $hasResolvedAt ? 'ORDER BY resolved_at DESC' : 'ORDER BY id DESC';
 
+        // Security Fix 2025-10-26: Use assigned locations instead of IP-detected location
         if ($user_role === 'Honorarkraft' || $user_role === 'Mitarbeiter') {
             $sql = "SELECT * FROM approval_requests WHERE status IS NOT NULL AND LOWER(status) != 'pending' AND requested_by = ? $orderByHist";
             $s = $db->prepare($sql);
             $s->bind_param('s', $username);
             $s->execute();
-        } else if ($user_role === 'Standortleiter') {
-            $loc = $response['currentUser']['location'] ?? '';
-            $sql1 = "SELECT * FROM approval_requests WHERE status IS NOT NULL AND LOWER(status) != 'pending' AND COALESCE(JSON_UNQUOTE(JSON_EXTRACT(new_data, '$.location')), JSON_UNQUOTE(JSON_EXTRACT(original_entry_data, '$.location'))) = ? $orderByHist";
-            $s = $db->prepare($sql1);
-            if (!$s) {
-                logError('load_history_role_fallback', ['msg' => $db->error]);
-                $sql2 = "SELECT * FROM approval_requests WHERE status IS NOT NULL AND LOWER(status) != 'pending' AND JSON_EXTRACT(original_entry_data, '$.location') = ? $orderByHist";
-                $s = $db->prepare($sql2);
+        } else if ($user_role === 'Bereichsleiter' || $user_role === 'Standortleiter') {
+            // Use assigned locations from master_data instead of IP-detected location
+            $assignedLocations = get_user_assigned_locations($db, $current_user_id);
+
+            if (empty($assignedLocations)) {
+                // Bereichsleiter/Standortleiter ohne zugeordnete Standorte sieht nur eigene History
+                $sql = "SELECT * FROM approval_requests WHERE status IS NOT NULL AND LOWER(status) != 'pending' AND requested_by = ? $orderByHist";
+                $s = $db->prepare($sql);
+                $s->bind_param('s', $username);
+                $s->execute();
+            } else {
+                // Filter by users with assigned locations (check requested_by user's locations)
+                $sql = "SELECT DISTINCT ar.*
+                        FROM approval_requests ar
+                        INNER JOIN users u ON ar.requested_by = u.username
+                        INNER JOIN master_data md ON u.id = md.user_id
+                        WHERE status IS NOT NULL AND LOWER(status) != 'pending'
+                        AND JSON_OVERLAPS(md.locations, CAST(? AS JSON))
+                        $orderByHist";
+                $s = $db->prepare($sql);
+                $locationsJson = json_encode($assignedLocations);
+                $s->bind_param('s', $locationsJson);
+                $s->execute();
             }
-            $s->bind_param('s', $loc);
-            $s->execute();
         } else {
+            // Admin sieht alle
             $sql = "SELECT * FROM approval_requests WHERE status IS NOT NULL AND LOWER(status) != 'pending' $orderByHist";
             $s = $db->prepare($sql);
             $s->execute();

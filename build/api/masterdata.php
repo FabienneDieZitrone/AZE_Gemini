@@ -85,8 +85,8 @@ $role = resolveRole($conn, $sessionUser);
 $allowed = ($sessionUser['id'] ?? null) == $userId || in_array($role, ['Admin','Bereichsleiter','Standortleiter'], true);
 if (!$allowed) { send_response(403, ['message' => 'Keine Berechtigung']); }
 
-// CRITICAL: Only Admin/Bereichsleiter/Standortleiter may assign locations
-$canAssignLocations = in_array($role, ['Admin','Bereichsleiter','Standortleiter'], true);
+// CRITICAL: Only Admin may assign locations (Security Fix: User requirement 2025-10-26)
+$canAssignLocations = ($role === 'Admin');
 if (!$canAssignLocations) {
     // Mitarbeiter dürfen locations nicht ändern - bestehende locations aus DB behalten
     $existingLocations = [];

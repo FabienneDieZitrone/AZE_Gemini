@@ -46,15 +46,11 @@ try {
 
     $conn = DatabaseConnection::getInstance()->getConnection();
 
-    // Hole home_location des aktuellen Users (für Standortleiter)
-    $userHomeLocation = null;
-    if ($userRole === 'Standortleiter') {
-        $stmt = $conn->prepare("SELECT home_location FROM users WHERE id = ?");
-        $stmt->bind_param('i', $userId);
-        $stmt->execute();
-        $stmt->bind_result($userHomeLocation);
-        $stmt->fetch();
-        $stmt->close();
+    // Security Fix 2025-10-26: Use assigned locations from master_data
+    // Bereichsleiter und Standortleiter sehen nur Users deren home_location in ihren assigned locations liegt
+    $assignedLocations = [];
+    if ($userRole === 'Bereichsleiter' || $userRole === 'Standortleiter') {
+        $assignedLocations = get_user_assigned_locations($conn, $userId);
     }
 
     // Hole alle pending Onboarding-Users
@@ -66,13 +62,22 @@ try {
         AND u.pending_since IS NOT NULL
     ";
 
-    // Standortleiter sehen nur ihre eigenen Mitarbeiter
-    if ($userRole === 'Standortleiter' && $userHomeLocation) {
-        $query .= " AND u.home_location = ?";
-        $stmt = $conn->prepare($query);
-        $stmt->bind_param('s', $userHomeLocation);
+    // Bereichsleiter und Standortleiter sehen nur Users deren home_location in ihren assigned locations liegt
+    if ($userRole === 'Bereichsleiter' || $userRole === 'Standortleiter') {
+        if (empty($assignedLocations)) {
+            // Bereichsleiter/Standortleiter ohne zugeordnete Standorte sieht keine pending Users
+            $query .= " AND 1=0"; // Never matches
+            $stmt = $conn->prepare($query);
+        } else {
+            // Filter by home_location matching assigned locations
+            $placeholders = implode(',', array_fill(0, count($assignedLocations), '?'));
+            $query .= " AND u.home_location IN ($placeholders)";
+            $stmt = $conn->prepare($query);
+            $types = str_repeat('s', count($assignedLocations));
+            $stmt->bind_param($types, ...$assignedLocations);
+        }
     } else {
-        // Bereichsleiter und Admins sehen alle
+        // Admins sehen alle
         $stmt = $conn->prepare($query);
     }
 
@@ -113,7 +118,7 @@ try {
         'pendingUsers' => $pendingUsers,
         'count' => count($pendingUsers),
         'userRole' => $userRole,
-        'userHomeLocation' => $userHomeLocation
+        'assignedLocations' => $assignedLocations
     ]);
 
 } catch (Exception $e) {

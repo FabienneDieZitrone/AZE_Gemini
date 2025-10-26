@@ -205,18 +205,66 @@ try {
             $orderExpr = "COALESCE(JSON_UNQUOTE(JSON_EXTRACT(new_data, '$.date')), JSON_UNQUOTE(JSON_EXTRACT(original_entry_data, '$.date')), id) DESC";
         }
 
+        // Security Fix 2025-10-26: Use assigned locations from master_data for Bereichsleiter and Standortleiter
         $role = $userRole;
         if (in_array($role, ['Honorarkraft','Mitarbeiter'], true)) {
             $q = $approval_query . " AND requested_by = ? ORDER BY $orderExpr";
             $stmt = $conn->prepare($q);
             $email = $requestedBy;
             $stmt->bind_param('s', $email);
-        } else if ($role === 'Standortleiter') {
-            $q = $approval_query . " AND COALESCE(JSON_UNQUOTE(JSON_EXTRACT(new_data, '$.location')), JSON_UNQUOTE(JSON_EXTRACT(original_entry_data, '$.location'))) = ? ORDER BY $orderExpr";
-            $stmt = $conn->prepare($q);
-            $loc = $sessionUser['location'] ?? '';
-            $stmt->bind_param('s', $loc);
+        } else if ($role === 'Bereichsleiter' || $role === 'Standortleiter') {
+            // Get user's assigned locations from master_data
+            $userId = $sessionUser['id'] ?? null;
+            if (!$userId) {
+                // Fallback: try to get user_id from database
+                $oid = $sessionUser['oid'] ?? ($sessionUser['azure_oid'] ?? null);
+                if ($oid && ($ust = $conn->prepare("SELECT id FROM users WHERE azure_oid = ? LIMIT 1"))) {
+                    $ust->bind_param('s', $oid);
+                    if ($ust->execute()) {
+                        $ust->bind_result($uid);
+                        if ($ust->fetch()) { $userId = $uid; }
+                    }
+                    $ust->close();
+                }
+            }
+
+            $assignedLocations = [];
+            if ($userId) {
+                $assignedLocations = get_user_assigned_locations($conn, $userId);
+            }
+
+            if (empty($assignedLocations)) {
+                // Bereichsleiter/Standortleiter ohne zugeordnete Standorte sieht nur eigene Requests
+                $q = $approval_query . " AND requested_by = ? ORDER BY $orderExpr";
+                $stmt = $conn->prepare($q);
+                $email = $requestedBy;
+                $stmt->bind_param('s', $email);
+            } else {
+                // Filter by users with assigned locations (check requested_by user's locations)
+                // Verwende direkte JOINs statt Subquery für bessere Performance
+                $q = "SELECT DISTINCT ar.id, ar.type, ar.original_entry_data, ar.new_data, ar.reason_data, ar.requested_by, ar.status
+                      FROM approval_requests ar
+                      INNER JOIN users u ON ar.requested_by = u.username
+                      INNER JOIN master_data md ON u.id = md.user_id
+                      WHERE JSON_OVERLAPS(md.locations, CAST(? AS JSON))";
+
+                // Status-Filter hinzufügen
+                if ($showAll) {
+                    // Keine zusätzliche Status-Filterung
+                } else {
+                    $q .= " AND (
+                        ar.status IS NULL OR ar.status='' OR TRIM(LOWER(ar.status)) IN ('pending','submitted','open','in_review','requested') OR
+                        TRIM(LOWER(ar.status)) NOT IN ('genehmigt','abgelehnt','approved','rejected','completed','done')
+                    )";
+                }
+
+                $q .= " ORDER BY $orderExpr";
+                $stmt = $conn->prepare($q);
+                $locationsJson = json_encode($assignedLocations);
+                $stmt->bind_param('s', $locationsJson);
+            }
         } else {
+            // Admin sieht alle
             $stmt = $conn->prepare($approval_query . " ORDER BY $orderExpr");
         }
         if (!$stmt) { alog('GET_prepare_error'); send_response(500, ['message' => 'Database error (prepare)']); }
@@ -389,15 +437,57 @@ try {
             send_response(400, ['message' => 'Ungültige Parameter']);
         }
 
-        // Antrag laden
-        $stmt = $conn->prepare("SELECT id, type, original_entry_data, new_data FROM approval_requests WHERE id = ? AND status = 'pending' LIMIT 1");
-        $stmt->bind_param('s', $requestId);
+        // Security Fix 2025-10-26: Bereichsleiter/Standortleiter dürfen nur Anträge von Users ihrer zugeordneten Standorte verarbeiten
+        if ($userRole === 'Bereichsleiter' || $userRole === 'Standortleiter') {
+            // Get user's assigned locations
+            $userId = $sessionUser['id'] ?? null;
+            if (!$userId) {
+                $oid = $sessionUser['oid'] ?? ($sessionUser['azure_oid'] ?? null);
+                if ($oid && ($ust = $conn->prepare("SELECT id FROM users WHERE azure_oid = ? LIMIT 1"))) {
+                    $ust->bind_param('s', $oid);
+                    if ($ust->execute()) {
+                        $ust->bind_result($uid);
+                        if ($ust->fetch()) { $userId = $uid; }
+                    }
+                    $ust->close();
+                }
+            }
+
+            $assignedLocations = [];
+            if ($userId) {
+                $assignedLocations = get_user_assigned_locations($conn, $userId);
+            }
+
+            if (empty($assignedLocations)) {
+                // Bereichsleiter/Standortleiter ohne zugeordnete Standorte darf keine Anträge bearbeiten
+                send_response(403, ['message' => 'Keine zugeordneten Standorte']);
+            }
+
+            // Lade Antrag UND prüfe ob User zu den zugeordneten Standorten gehört
+            $stmt = $conn->prepare("
+                SELECT ar.id, ar.type, ar.original_entry_data, ar.new_data, ar.requested_by
+                FROM approval_requests ar
+                INNER JOIN users u ON ar.requested_by = u.username
+                INNER JOIN master_data md ON u.id = md.user_id
+                WHERE ar.id = ?
+                AND ar.status = 'pending'
+                AND JSON_OVERLAPS(md.locations, CAST(? AS JSON))
+                LIMIT 1
+            ");
+            $locationsJson = json_encode($assignedLocations);
+            $stmt->bind_param('ss', $requestId, $locationsJson);
+        } else {
+            // Admin darf alle Anträge bearbeiten
+            $stmt = $conn->prepare("SELECT id, type, original_entry_data, new_data, requested_by FROM approval_requests WHERE id = ? AND status = 'pending' LIMIT 1");
+            $stmt->bind_param('s', $requestId);
+        }
+
         $stmt->execute();
         $res = $stmt->get_result();
         $row = $res->fetch_assoc();
         $stmt->close();
         if (!$row) {
-            send_response(404, ['message' => 'Antrag nicht gefunden oder nicht mehr pending']);
+            send_response(404, ['message' => 'Antrag nicht gefunden, nicht mehr pending, oder keine Berechtigung']);
         }
 
         $type = $row['type'];

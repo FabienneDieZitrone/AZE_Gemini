@@ -1,13 +1,17 @@
 <?php
 /**
  * Titel: Hilfsfunktionen für die API
- * Version: 8.0 (Session-Timeout-Funktionalität)
+ * Version: 8.1 (Location-based Security)
  * Autor: MP-IT
  * Datei: /api/auth_helpers.php
- * Beschreibung: Implementiert die finale, korrekte Session-Konfiguration mittels session_set_cookie_params, 
+ * Beschreibung: Implementiert die finale, korrekte Session-Konfiguration mittels session_set_cookie_params,
  *               um den Cookie-Pfad explizit auf '/' zu setzen. Erweitert um Session-Timeout-Funktionalität
  *               mit 24h absolutem Timeout und 1h Inaktivitäts-Timeout.
- * 
+ *
+ * Änderungen in Version 8.1 (2025-10-26):
+ * - Neue Funktion get_user_assigned_locations() für Location-based Filtering
+ * - Security Fix: Zentrale Funktion für zugeordnete Standorte
+ *
  * Änderungen in Version 8.0:
  * - Neue Funktion checkSessionTimeout() für Timeout-Überprüfung
  * - Session-Initialisierung mit created_at und last_activity Zeitstempeln
@@ -243,4 +247,34 @@ function destroy_session_completely() {
     
     // Session zerstören
     session_destroy();
+}
+
+/**
+ * Ruft die zugeordneten Standorte eines Users aus master_data.locations ab
+ * Security Fix 2025-10-26: Zentrale Funktion für Location-based Filtering
+ *
+ * @param mysqli $conn Datenbankverbindung
+ * @param int $userId User ID
+ * @return array Array mit zugeordneten Standorten (leer wenn keine gefunden)
+ */
+function get_user_assigned_locations($conn, $userId) {
+    if (!$conn || !is_int($userId) || $userId <= 0) {
+        return [];
+    }
+
+    $locations = [];
+    $stmt = $conn->prepare("SELECT locations FROM master_data WHERE user_id = ? LIMIT 1");
+    if ($stmt) {
+        $stmt->bind_param('i', $userId);
+        if ($stmt->execute()) {
+            $stmt->bind_result($locationsJson);
+            if ($stmt->fetch()) {
+                $decoded = json_decode($locationsJson ?? '[]', true);
+                $locations = is_array($decoded) ? $decoded : [];
+            }
+        }
+        $stmt->close();
+    }
+
+    return $locations;
 }
