@@ -9,7 +9,7 @@
 
 export const Logo = () => (
     <img
-        src="/logos/Logo_mp_farbig3.jpg"
+        src="/logos/Logo_mp_farbig3.png"
         alt="MIKRO PARTNER Logo"
         className="app-logo-img"
         style={{ height: '50px', width: 'auto' }}
