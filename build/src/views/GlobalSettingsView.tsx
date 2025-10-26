@@ -152,115 +152,111 @@ export const GlobalSettingsView: React.FC<{
                 <h2>Globale Einstellungen</h2>
                 <button className="nav-button" onClick={onBack}>Zurück zur Startseite</button>
             </header>
-            <form className="master-data-form" onSubmit={handleSave}>
-                <div className="form-grid">
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+                <button type="submit" form="settings-form" className="action-button">Einstellungen speichern</button>
+            </div>
+            <form id="settings-form" className="master-data-form" onSubmit={handleSave}>
+                <div className="form-grid" style={{ gridTemplateColumns: '1fr', maxWidth: 800 }}>
                     <div className="form-group">
-                        <label htmlFor="overtimeThreshold">Toleranzschwelle für Überstunden (Stunden)</label>
+                        <label htmlFor="overtimeThreshold" style={{ fontWeight: 600 }}>Toleranzschwelle für Überstunden (Stunden)</label>
                         <input
                             type="number"
                             id="overtimeThreshold"
                             value={formData.overtimeThreshold}
                             onChange={(e) => setFormData(prev => ({ ...prev, overtimeThreshold: parseFloat(e.target.value) || 0 }))}
                             step="0.5"
+                            style={{ width: '100%' }}
                         />
                     </div>
                     <div className="form-group">
-                         <label htmlFor="changeReasons">Liste der Änderungsgründe</label>
+                         <label htmlFor="changeReasons" style={{ fontWeight: 600 }}>Liste der Änderungsgründe</label>
                          <textarea
                             id="changeReasons"
                             value={formData.changeReasons.join('\n')}
                             onChange={(e) => setFormData(prev => ({ ...prev, changeReasons: e.target.value.split('\n') }))}
                             rows={6}
                             placeholder="Ein Grund pro Zeile"
+                            style={{ width: '100%' }}
                          />
                     </div>
                     <div className="form-group location-manager">
-                        <label>Standorte (Stammliste)</label>
-                        <ul className="location-list">
-                            {formData.locations.map(loc => (
-                                <li key={loc} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                    <input
-                                        type="text"
-                                        defaultValue={loc}
-                                        onBlur={(e) => {
-                                            const v = e.currentTarget.value;
-                                            if (v !== loc) handleRenameLocation(loc, v);
-                                        }}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') {
-                                                const v = (e.target as HTMLInputElement).value;
+                        <label style={{ fontWeight: 600 }}>Standorte (Stammliste)</label>
+                        <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #ccc', padding: 8, borderRadius: 4, width: '100%' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                {formData.locations.map(loc => (
+                                    <div key={loc} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                        <input
+                                            type="text"
+                                            defaultValue={loc}
+                                            onBlur={(e) => {
+                                                const v = e.currentTarget.value;
                                                 if (v !== loc) handleRenameLocation(loc, v);
-                                            }
-                                        }}
-                                        title="Standortnamen bearbeiten und Enter drücken"
-                                        style={{ width: 240 }}
-                                    />
-                                    <button type="button" onClick={() => handleRemoveLocation(loc)}>&times;</button>
-                                </li>
-                            ))}
-                        </ul>
-                        <div className="add-location-group">
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    const v = (e.target as HTMLInputElement).value;
+                                                    if (v !== loc) handleRenameLocation(loc, v);
+                                                }
+                                            }}
+                                            title="Standortnamen bearbeiten und Enter drücken"
+                                            style={{ flex: 1 }}
+                                        />
+                                        <button type="button" onClick={() => handleRemoveLocation(loc)}>&times;</button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="add-location-group" style={{ marginTop: 8, display: 'flex', justifyContent: 'center', gap: 8 }}>
                             <input
                                 type="text"
                                 value={newLocation}
                                 onChange={e => setNewLocation(e.target.value)}
                                 placeholder="Neuer Standort"
+                                style={{ maxWidth: 300 }}
                             />
                             <button type="button" className="action-button" onClick={handleAddLocation}>Hinzufügen</button>
-                            <button type="submit" className="action-button" style={{ marginLeft: 8 }}>Einstellungen speichern</button>
                         </div>
                     </div>
 
-                    <div className="form-group location-manager" style={{ gridColumn: '1 / -1' }}>
-                        <label>IP → Standort Zuordnung (nur Standorte aus Stammliste erlaubt)</label>
+                    <div className="form-group location-manager">
+                        <label style={{ fontWeight: 600 }}>IP → Standort Zuordnung (nur Standorte aus Stammliste erlaubt)</label>
                         {ipLoadError && <div className="error">{ipLoadError}</div>}
-                        <div style={{ overflowX: 'auto' }}>
-                        <table className="data-table" style={{ tableLayout: 'auto', width: '100%' }}>
-                            <colgroup>
-                                <col style={{ width: '220px' }} /> {/* IP-Präfix */}
-                                <col style={{ width: '280px' }} /> {/* Standort */}
-                                <col /> {/* Aktionen */}
-                            </colgroup>
-                            <thead><tr><th>IP-Präfix (z. B. 10.49.1.)</th><th>Standort</th><th></th></tr></thead>
-                            <tbody>
+                        <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #ccc', padding: 8, borderRadius: 4, width: '100%' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                                 {ipMap.map((row, idx) => (
-                                    <tr key={idx}>
-                                        <td>
-                                          <input 
+                                    <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                        <input
                                             value={row.prefix}
-                                            onChange={e=>handleUpdateIpRow(idx,'prefix',e.target.value)} 
+                                            onChange={e=>handleUpdateIpRow(idx,'prefix',e.target.value)}
                                             placeholder="10.49.1."
                                             aria-invalid={!ipValidation[idx]?.prefixOk}
                                             title={ipValidation[idx]?.prefixOk ? '' : 'Format: z. B. 10.49.1.'}
-                                            style={{ width: '210px' }}
-                                          />
-                                        </td>
-                                        <td>
-                                          <input 
-                                            value={row.location} 
-                                            onChange={e=>handleUpdateIpRow(idx,'location',e.target.value)} 
+                                            style={{ flex: 1 }}
+                                        />
+                                        <span>→</span>
+                                        <input
+                                            value={row.location}
+                                            onChange={e=>handleUpdateIpRow(idx,'location',e.target.value)}
                                             placeholder="BER GRU"
                                             list="locations-list"
                                             aria-invalid={!ipValidation[idx]?.locationOk}
                                             title={ipValidation[idx]?.locationOk ? '' : 'Bitte einen vorhandenen Standort aus der Stammliste wählen'}
-                                            style={{ width: '260px' }}
-                                          />
-                                        </td>
-                                        <td><button type="button" onClick={()=>handleRemoveIpRow(idx)}>&times;</button></td>
-                                    </tr>
+                                            style={{ flex: 1 }}
+                                        />
+                                        <button type="button" onClick={()=>handleRemoveIpRow(idx)}>&times;</button>
+                                    </div>
                                 ))}
-                            </tbody>
-                        </table>
+                            </div>
                         </div>
                         <datalist id="locations-list">
                           {[...formData.locations].sort((a,b)=>a.localeCompare(b,'de',{sensitivity:'base'})).map(loc => (<option key={loc} value={loc} />))}
                         </datalist>
-                        <div style={{display:'flex', gap:8, marginTop:8}}>
+                        <div style={{display:'flex', gap:8, marginTop:8, justifyContent: 'center'}}>
                             <button type="button" className="action-button" onClick={handleAddIpRow}>Zeile hinzufügen</button>
-                            <button 
-                              type="button" 
-                              className="action-button" 
-                              onClick={handleSaveIpMap} 
+                            <button
+                              type="button"
+                              className="action-button"
+                              onClick={handleSaveIpMap}
                               disabled={ipMap.some((r, i) => {
                                   const p = (r.prefix||'').trim();
                                   const l = (r.location||'').trim();
@@ -285,9 +281,6 @@ export const GlobalSettingsView: React.FC<{
                           </div>
                         )}
                     </div>
-                </div>
-                 <div className="master-data-actions">
-                     <button type="submit" className="action-button">Einstellungen speichern</button>
                 </div>
             </form>
 
