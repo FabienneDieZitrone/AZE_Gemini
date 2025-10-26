@@ -157,7 +157,7 @@ body, html {
     border: 1px solid var(--red-color);
     color: var(--red-color);
     padding: 0.5rem 1rem;
-    border-radius: 5px;
+    border-radius: 8px;
     cursor: pointer;
     font-weight: 500;
     transition: all 0.2s ease;
@@ -281,7 +281,7 @@ body, html {
   font-size: 1.2rem;
   font-weight: bold;
   border: none;
-  border-radius: 5px;
+  border-radius: 8px;
   color: #ffffff;
   cursor: pointer;
   transition: background-color 0.3s ease, transform 0.1s ease;
@@ -328,7 +328,7 @@ body, html {
   background-color: var(--secondary-bg-color);
   color: var(--accent-color);
   font-weight: 500;
-  border-radius: 5px;
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
@@ -501,7 +501,7 @@ body, html {
   background-color: var(--action-color);
   color: #000000;
   font-weight: 600;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
   transition: background-color 0.2s, transform 0.1s;
   height: fit-content;
@@ -610,7 +610,7 @@ body, html {
 .details-button, .edit-button, .delete-button {
   padding: 0.25rem 0.5rem;
   font-size: 0.8rem;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
   color: #ffffff;
   border: none;
