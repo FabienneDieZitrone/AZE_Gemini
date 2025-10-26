@@ -146,11 +146,11 @@ export const MasterDataView: React.FC<{
                 </div>
                 <div className="form-grid" style={{ gridTemplateColumns: '1fr', maxWidth: 800 }}>
                     <div className="form-group">
-                        <label htmlFor="weeklyHours">Regelmäßige Wochenarbeitszeit</label>
+                        <label htmlFor="weeklyHours" style={{ fontWeight: 600 }}>Regelmäßige Wochenarbeitszeit</label>
                         <input type="number" id="weeklyHours" value={formData.weeklyHours} onChange={handleHoursChange} step="0.25"/>
                     </div>
                     <div className="form-group">
-                        <label>Regelmäßige Wochenarbeitstage</label>
+                        <label style={{ fontWeight: 600 }}>Regelmäßige Wochenarbeitstage</label>
                         <div style={{ marginTop: 8 }}>
                             <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                                 <input type="checkbox" checked={(formData as any).flexibleWorkdays || false} onChange={e => setFormData(prev => prev ? ({ ...(prev as any), flexibleWorkdays: e.target.checked } as any) : prev)} />
@@ -192,14 +192,14 @@ export const MasterDataView: React.FC<{
                         )}
                     </div>
                     <div className="form-group">
-                        <label>Home Office</label>
+                        <label style={{ fontWeight: 600 }}>Home Office</label>
                         <div className="checkbox-group">
                             <label><input type="checkbox" checked={formData.canWorkFromHome} onChange={handleHomeOfficeChange}/> Erlaubt</label>
                         </div>
                     </div>
                     {canAssignLocations && (
                         <div className="form-group">
-                            <label>Zugeordnete Standorte</label>
+                            <label style={{ fontWeight: 600 }}>Zugeordnete Standorte</label>
                             <select multiple size={4} value={(formData as any).locations || []} onChange={(e) => {
                                 const vals = Array.from(e.target.selectedOptions).map(o => o.value);
                                 setFormData(prev => prev ? ({ ...(prev as any), locations: vals } as any) : prev);

@@ -422,6 +422,15 @@ body, html {
   align-items: center;
 }
 
+.view-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
 .view-header h2 {
   color: var(--accent-color);
   margin: 0;

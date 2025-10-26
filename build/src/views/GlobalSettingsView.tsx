@@ -18,6 +18,8 @@ export const GlobalSettingsView: React.FC<{
     const [ipLoadError, setIpLoadError] = useState<string | null>(null);
     const [ipValidation, setIpValidation] = useState<{prefixOk: boolean; locationOk: boolean}[]>([]);
     const [newLocation, setNewLocation] = useState('');
+    const [newIpPrefix, setNewIpPrefix] = useState('');
+    const [newIpLocation, setNewIpLocation] = useState('');
 
     useEffect(() => {
         setFormData(settings);
@@ -34,7 +36,20 @@ export const GlobalSettingsView: React.FC<{
             setNewLocation('');
         }
     };
-    
+
+    const handleAddIpMapping = () => {
+        const prefix = newIpPrefix.trim();
+        const location = newIpLocation.trim();
+        if (prefix && location && isValidPrefix(prefix)) {
+            const canonicalLoc = canonicalizeLocation(location);
+            if (canonicalLoc) {
+                setIpMap(prev => [...prev, { prefix, location: canonicalLoc }]);
+                setNewIpPrefix('');
+                setNewIpLocation('');
+            }
+        }
+    };
+
     const handleRemoveLocation = (locationToRemove: string) => {
         setFormData(prev => ({...prev, locations: prev.locations.filter(loc => loc !== locationToRemove)}));
         // Entferne auch eventuelle Mapping-Zeilen mit diesem Standort
@@ -254,8 +269,24 @@ export const GlobalSettingsView: React.FC<{
                         <datalist id="locations-list">
                           {[...formData.locations].sort((a,b)=>a.localeCompare(b,'de',{sensitivity:'base'})).map(loc => (<option key={loc} value={loc} />))}
                         </datalist>
-                        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 8 }}>
-                            <button type="button" className="action-button" onClick={handleAddIpRow}>Zeile hinzufügen</button>
+                        <div className="add-location-group" style={{ marginTop: 8, display: 'flex', justifyContent: 'center', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                            <input
+                                type="text"
+                                value={newIpPrefix}
+                                onChange={e => setNewIpPrefix(e.target.value)}
+                                placeholder="IP-Präfix (z.B. 10.49.1.)"
+                                style={{ maxWidth: 200 }}
+                            />
+                            <span>→</span>
+                            <input
+                                type="text"
+                                value={newIpLocation}
+                                onChange={e => setNewIpLocation(e.target.value)}
+                                placeholder="Standort"
+                                list="locations-list"
+                                style={{ maxWidth: 200 }}
+                            />
+                            <button type="button" className="action-button" onClick={handleAddIpMapping}>Hinzufügen</button>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'center', marginTop: 8 }}>
                             <button
