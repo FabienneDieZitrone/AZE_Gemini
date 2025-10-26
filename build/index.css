@@ -435,6 +435,11 @@ body, html {
   font-weight: 500;
 }
 
+.view-header .nav-button {
+  width: auto;
+  margin: 0 auto;
+}
+
 .view-content {
   text-align: center;
   background-color: var(--tertiary-bg-color);
