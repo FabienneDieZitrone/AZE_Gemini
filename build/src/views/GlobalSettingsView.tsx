@@ -180,10 +180,10 @@ export const GlobalSettingsView: React.FC<{
                          />
                     </div>
                     <div className="form-group location-manager">
-                        <label style={{ fontWeight: 600 }}>Standorte (Stammliste)</label>
+                        <label style={{ fontWeight: 600 }} title="Stammliste">Standorte</label>
                         <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #ccc', padding: 8, borderRadius: 4, width: '100%' }}>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                {formData.locations.map(loc => (
+                                {[...formData.locations].sort((a, b) => a.localeCompare(b, 'de', {sensitivity: 'base'})).map(loc => (
                                     <div key={loc} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                                         <input
                                             type="text"
@@ -216,10 +216,13 @@ export const GlobalSettingsView: React.FC<{
                             />
                             <button type="button" className="action-button" onClick={handleAddLocation}>Hinzufügen</button>
                         </div>
+                        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 8 }}>
+                            <button type="submit" className="action-button">Stammliste speichern</button>
+                        </div>
                     </div>
 
                     <div className="form-group location-manager">
-                        <label style={{ fontWeight: 600 }}>IP → Standort Zuordnung (nur Standorte aus Stammliste erlaubt)</label>
+                        <label style={{ fontWeight: 600 }} title="Nur Standorte aus Stammliste möglich">IP-Adressen → Standort-Namen Zuordnung</label>
                         {ipLoadError && <div className="error">{ipLoadError}</div>}
                         <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #ccc', padding: 8, borderRadius: 4, width: '100%' }}>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -251,8 +254,10 @@ export const GlobalSettingsView: React.FC<{
                         <datalist id="locations-list">
                           {[...formData.locations].sort((a,b)=>a.localeCompare(b,'de',{sensitivity:'base'})).map(loc => (<option key={loc} value={loc} />))}
                         </datalist>
-                        <div style={{display:'flex', gap:8, marginTop:8, justifyContent: 'center'}}>
+                        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 8 }}>
                             <button type="button" className="action-button" onClick={handleAddIpRow}>Zeile hinzufügen</button>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 8 }}>
                             <button
                               type="button"
                               className="action-button"
