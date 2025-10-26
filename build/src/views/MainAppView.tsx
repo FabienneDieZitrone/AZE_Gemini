@@ -512,7 +512,7 @@ export const MainAppView: React.FC = () => {
       <div className="app-container">
         <div className="app-header-bar">
           <Logo />
-          <h1 className="app-main-title">MP Arbeitszeiterfassung</h1>
+          <h1 className="app-main-title">Arbeitszeiterfassung</h1>
           {currentUser && <button onClick={handleLogout} className="logout-button">Abmelden</button>}
         </div>
         {renderContent()}

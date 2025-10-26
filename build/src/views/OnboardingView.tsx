@@ -48,7 +48,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({
       <div className="onboarding-card">
         <div className="onboarding-header">
           <Logo />
-          <h1 className="onboarding-title">Willkommen bei MP Arbeitszeiterfassung</h1>
+          <h1 className="onboarding-title">Willkommen bei der Arbeitszeiterfassung</h1>
           <p className="onboarding-subtitle">Hallo {userName}!</p>
         </div>
 

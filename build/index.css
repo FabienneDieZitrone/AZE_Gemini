@@ -293,15 +293,17 @@ body, html {
 }
 
 .start-button {
-  background-color: var(--green-color);
+  background-color: var(--action-color);
+  color: #000000;
 }
 
 .start-button:hover {
-  background-color: var(--green-color-hover);
+  background-color: var(--action-color-hover);
 }
 
 .stop-button {
   background-color: var(--red-color);
+  color: #ffffff;
 }
 
 .stop-button:hover {
@@ -322,17 +324,19 @@ body, html {
   width: 100%;
   padding: 0.75rem 1.5rem;
   font-size: 1rem;
-  border: 1px solid var(--border-color);
+  border: 2px solid var(--accent-color);
   background-color: var(--secondary-bg-color);
   color: var(--accent-color);
+  font-weight: 500;
   border-radius: 5px;
   cursor: pointer;
-  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  transition: all 0.2s ease;
   position: relative;
 }
 
 .nav-button:hover {
-  background-color: var(--tertiary-bg-color);
+  background-color: var(--accent-color);
+  color: #ffffff;
   border-color: var(--accent-color);
 }
 
@@ -624,11 +628,12 @@ body, html {
   background-color: var(--accent-color-hover);
 }
 .edit-button {
-  background-color: var(--yellow-color);
-  color: #333;
+  background-color: var(--action-color);
+  color: #000000;
+  font-weight: 600;
 }
 .edit-button:hover {
-    background-color: var(--yellow-color-hover);
+    background-color: var(--action-color-hover);
 }
 
 .delete-button {

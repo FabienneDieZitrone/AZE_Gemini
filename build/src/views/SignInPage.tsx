@@ -26,7 +26,7 @@ export const SignInPage: React.FC = () => {
     return (
         <div className="login-content">
             <Logo />
-            <h2>Willkommen zur MP Arbeitszeiterfassung</h2>
+            <h2>Willkommen zur Arbeitszeiterfassung</h2>
             <p>Bitte melden Sie sich an, um fortzufahren.</p>
             <button onClick={handleLogin} className="action-button login-button" disabled={isLoginInProgress}>
                 {isLoginInProgress ? <LoadingSpinner /> : 'Mit Microsoft anmelden'}
