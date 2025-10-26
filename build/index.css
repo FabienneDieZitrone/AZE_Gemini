@@ -9,13 +9,31 @@ Beschreibung: Enthält alle CSS-Stile für die Benutzeroberfläche der Arbeitsze
 */
 
 :root {
+  /* MIKRO PARTNER Brand Colors */
+  --brand-lime: #C8E500;
+  --brand-lime-hover: #B4CE00;
+  --brand-petrol: #0A5161;
+  --brand-petrol-hover: #155D70;
+  --brand-petrol-light: #1A7588;
+
+  /* Background Colors */
   --primary-bg-color: #f4f7fc;
   --secondary-bg-color: #ffffff;
   --tertiary-bg-color: #f8f9fa;
+
+  /* Text Colors */
   --primary-text-color: #333;
   --secondary-text-color: #6c757d;
-  --accent-color: #0056b3;
-  --accent-color-hover: #004494;
+
+  /* Main Accent: Petrol for Headers/Nav */
+  --accent-color: #0A5161;
+  --accent-color-hover: #155D70;
+
+  /* Action Buttons: Lime Green */
+  --action-color: #C8E500;
+  --action-color-hover: #B4CE00;
+
+  /* Status Colors */
   --green-color: #28a745;
   --green-color-hover: #218838;
   --red-color: #dc3545;
@@ -26,22 +44,41 @@ Beschreibung: Enthält alle CSS-Stile für die Benutzeroberfläche der Arbeitsze
   --yellow-color: #ffc107;
   --yellow-color-hover: #e0a800;
   --yellow-color-light: #fff3cd;
+  --orange-color-light: #ffe8cc;
+
+  /* Neutrals */
   --light-grey-color: #ccc;
   --border-color: #dee2e6;
-  --orange-color-light: #ffe8cc;
   --shadow-color: rgba(0, 0, 0, 0.1);
-  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --table-row-hover-bg: #e9ecef;
+
+  /* Typography */
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
 [data-theme='dark'] {
+  /* MIKRO PARTNER Dark Mode */
+  --brand-lime: #D4ED00;
+  --brand-lime-hover: #C8E500;
+  --brand-petrol: #155D70;
+  --brand-petrol-hover: #1A7588;
+
+  /* Backgrounds */
   --primary-bg-color: #121212;
   --secondary-bg-color: #1e1e1e;
   --tertiary-bg-color: #2a2a2a;
+
+  /* Text */
   --primary-text-color: #e0e0e0;
   --secondary-text-color: #a0a0a0;
-  --accent-color: #4dabf7;
-  --accent-color-hover: #74c0fc;
+
+  /* Accents */
+  --accent-color: #155D70;
+  --accent-color-hover: #1A7588;
+  --action-color: #D4ED00;
+  --action-color-hover: #C8E500;
+
+  /* Other */
   --border-color: #444;
   --shadow-color: rgba(255, 255, 255, 0.1);
   --red-color-light: rgba(220, 53, 69, 0.2);
@@ -97,24 +134,18 @@ body, html {
     position: relative;
 }
 
-.app-logo-svg {
-    height: 40px;
+.app-logo-img {
+    height: 50px;
     width: auto;
+    object-fit: contain;
 }
+
 .app-main-title {
     font-size: 1.5rem;
-    font-weight: 500;
+    font-weight: 600;
     color: var(--accent-color);
     margin: 0;
     white-space: nowrap;
-}
-
-.logo-bg {
-    fill: var(--accent-color);
-    transition: fill 0.3s ease;
-}
-.logo-mp-text {
-    fill: #ffffff;
 }
 
 .logout-button {
@@ -463,12 +494,17 @@ body, html {
   padding: 0.5rem 1rem;
   font-size: 1rem;
   border: none;
-  background-color: var(--accent-color);
-  color: #ffffff;
+  background-color: var(--action-color);
+  color: #000000;
+  font-weight: 600;
   border-radius: 4px;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color 0.2s, transform 0.1s;
   height: fit-content;
+}
+
+.action-button:active {
+  transform: scale(0.98);
 }
 
 .export-buttons {
@@ -479,7 +515,7 @@ body, html {
 
 
 .action-button:hover {
-  background-color: var(--accent-color-hover);
+  background-color: var(--action-color-hover);
 }
 .action-button:disabled {
     background-color: var(--secondary-text-color);
