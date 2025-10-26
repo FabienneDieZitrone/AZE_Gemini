@@ -54,16 +54,21 @@ try {
     }
 
     // Hole alle pending Onboarding-Users
+    // FIX 2025-10-26: onboarding_completed = 1 (nicht 0!), da onboarding-complete.php dies auf 1 setzt
     $query = "
         SELECT u.id, u.display_name, u.home_location, u.pending_since, u.created_via_onboarding
         FROM users u
-        WHERE u.onboarding_completed = 0
+        WHERE u.onboarding_completed = 1
         AND u.created_via_onboarding = 1
         AND u.pending_since IS NOT NULL
     ";
 
+    // Special Case 2025-10-26: IT Abteilung → nur Admin darf diese Users sehen
     // Bereichsleiter und Standortleiter sehen nur Users deren home_location in ihren assigned locations liegt
     if ($userRole === 'Bereichsleiter' || $userRole === 'Standortleiter') {
+        // IT Abteilung darf nicht von Bereichsleiter/Standortleiter gesehen werden
+        $query .= " AND u.home_location != 'IT Abteilung'";
+
         if (empty($assignedLocations)) {
             // Bereichsleiter/Standortleiter ohne zugeordnete Standorte sieht keine pending Users
             $query .= " AND 1=0"; // Never matches
@@ -77,7 +82,7 @@ try {
             $stmt->bind_param($types, ...$assignedLocations);
         }
     } else {
-        // Admins sehen alle
+        // Admins sehen alle (inklusive IT Abteilung)
         $stmt = $conn->prepare($query);
     }
 
