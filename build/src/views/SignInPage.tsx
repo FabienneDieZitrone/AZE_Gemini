@@ -1,10 +1,10 @@
 /**
  * Titel: Anmelde-Seite (BFF-Architektur)
- * Version: 2.1
+ * Version: 2.2
  * Letzte Aktualisierung: 27.10.2025
  * Autor: MP-IT
  * Datei: /src/views/SignInPage.tsx
- * Beschreibung: Komponente zur Anzeige der Anmeldeseite mit Accessibility-Features und Tooltips. Der Login-Button leitet zu einem serverseitigen PHP-Endpunkt um, der den OAuth-Flow startet.
+ * Beschreibung: Komponente zur Anzeige der Anmeldeseite mit Accessibility-Features und Tooltips. Der Login-Button leitet zu einem serverseitigen PHP-Endpunkt um, der den OAuth-Flow startet. Tooltips öffnen sich per Hover, Focus, Enter und Space.
  */
 import React, { useState } from 'react';
 import { Logo } from '../components/common/Logo';
@@ -12,6 +12,8 @@ import { LoadingSpinner } from '../components/common/LoadingSpinner';
 
 export const SignInPage: React.FC = () => {
     const [isLoginInProgress, setIsLoginInProgress] = useState(false);
+    const [showEmailTooltip, setShowEmailTooltip] = useState(false);
+    const [showPasswordTooltip, setShowPasswordTooltip] = useState(false);
 
     const handleLogin = () => {
         if (isLoginInProgress) {
@@ -30,6 +32,13 @@ export const SignInPage: React.FC = () => {
         }
     };
 
+    const handleTooltipKeyDown = (e: React.KeyboardEvent, setter: (value: boolean) => void) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setter((prev) => !prev);
+        }
+    };
+
     return (
         <div className="login-content">
             <Logo />
@@ -45,23 +54,47 @@ export const SignInPage: React.FC = () => {
                 <span
                     id="email-tooltip"
                     className="tooltip-hint"
-                    title="Lotte Musterfrau → lmusterfrau@mikropartner.de"
+                    aria-describedby={showEmailTooltip ? 'email-tooltip-text' : undefined}
                     aria-label="Beispiel: Lotte Musterfrau wird zu lmusterfrau@mikropartner.de"
                     tabIndex={0}
+                    onMouseEnter={() => setShowEmailTooltip(true)}
+                    onMouseLeave={() => setShowEmailTooltip(false)}
+                    onFocus={() => setShowEmailTooltip(true)}
+                    onBlur={() => setShowEmailTooltip(false)}
+                    onKeyDown={(e) => handleTooltipKeyDown(e, setShowEmailTooltip)}
+                    role="button"
+                    aria-expanded={showEmailTooltip}
                 >
                     Emailadresse
+                    {showEmailTooltip && (
+                        <span id="email-tooltip-text" role="tooltip" className="custom-tooltip">
+                            Lotte Musterfrau → lmusterfrau@mikropartner.de
+                        </span>
+                    )}
                 </span>
                 <br />
                 und Ihrem{' '}
                 <span
                     id="password-tooltip"
                     className="tooltip-hint"
-                    title="Nutzen Sie bitte dasselbe Passwort, das Sie auch für die Windows Anmeldung, für Outlook, Teams, den Jobrouter und das Ticketsystem verwenden."
+                    aria-describedby={showPasswordTooltip ? 'password-tooltip-text' : undefined}
                     aria-label="Verwenden Sie Ihr Windows-Passwort"
                     style={{ whiteSpace: 'nowrap' }}
                     tabIndex={0}
+                    onMouseEnter={() => setShowPasswordTooltip(true)}
+                    onMouseLeave={() => setShowPasswordTooltip(false)}
+                    onFocus={() => setShowPasswordTooltip(true)}
+                    onBlur={() => setShowPasswordTooltip(false)}
+                    onKeyDown={(e) => handleTooltipKeyDown(e, setShowPasswordTooltip)}
+                    role="button"
+                    aria-expanded={showPasswordTooltip}
                 >
                     Windows Passwort
+                    {showPasswordTooltip && (
+                        <span id="password-tooltip-text" role="tooltip" className="custom-tooltip">
+                            Nutzen Sie bitte dasselbe Passwort, das Sie auch für die Windows Anmeldung, für Outlook, Teams, den Jobrouter und das Ticketsystem verwenden.
+                        </span>
+                    )}
                 </span>{' '}
                 an, um fortzufahren.
             </p>

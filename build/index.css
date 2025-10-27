@@ -226,6 +226,7 @@ body, html {
 
 /* Tooltip Styles für Login-Seite */
 .tooltip-hint {
+    position: relative;
     cursor: help;
     text-decoration: underline dotted;
     text-decoration-color: var(--accent-color);
@@ -242,6 +243,34 @@ body, html {
     outline: 2px solid var(--accent-color);
     outline-offset: 2px;
     border-radius: 2px;
+}
+
+.custom-tooltip {
+    position: absolute;
+    z-index: 1000;
+    background-color: var(--accent-color);
+    color: #ffffff;
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    max-width: 250px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    margin-top: 0.5rem;
+    margin-left: -50%;
+    white-space: normal;
+    animation: fadeIn 0.2s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* Inline Logo Style */
