@@ -12,7 +12,8 @@ export const SupervisorNotificationModal: React.FC<{
     notifications: SupervisorNotification[];
     pendingOnboardingUsers?: PendingOnboardingUser[];
     onClose: () => void;
-}> = ({ notifications, pendingOnboardingUsers = [], onClose }) => {
+    onNavigateToMasterData?: () => void;
+}> = ({ notifications, pendingOnboardingUsers = [], onClose, onNavigateToMasterData }) => {
     return (
         <div className="modal-backdrop" onClick={onClose}>
             <div className="modal-content" onClick={e => e.stopPropagation()}>
@@ -38,7 +39,27 @@ export const SupervisorNotificationModal: React.FC<{
                                 ))}
                             </ul>
                             <p style={{marginTop: '1rem', padding: '0.75rem', backgroundColor: 'var(--tertiary-bg-color)', borderRadius: '4px', fontSize: '0.9rem'}}>
-                                💡 <strong>Hinweis:</strong> Gehen Sie zu <strong>Stammdaten</strong>, um die Arbeitszeiteinstellungen für diese Mitarbeiter zu vervollständigen.
+                                💡 <strong>Hinweis:</strong> Gehen Sie zu{' '}
+                                {onNavigateToMasterData ? (
+                                    <a
+                                        href="#"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            onNavigateToMasterData();
+                                        }}
+                                        style={{
+                                            color: 'var(--accent-color)',
+                                            fontWeight: 'bold',
+                                            textDecoration: 'underline',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        Stammdaten
+                                    </a>
+                                ) : (
+                                    <strong>Stammdaten</strong>
+                                )}
+                                , um die Arbeitszeiteinstellungen für diese Mitarbeiter zu vervollständigen.
                             </p>
                         </div>
                     )}

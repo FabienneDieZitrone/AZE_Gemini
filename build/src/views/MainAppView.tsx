@@ -371,6 +371,11 @@ export const MainAppView: React.FC = () => {
     }
   };
 
+  const handleNavigateToMasterData = () => {
+    closeSupervisorModal();
+    setViewState({ current: 'masterdata' });
+  };
+
   const calculatedOvertimeSeconds = useMemo(() => {
     if (!currentUser || !masterData[currentUser.id]) return 0;
     const md = masterData[currentUser.id] as any;
@@ -538,7 +543,7 @@ export const MainAppView: React.FC = () => {
           <NewEntryModal onClose={() => setRequestNewEntryOpen(false)} onSubmit={handleNewEntryRequest} locations={globalSettings.locations} defaultRole={currentUser.role} changeReasons={globalSettings.changeReasons} />
         )}
         {editingRoleForUser && currentUser && ( <RoleAssignmentModal user={editingRoleForUser} currentUser={currentUser} onClose={() => setEditingRoleForUser(null)} onSave={handleRoleSave}/> )}
-        {showSupervisorModal && ( <SupervisorNotificationModal notifications={supervisorNotifications} pendingOnboardingUsers={pendingOnboardingUsers} onClose={closeSupervisorModal}/> )}
+        {showSupervisorModal && ( <SupervisorNotificationModal notifications={supervisorNotifications} pendingOnboardingUsers={pendingOnboardingUsers} onClose={closeSupervisorModal} onNavigateToMasterData={handleNavigateToMasterData}/> )}
         {showOvertimeBreakdown && currentUser && masterData[currentUser.id] && (
           <OvertimeBreakdownModal
             timeEntries={timeEntries}
@@ -547,6 +552,19 @@ export const MainAppView: React.FC = () => {
             onClose={() => setShowOvertimeBreakdown(false)}
           />
         )}
+        <footer className="app-footer">
+          <a href="https://www.mikropartner.de/impressum/" target="_blank" rel="noopener noreferrer">
+            Impressum
+          </a>
+          <span className="footer-separator">|</span>
+          <a href="https://www.mikropartner.de/datenschutzhinweise/" target="_blank" rel="noopener noreferrer">
+            Datenschutz
+          </a>
+          <span className="footer-separator">|</span>
+          <a href="https://www.mikropartner.de/cookie-richtlinie-eu/" target="_blank" rel="noopener noreferrer">
+            Cookie-Richtlinie
+          </a>
+        </footer>
       </div>
       <Toaster position="top-right" />
       <ErrorDebugOverlay />
