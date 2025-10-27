@@ -126,7 +126,7 @@ body, html {
 
 .app-header-bar {
     display: flex;
-    justify-content: flex-start;
+    justify-content: center;
     align-items: center;
     gap: 1rem;
     width: 100%;
@@ -135,6 +135,10 @@ body, html {
 }
 
 .app-logo-img {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
     height: 50px;
     width: auto;
     object-fit: contain;
@@ -190,6 +194,10 @@ body, html {
     width: 100%;
     max-width: 400px;
     margin: 2rem auto;
+}
+.login-content .app-logo-img {
+    position: static;
+    transform: none;
 }
 .login-content h2 {
     color: var(--accent-color);

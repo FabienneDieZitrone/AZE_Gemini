@@ -27,9 +27,32 @@ export const SignInPage: React.FC = () => {
         <div className="login-content">
             <Logo />
             <h2>Willkommen zur Arbeitszeiterfassung</h2>
-            <p>Bitte melden Sie sich an, um fortzufahren.</p>
+            <p style={{ lineHeight: '1.8' }}>
+                Bitte melden Sie sich mit Ihrer
+                <br />
+                <img
+                    src="/logos/Logo_mp_farbig3.png"
+                    alt="MIKRO PARTNER"
+                    style={{
+                        height: '25px',
+                        width: 'auto',
+                        verticalAlign: 'middle',
+                        display: 'inline-block',
+                        margin: '0.25rem'
+                    }}
+                />{' '}
+                <span title="Lotte Musterfrau --> lmusterfrau@mikropartner.de" style={{ cursor: 'help', textDecoration: 'underline dotted' }}>
+                    Emailadresse
+                </span>
+                <br />
+                und Ihrem{' '}
+                <span title="Nutzen Sie bitte das selbe Passwort, dass Sie auch für die Windows Anmeldung, für Outlook, Teams, den Jobrouter und das Ticketsystem verwenden." style={{ cursor: 'help', textDecoration: 'underline dotted', whiteSpace: 'nowrap' }}>
+                    Windows Passwort
+                </span>{' '}
+                an, um fortzufahren.
+            </p>
             <button onClick={handleLogin} className="action-button login-button" disabled={isLoginInProgress}>
-                {isLoginInProgress ? <LoadingSpinner /> : 'Mit Microsoft anmelden'}
+                {isLoginInProgress ? <LoadingSpinner /> : 'Mit Ihrer Emailadresse anmelden'}
             </button>
         </div>
     );
