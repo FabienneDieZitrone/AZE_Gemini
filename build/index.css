@@ -206,6 +206,7 @@ body, html {
 .login-content p {
     color: var(--secondary-text-color);
     margin-top: 0;
+    line-height: 1.8;
 }
 .login-form {
     display: flex;
@@ -221,6 +222,35 @@ body, html {
     justify-content: center;
     align-items: center;
     min-height: 45px;
+}
+
+/* Tooltip Styles für Login-Seite */
+.tooltip-hint {
+    cursor: help;
+    text-decoration: underline dotted;
+    text-decoration-color: var(--accent-color);
+    text-underline-offset: 2px;
+    transition: text-decoration-color 0.2s ease;
+}
+
+.tooltip-hint:hover {
+    text-decoration-color: var(--accent-color-hover);
+    text-decoration-style: solid;
+}
+
+.tooltip-hint:focus {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+
+/* Inline Logo Style */
+.inline-logo {
+    height: 25px;
+    width: auto;
+    vertical-align: middle;
+    display: inline-block;
+    margin: 0 0.25rem;
 }
 
 
