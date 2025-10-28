@@ -35,7 +35,15 @@ export const formatTime = (totalSeconds: number, showSeconds = true): string => 
 export const calculateDurationInSeconds = (start: string, end: string): number => {
   if (!start || !end) return 0;
   const startTime = new Date(`1970-01-01T${start}Z`);
-  const endTime = new Date(`1970-01-01T${end}Z`);
+  let endTime = new Date(`1970-01-01T${end}Z`);
+
   if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) return 0;
+
+  // FIX: Wenn endTime < startTime, dann wurde über Mitternacht gearbeitet
+  // In diesem Fall muss der End-Zeitpunkt auf den nächsten Tag (1970-01-02) verschoben werden
+  if (endTime.getTime() < startTime.getTime()) {
+    endTime = new Date(`1970-01-02T${end}Z`);
+  }
+
   return Math.round((endTime.getTime() - startTime.getTime()) / TIME.MILLISECONDS_PER_SECOND);
 };
