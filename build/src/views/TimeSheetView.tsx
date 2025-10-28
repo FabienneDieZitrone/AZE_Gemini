@@ -263,13 +263,18 @@ export const TimeSheetView: React.FC<{
                 if (entry.isUnsynced) rowClass += ' unsynced-entry';
 
                 const userName = allUsers.find(u => u.id === entry.userId)?.name || entry.username;
+
+                // Prüfe ob lastStop über Mitternacht ging (lastStop < firstStart als String-Vergleich)
+                const crossesMidnight = entry.lastStop < entry.firstStart;
+                const displayLastStop = crossesMidnight ? `${entry.lastStop} ⁺¹` : entry.lastStop;
+
                 return (
                   <tr key={`${entry.date}-${entry.username}`} className={rowClass}>
                     <td className="cell-center"><button className="details-button" onClick={() => onShowDetails(entry.date, entry.username)}>Details</button></td>
                     <td className="text-left">{userName}</td>
                     <td className="cell-center">{new Date(entry.date + "T00:00:00").toLocaleDateString('de-DE')}</td>
                     <td className="cell-center">{entry.firstStart}</td>
-                    <td className="cell-center">{entry.lastStop}</td>
+                    <td className="cell-center" title={crossesMidnight ? 'Über Mitternacht (nächster Tag)' : ''}>{displayLastStop}</td>
                     <td className="cell-center">{formatTime(entry.totalSeconds)}</td>
                     <td className="cell-center">{formatTime(entry.pauseSeconds)}</td>
                     <td className="cell-center" style={{color: diffSeconds < 0 ? 'var(--red-color)' : 'var(--green-color)'}}>

@@ -47,6 +47,15 @@ export const aggregateTimeEntries = (entries: TimeEntry[]): AggregatedTimeEntry[
             return aTime.getTime() - bTime.getTime();
         });
 
+        // KORREKTUR: Setze firstStart und lastStop aus dem chronologisch ersten/letzten Eintrag
+        if (sortedEntries.length > 0) {
+            group.aggregated.firstStart = sortedEntries[0].startTime;
+
+            // Der letzte Eintrag (chronologisch)
+            const lastEntry = sortedEntries[sortedEntries.length - 1];
+            group.aggregated.lastStop = lastEntry.stopTime;
+        }
+
         // Berechne Pausen als Summe der Lücken zwischen Einträgen
         let pauseSeconds = 0;
         for (let i = 0; i < sortedEntries.length - 1; i++) {
