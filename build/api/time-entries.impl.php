@@ -591,13 +591,22 @@ function handleStop(mysqli $conn, array $sessionUser, InputValidationService $va
     }
 
     // Validate time ordering (stop > start)
+    // FIX (2025-10-28): Handle midnight crossing (e.g., 23:00 start, 01:00 stop)
     $startTs = strtotime($row['date'] . ' ' . $row['startTime']);
     $stopTs = strtotime($row['date'] . ' ' . $payload['stopTime']);
+
+    // If stopTs <= startTs, assume midnight crossing and move stop to next day
     if ($stopTs <= $startTs) {
-        send_response(400, [
-            'error' => 'VALIDATION_ERROR',
-            'message' => 'Stop time must be after start time.'
-        ]);
+        $nextDay = date('Y-m-d', strtotime($row['date'] . ' +1 day'));
+        $stopTs = strtotime($nextDay . ' ' . $payload['stopTime']);
+
+        // If still invalid after midnight adjustment, it's a real error
+        if ($stopTs <= $startTs) {
+            send_response(400, [
+                'error' => 'VALIDATION_ERROR',
+                'message' => 'Stop time must be after start time.'
+            ]);
+        }
     }
 
     $conn->begin_transaction();
