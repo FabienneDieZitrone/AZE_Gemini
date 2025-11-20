@@ -118,7 +118,6 @@ body, html {
   background-color: var(--secondary-bg-color);
   border-radius: 8px;
   box-shadow: 0 4px 12px var(--shadow-color);
-  border-top: 4px solid var(--brand-petrol);
   width: 100%;
   min-height: 400px;
   box-sizing: border-box;
@@ -126,7 +125,7 @@ body, html {
   transition: background-color 0.3s ease;
 }
 
-/* QUICK WIN: Sticky Petrol Header für bessere Brand-Sichtbarkeit */
+/* Header wie mikropartner.de - Weißer Background */
 .app-header-bar {
     display: flex;
     justify-content: space-between;
@@ -138,36 +137,36 @@ body, html {
     position: sticky;
     top: 0;
     z-index: 100;
-    background-color: var(--brand-petrol);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    background-color: #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border-bottom: 1px solid #e0e0e0;
 }
 
-/* QUICK WIN: Logo weiß und größer im Petrol-Header */
+/* Logo farbig wie auf mikropartner.de */
 .app-logo-img {
     position: relative;
     height: 60px;
     width: auto;
     object-fit: contain;
-    filter: brightness(0) invert(1);
 }
 
-/* QUICK WIN: Titel weiß und größer im Petrol-Header */
+/* Titel in Petrol auf weißem Header */
 .app-main-title {
     font-size: 1.75rem;
     font-weight: 600;
-    color: #ffffff;
+    color: var(--brand-petrol);
     margin: 0;
     white-space: nowrap;
     flex-grow: 1;
     text-align: center;
 }
 
-/* QUICK WIN: Logout-Button weiß im Petrol-Header */
+/* Logout-Button auf weißem Header */
 .logout-button {
     position: relative;
-    background-color: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    color: #ffffff;
+    background-color: transparent;
+    border: 1px solid var(--brand-petrol);
+    color: var(--brand-petrol);
     padding: 0.5rem 1rem;
     border-radius: 8px;
     cursor: pointer;
@@ -176,8 +175,9 @@ body, html {
 }
 
 .logout-button:hover {
-    background-color: rgba(255, 255, 255, 0.2);
-    border-color: #ffffff;
+    background-color: var(--red-color);
+    border-color: var(--red-color);
+    color: #ffffff;
 }
 
 .offline-banner {
@@ -193,6 +193,7 @@ body, html {
 }
 
 /* Login View */
+/* Login View - Einfaches, klares Design */
 .login-content {
     display: flex;
     flex-direction: column;
@@ -203,14 +204,17 @@ body, html {
     max-width: 400px;
     margin: 2rem auto;
 }
+
 .login-content .app-logo-img {
     position: static;
     transform: none;
 }
+
 .login-content h2 {
     color: var(--accent-color);
     margin-bottom: 0;
 }
+
 .login-content p {
     color: var(--secondary-text-color);
     margin-top: 0;

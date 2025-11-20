@@ -30,9 +30,11 @@ $cacheBuster = time(); // Unix timestamp forces fresh load
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MP Arbeitszeiterfassung</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🕒</text></svg>">
-    <script type="module" crossorigin src="/assets/index-CXvjNylA.js?v=<?php echo $cacheBuster; ?>"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-DxvNUvsj.css?v=<?php echo $cacheBuster; ?>">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=<?php echo $cacheBuster; ?>">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png?v=<?php echo $cacheBuster; ?>">
+    <link rel="apple-touch-icon" sizes="180x180" href="/favicon.png?v=<?php echo $cacheBuster; ?>">
+    <script type="module" crossorigin src="/assets/index-9VQ9fk_S.js?v=<?php echo $cacheBuster; ?>"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-BPXwpnPO.css?v=<?php echo $cacheBuster; ?>">
   </head>
   <body>
     <div id="root"></div>
