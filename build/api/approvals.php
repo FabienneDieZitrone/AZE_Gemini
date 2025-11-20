@@ -504,6 +504,12 @@ try {
                     $date = $newd['date'] ?? date('Y-m-d');
                     $start = $newd['startTime'] ?? '00:00:00';
                     $stop  = $newd['stopTime'] ?? '00:00:00';
+
+                    // CRITICAL FIX: Validate stop_time - reject if null, empty, or invalid
+                    if (empty($stop) || $stop === 'Invalid' || $stop === 'null' || !preg_match('/^\d{2}:\d{2}:\d{2}$/', $stop)) {
+                        throw new Exception('Ungültige Stop-Zeit: Timer muss beendet sein bevor Genehmigung erfolgen kann. Bitte Eintrag stoppen und erneut zur Genehmigung einreichen.');
+                    }
+
                     $location = $newd['location'] ?? '';
                     $role = $newd['role'] ?? 'Mitarbeiter';
                     $updBy = $sessionUser['username'] ?? ($sessionUser['name'] ?? 'system');
@@ -523,6 +529,12 @@ try {
                     $id = (int)($orig['id'] ?? 0);
                     $start = $newd['startTime'] ?? $orig['start_time'];
                     $stop  = $newd['stopTime']  ?? $orig['stop_time'];
+
+                    // CRITICAL FIX: Validate stop_time - reject if null, empty, or invalid
+                    if (empty($stop) || $stop === 'Invalid' || $stop === 'null' || !preg_match('/^\d{2}:\d{2}:\d{2}$/', $stop)) {
+                        throw new Exception('Ungültige Stop-Zeit: Timer muss beendet sein bevor Genehmigung erfolgen kann. Bitte Eintrag stoppen und erneut zur Genehmigung einreichen.');
+                    }
+
                     $updBy = $sessionUser['username'] ?? ($sessionUser['name'] ?? 'system');
                     $sqlUp = "UPDATE time_entries SET start_time = ?, stop_time = ?, updated_by = ?, updated_at = NOW() WHERE id = ?";
                     $up = $conn->prepare($sqlUp);
