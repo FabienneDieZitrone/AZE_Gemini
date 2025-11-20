@@ -557,7 +557,7 @@ export const MainAppView: React.FC = () => {
             Impressum
           </a>
           <span className="footer-separator">|</span>
-          <a href="https://www.mikropartner.de/datenschutzhinweise/" target="_blank" rel="noopener noreferrer">
+          <a href="https://www.mikropartner.de/ds" target="_blank" rel="noopener noreferrer">
             Datenschutz
           </a>
           <span className="footer-separator">|</span>

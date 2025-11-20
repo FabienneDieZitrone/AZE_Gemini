@@ -33,8 +33,8 @@ $cacheBuster = time(); // Unix timestamp forces fresh load
     <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=<?php echo $cacheBuster; ?>">
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png?v=<?php echo $cacheBuster; ?>">
     <link rel="apple-touch-icon" sizes="180x180" href="/favicon.png?v=<?php echo $cacheBuster; ?>">
-    <script type="module" crossorigin src="/assets/index-9VQ9fk_S.js?v=<?php echo $cacheBuster; ?>"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-BPXwpnPO.css?v=<?php echo $cacheBuster; ?>">
+    <script type="module" crossorigin src="/assets/index-C1aZMdgV.js?v=<?php echo $cacheBuster; ?>"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-jVRpcO6Q.css?v=<?php echo $cacheBuster; ?>">
   </head>
   <body>
     <div id="root"></div>
