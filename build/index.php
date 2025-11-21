@@ -30,11 +30,11 @@ $cacheBuster = time(); // Unix timestamp forces fresh load
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MP Arbeitszeiterfassung</title>
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=<?php echo $cacheBuster; ?>">
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png?v=<?php echo $cacheBuster; ?>">
-    <link rel="apple-touch-icon" sizes="180x180" href="/favicon.png?v=<?php echo $cacheBuster; ?>">
-    <script type="module" crossorigin src="/assets/index-C1aZMdgV.js?v=<?php echo $cacheBuster; ?>"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-jVRpcO6Q.css?v=<?php echo $cacheBuster; ?>">
+    <link rel="icon" type="image/svg+xml" href="/app-icon.svg?v=<?php echo $cacheBuster; ?>">
+    <link rel="icon" type="image/png" sizes="32x32" href="/app-icon.png?v=<?php echo $cacheBuster; ?>">
+    <link rel="apple-touch-icon" sizes="180x180" href="/app-icon.png?v=<?php echo $cacheBuster; ?>">
+    <script type="module" crossorigin src="/assets/index-BSHMDkjp.js?v=<?php echo $cacheBuster; ?>"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-pqOFYS4b.css?v=<?php echo $cacheBuster; ?>">
   </head>
   <body>
     <div id="root"></div>

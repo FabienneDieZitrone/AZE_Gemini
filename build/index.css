@@ -635,12 +635,12 @@ body, html {
   padding: 0.5rem 1rem;
   font-size: 1rem;
   border: none;
-  background-color: var(--action-color);
-  color: #000000;
+  background-color: var(--brand-petrol);
+  color: #ffffff;
   font-weight: 600;
   border-radius: 8px;
   cursor: pointer;
-  transition: background-color 0.2s, transform 0.1s;
+  transition: background-color 0.2s, transform 0.1s, color 0.2s;
   height: fit-content;
 }
 
@@ -656,8 +656,8 @@ body, html {
 
 
 .action-button:hover {
-  background-color: var(--brand-petrol);
-  color: #ffffff;
+  background-color: var(--brand-lime);
+  color: #000000;
 }
 .action-button:disabled {
     background-color: var(--secondary-text-color);
