@@ -1,22 +1,49 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 100" width="400" height="100">
-  <!-- Lime Bogen - Präzise MIKRO PARTNER Farbe -->
-  <path d="M 20 50 Q 20 20, 40 20 L 60 20 Q 80 20, 80 40 L 80 80 Q 80 100, 60 100 L 40 100 Q 20 100, 20 80 Z"
-        fill="#cef431" opacity="0.95"/>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
 
-  <!-- Petrol Kreis (Kopf) - Präzise MIKRO PARTNER Farbe -->
-  <circle cx="85" cy="30" r="12" fill="#014651"/>
-
-  <!-- Petrol Körper obere Hälfte -->
-  <path d="M 75 45 L 85 42 L 95 45 L 100 60 L 70 60 Z" fill="#014651"/>
-
-  <!-- Petrol Körper untere Hälfte / Beine -->
-  <path d="M 72 60 L 75 80 L 82 82 L 85 62 L 88 82 L 95 80 L 98 60 Z" fill="#014651"/>
-
-  <!-- Text MIKRO PARTNER in Petrol -->
-  <text x="120" y="45" font-family="Arial, sans-serif" font-size="32" font-weight="700" fill="#014651">
-    MIKRO
-  </text>
-  <text x="120" y="80" font-family="Arial, sans-serif" font-size="32" font-weight="700" fill="#014651">
-    PARTNER
-  </text>
+<svg
+   version="1.1"
+   id="svg1"
+   width="40"
+   height="42.666668"
+   viewBox="0 0 40 42.666668"
+   sodipodi:docname="jr-fav-icon-gruen.svg"
+   inkscape:version="1.4.2 (2aeb623e1d, 2025-05-12)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="18.890624"
+     inkscape:cx="20.009926"
+     inkscape:cy="21.333334"
+     inkscape:window-width="1854"
+     inkscape:window-height="1011"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="g1" />
+  <g
+     inkscape:groupmode="layer"
+     inkscape:label="Image"
+     id="g1">
+    <image
+       width="40"
+       height="42.666668"
+       preserveAspectRatio="none"
+       style="image-rendering:optimizeQuality"
+       xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAgCAYAAAAFQMh/AAAABGdBTUEAALGPC/xhBQAAAAFzUkdC&#10;AdnJLH8AAAAgY0hSTQAAeiYAAICEAAD6AAAAgOgAAHUwAADqYAAAOpgAABdwnLpRPAAAAAZiS0dE&#10;AAAAAAAA+UO7fwAAAAlwSFlzAAALEwAACxMBAJqcGAAAAAd0SU1FB+kLFBQWE9Y97pYAAAM4SURB&#10;VEjHxZZNaFRXFMf/576P+YiNEKlRx8zkQzfFRQkoggtFF9GFIFl05UTTQKE73ShSKlYFQZQSUFwI&#10;GvN0JagbP0C6kEIJWFrqB0g1Ok4zKm5E0Mmbefee04WoM0kmczNj9OzeuY/7O/ee8z/30KW/jgrm&#10;aDv3jc3oHzmy1noP9amg9daaAttsbAtXmSVnO/EFzCXH3bCi8/x1x8FjreXq+NPstc8BVrlCdoQ1&#10;fjJG1rcscK51dwT5nkxworPj3Jr5BFNlVXengystLc42YwSlkCMQbsDg2PhE9pZtDm0r2638eJzP&#10;buteHpyPJdR2EXgxX22NwFt6OoJRHen9T18M5potxveB0Uw67loeXIonVX9YZBAB8YRCucwFibBr&#10;vJC9WG9Tm1uhWg2kOx3c9n1aXQrfLbseAQLWWvY/mcgebkZKI0fW1tZxKdKDuiyvHIcAADoSMIuK&#10;xdXhrlRwqJnmMWsDKTwfvKdZDrgeffAxA+USIxannzPLRn9sFFq3c+UmBobDSfO353+EiwBaA65H&#10;R7syF1Y1rOO6elM4TlTtM0bgx9RXEpmDn0THtawzFeQ9j9JaS2VAgKDEZHpz+Z33ba67UuOuTXQC&#10;3HQ9GqoECwOJpIqFRdk8F+CcwAT8LoKhaQEJwILVjXQxy2eRH5bL75pJlZcFCljSSOu0OzG7r4VM&#10;RETetJAsoJX5f79medVCLKCpJ1aKANDLWtDZCs4KbBxp8xzlMlcLgAgA8T8AvrMBVv5jlWOH5BvP&#10;J4hUQ0shMxvnt4ZGHys5CW2UKWr3YwqG5Y/88+1jNtCpea8LTqVGlgLYqCOuah5Gs4GiXxqBWoF9&#10;ODviCbXImI+iTiQUorIcz+WzNxt9JGYtrpWZc2kj6nYUyYe8xpMKxTd8JvdsYE8zo9CsYK3pZDyp&#10;2sNJhucTmCHFt3Kst/3u3ta+se+bmb1U7Ydh9Nd40tmqtSCRVDCMB8Zwf+/iO3ta+/q52YFvxhN3&#10;pUaHF7a5u8MiQ1j+DSfN6TuF+6cGvsXb1r5+aXbCnPYsLrg+PPT1D23rPI82scgtQC4/ejJwuZGq&#10;nRO4Jx10kKD90X/ZP23H1HkdBObD/gfdYYkf1u92ugAAAABJRU5ErkJggg==&#10;"
+       id="image1" />
+  </g>
 </svg>

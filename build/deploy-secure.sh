@@ -149,6 +149,18 @@ case "$MODE" in
             else
               upload_file "dist/index.html" "/dist/index.html"
             fi
+            # Upload static assets (PNG, SVG) from dist root
+            for file in dist/*.png dist/*.svg; do
+                if [ -f "$file" ]; then
+                    filename=$(basename "$file")
+                    if [ "$DRY" = "1" ]; then
+                      echo "[dry-run] Would upload $file -> $FTP_BASE_PATH/$filename"
+                    else
+                      upload_file "$file" "/$filename" || true
+                    fi
+                fi
+            done
+            # Upload JS/CSS assets
             for file in dist/assets/*; do
                 if [ -f "$file" ]; then
                     filename=$(basename "$file")
