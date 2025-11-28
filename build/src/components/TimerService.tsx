@@ -21,26 +21,31 @@ interface TimerDisplayProps {
   displayTime: string;
   isRunning: boolean;
   onToggle: () => void;
+  startTime: number | null;
 }
 
 /**
  * Timer Display Component
  * Zeigt den Timer-Button und die verstrichene Zeit an
  */
-const TimerDisplay: React.FC<TimerDisplayProps> = ({ displayTime, isRunning, onToggle }) => {
+const TimerDisplay: React.FC<TimerDisplayProps> = ({ displayTime, isRunning, onToggle, startTime }) => {
   return (
     <section className="tracking-section" aria-label="Zeiterfassung">
       <div className="label">Zeiterfassung starten / stoppen</div>
       <div className="tracking-controls">
-        <button 
-          onClick={onToggle} 
-          className={`toggle-button ${isRunning ? 'stop-button' : 'start-button'}`} 
+        <button
+          onClick={onToggle}
+          className={`toggle-button ${isRunning ? 'stop-button' : 'start-button'}`}
           aria-live="polite"
         >
           {isRunning ? 'Stop' : 'Start'}
         </button>
         {isRunning && (
-          <div className="timer-display" aria-label="Abgelaufene Zeit">
+          <div
+            className="timer-display"
+            aria-label="Abgelaufene Zeit"
+            title={startTime ? `Gestartet um: ${new Date(startTime).toLocaleTimeString('de-DE')}` : ''}
+          >
             {displayTime}
           </div>
         )}
@@ -222,10 +227,11 @@ export const TimerService: React.FC<TimerServiceProps> = ({
   };
 
   return (
-    <TimerDisplay 
+    <TimerDisplay
       displayTime={timer.displayTime}
       isRunning={timer.isRunning}
       onToggle={handleToggleTracking}
+      startTime={timer.startTime}
     />
   );
 };

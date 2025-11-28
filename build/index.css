@@ -346,13 +346,14 @@ body, html {
     min-height: 50px;
 }
 
-/* QUICK WIN: Timer größer und mit Petrol-Branding */
+/* Timer mit Brand-Lime-Farbe (gleich wie Button-Schrift) */
 .timer-display {
   font-size: 2.5rem;
   font-family: 'Courier New', Courier, monospace;
   font-weight: bold;
-  color: var(--brand-petrol);
+  color: var(--brand-lime);
   min-width: 180px;
+  cursor: help;
   text-align: left;
   letter-spacing: 0.05em;
   transition: all 0.3s ease;
