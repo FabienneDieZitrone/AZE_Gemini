@@ -26,6 +26,7 @@ import { RoleAssignmentModal } from '../components/modals/RoleAssignmentModal';
 import { SupervisorNotificationModal } from '../components/modals/SupervisorNotificationModal';
 import { NewEntryModal } from '../components/modals/NewEntryModal';
 import { OvertimeBreakdownModal } from '../components/modals/OvertimeBreakdownModal';
+import { AdventCalendarModal } from '../components/modals/AdventCalendarModal';
 import { useSupervisorNotifications } from '../hooks/useSupervisorNotifications';
 
 import { TimeSheetView } from './TimeSheetView';
@@ -54,6 +55,8 @@ export const MainAppView: React.FC = () => {
   const [editingRoleForUser, setEditingRoleForUser] = useState<User | null>(null);
   const [requestNewEntryOpen, setRequestNewEntryOpen] = useState<boolean>(false);
   const [showOvertimeBreakdown, setShowOvertimeBreakdown] = useState<boolean>(false);
+  const [showAdventModal, setShowAdventModal] = useState<boolean>(false);
+  const [adventDoorNumber, setAdventDoorNumber] = useState<number>(1);
 
   const [currentLocation, setCurrentLocation] = useState<string>('Zentrale Berlin');
   const [theme, setTheme] = useState<Theme>('light');
@@ -126,7 +129,34 @@ export const MainAppView: React.FC = () => {
   const handleTimerStart = useCallback((_timerId: number) => {
     setHasRunningTimer(true);
     refreshData();
-  }, []);
+
+    // IT-Adventskalender: Zeige Popup für IT-Mitglieder im Dezember (und 30.11. zum Testen)
+    // Prüfe ob Benutzer dem Standort "IT Abteilung" ZUGEORDNET ist (nicht nur aktueller Standort)
+    const userLocations = currentUser && masterData[currentUser.id]?.locations || [];
+    const isITMember = userLocations.includes('IT Abteilung');
+
+    if (isITMember) {
+      const today = new Date();
+      const month = today.getMonth(); // 0-11 (November=10, Dezember=11)
+      const day = today.getDate();
+
+      let doorNumber = 0;
+
+      // 30. November = Tür 1 (Testmodus)
+      if (month === 10 && day === 30) {
+        doorNumber = 1;
+      }
+      // 1.-24. Dezember = Tür 1-24
+      else if (month === 11 && day >= 1 && day <= 24) {
+        doorNumber = day;
+      }
+
+      if (doorNumber > 0) {
+        setAdventDoorNumber(doorNumber);
+        setShowAdventModal(true);
+      }
+    }
+  }, [currentUser, masterData]);
 
   const handleTimerStop = useCallback((_timerId: number) => {
     setHasRunningTimer(false);
@@ -550,6 +580,12 @@ export const MainAppView: React.FC = () => {
             userId={currentUser.id}
             masterData={masterData[currentUser.id]}
             onClose={() => setShowOvertimeBreakdown(false)}
+          />
+        )}
+        {showAdventModal && (
+          <AdventCalendarModal
+            doorNumber={adventDoorNumber}
+            onClose={() => setShowAdventModal(false)}
           />
         )}
         <footer className="app-footer">
