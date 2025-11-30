@@ -348,15 +348,19 @@ body, html {
 
 /* Timer mit Brand-Lime-Farbe (gleich wie Button-Schrift) */
 .timer-display {
-  font-size: 2.5rem;
+  font-size: 1.5rem;
   font-family: 'Courier New', Courier, monospace;
-  font-weight: bold;
+  font-weight: 800;
   color: var(--brand-lime);
-  min-width: 180px;
+  min-width: 140px;
   cursor: help;
-  text-align: left;
+  text-align: center;
   letter-spacing: 0.05em;
   transition: all 0.3s ease;
+  background-color: #f0f0f0;
+  padding: 0.5rem 1.5rem;
+  border-radius: 8px;
+  line-height: 1.2;
 }
 
 /* Laufender Timer mit Lime-Glow */

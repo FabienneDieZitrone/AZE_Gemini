@@ -44,7 +44,7 @@ const TimerDisplay: React.FC<TimerDisplayProps> = ({ displayTime, isRunning, onT
           <div
             className="timer-display"
             aria-label="Abgelaufene Zeit"
-            title={startTime ? `Gestartet um: ${new Date(startTime).toLocaleTimeString('de-DE')}` : ''}
+            title={startTime ? `Gestartet um: ${new Date(startTime).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr` : ''}
           >
             {displayTime}
           </div>
